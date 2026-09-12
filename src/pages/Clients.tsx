@@ -1,49 +1,71 @@
-import { useState, useEffect, useMemo } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabase";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost } from "lucide-react";
 import { toast } from "sonner";
+import PlaybookAccordion from "@/components/PlaybookAccordion";
+import { supabase } from "@/lib/supabase";
+import html2pdf from "html2pdf.js";
+import { ClientDecisionModal } from "@/components/crm/ClientDecisionModal";
 
 interface Client {
   id: string;
   name: string;
   phone: string;
   instagram: string;
-  age: number;
-  sessions: number;
-  lastVisit: string;
+  birthDate?: string;
+  status: string;
   avatar_url?: string;
-  referred_by_id?: string;
   referrer_name?: string;
+  referred_by_id?: string;
+  notes?: string;
+  sessions?: number;
+  lastVisit?: string;
 }
+
+const JOURNEY_STAGES = [
+  { id: "Orçamento", title: "Orçamento", icon: <MessageSquare className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Primeiro contato, troca de ideias e orçamentos." },
+  { id: "Onboarding", title: "Onboarding", icon: <ClipboardList className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Ficha de anamnese e orientações." },
+  { id: "Sessão Agendada", title: "Sessão Agendada", icon: <Calendar className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Aguardando o dia da sessão. Lembretes e dicas pré-tattoo." },
+  { id: "Projeto em Andamento", title: "Múltiplas Sessões", icon: <List className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Projeto de múltiplas sessões em execução." },
+  { id: "Pós-Tatuagem", title: "Pós-Tatuagem", icon: <HeartPulse className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Acompanhamento da cicatrização (7-15 dias)." },
+  { id: "Concluído", title: "Concluído", icon: <CheckCircle className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Processo finalizado com sucesso." }
+];
 
 const Clients = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const targetId = searchParams.get('id');
+  const [activeTab, setActiveTab] = useState<string>("lista");
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [journeys, setJourneys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [draggedOverStage, setDraggedOverStage] = useState<string | null>(null);
 
-  // New states for sessions
+  // States do Modal de Decisão do Cliente
+  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [decisionClient, setDecisionClient] = useState<any | null>(null);
+
+  // States for sessions, referrals & anamnesis
   const [clientSessions, setClientSessions] = useState<any[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
-
-  // New states for referrals
   const [referredClients, setReferredClients] = useState<any[]>([]);
   const [loadingReferrals, setLoadingReferrals] = useState(false);
-
-  // New states for Anamnesis
   const [clientAnamnesis, setClientAnamnesis] = useState<any>(null);
   const [loadingAnamnesis, setLoadingAnamnesis] = useState(false);
 
-  // New Client States
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [tempNotes, setTempNotes] = useState("");
+
+  // New Client & Edit States
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
@@ -51,7 +73,9 @@ const Clients = () => {
     name: "",
     phone: "",
     instagram: "",
-    age: "",
+    birthDate: "",
+    status: "Orçamento",
+    notes: "",
     avatar_url: "",
     referred_by_id: ""
   });
@@ -62,7 +86,8 @@ const Clients = () => {
     name: "",
     phone: "",
     instagram: "",
-    age: "",
+    birthDate: "",
+    status: "Orçamento",
     avatar_url: "",
     referred_by_id: ""
   });
@@ -70,37 +95,39 @@ const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
+      const { data: clientsData, error: clientsError } = await supabase.from('clientes').select('*, appointments(id, date), referrer:clientes!referred_by_id(name)');
+      if (clientsError) throw clientsError;
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/clients", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro ao buscar clientes");
-      const data = await res.json();
+      const { data: journeysData, error: journeysError } = await supabase.from('journeys').select('*, client:clientes(name, avatar_url, phone, appointments(date))');
+      if (journeysError) console.log("Aviso journeys:", journeysError);
 
-      const formatted = data.map((c: any) => ({
+      const formatted = (clientsData || []).map((c: any) => ({
         id: c.id,
         name: c.name,
         phone: c.phone || "Não informado",
         instagram: c.instagram || "@",
-        age: c.age || 0,
-        sessions: c.sessions || 0,
-        lastVisit: c.last_visit ? new Date(c.last_visit).toLocaleDateString() : "Sem visitas",
+        birthDate: c.birth_date || "",
+        sessions: c.appointments ? c.appointments.length : 0,
+        lastVisit: c.appointments && c.appointments.length > 0
+          ? new Date(c.appointments[c.appointments.length - 1].date).toLocaleDateString("pt-BR")
+          : "Sem visitas",
+        status: c.status || "Orçamento",
+        notes: c.notes || "",
         avatar_url: c.avatar_url,
         referred_by_id: c.referred_by_id,
         referrer_name: c.referrer?.name
       }));
 
       setClients(formatted);
+      setJourneys(journeysData || []);
 
-      // Update selected client if it was already selected
       if (selectedClient) {
         const updated = formatted.find((c: any) => c.id === selectedClient.id);
         if (updated) setSelectedClient(updated);
       }
     } catch (error) {
       console.error('Error fetching clients:', error);
+      toast.error("Erro ao carregar dados do CRM");
     } finally {
       setLoading(false);
     }
@@ -110,13 +137,10 @@ const Clients = () => {
     fetchClients();
   }, []);
 
-  // Auto-select client if ID is in URL
   useEffect(() => {
     if (targetId && clients.length > 0 && !selectedClient) {
       const target = clients.find(c => c.id === targetId);
-      if (target) {
-        setSelectedClient(target);
-      }
+      if (target) setSelectedClient(target);
     }
   }, [targetId, clients, selectedClient]);
 
@@ -131,11 +155,10 @@ const Clients = () => {
   const fetchClientAnamnesis = async (clientId: string) => {
     try {
       setLoadingAnamnesis(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/anamnesis/${clientId}`);
-      const data = await res.json();
+      const { data, error } = await supabase.from('anamnesis').select('*').eq('client_id', clientId).single();
       
-      if (res.ok && data.anamnesis) {
-        const answers = data.anamnesis.answers;
+      if (data && !error) {
+        const answers = data.answers || {};
         setClientAnamnesis({
           medical_history: {
             diabetes: answers.diabetes,
@@ -145,12 +168,13 @@ const Clients = () => {
             keloids: answers.keloids,
           },
           birth_date: answers.birth_date,
-          discovery_source: answers.discovery_source,
+          discovery_source: data.discovery_source,
           allergies: answers.allergies,
           medications: answers.medications,
           emergency_contact: answers.emergency_contact,
           has_contract_signed: true,
-          signed_at: data.anamnesis.createdAt
+          signed_at: data.created_at,
+          client_ip: answers.client_ip
         });
       } else {
         setClientAnamnesis(null);
@@ -165,12 +189,8 @@ const Clients = () => {
   const fetchClientSessions = async (clientId: string) => {
     try {
       setLoadingSessions(true);
-      const token = localStorage.getItem("noxus_token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments/client/${clientId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro");
-      const data = await res.json();
+      const { data, error } = await supabase.from('appointments').select('*').eq('client_id', clientId);
+      if (error) throw error;
       setClientSessions(data || []);
     } catch (error) {
       console.error('Error fetching client sessions:', error);
@@ -182,12 +202,8 @@ const Clients = () => {
   const fetchReferredClients = async (clientId: string) => {
     try {
       setLoadingReferrals(true);
-      const token = localStorage.getItem("noxus_token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/clients/${clientId}/referrals`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro");
-      const data = await res.json();
+      const { data, error } = await supabase.from('clientes').select('*').eq('referred_by_id', clientId);
+      if (error) throw error;
       setReferredClients(data || []);
     } catch (error) {
       console.error('Error fetching referred clients:', error);
@@ -196,176 +212,72 @@ const Clients = () => {
     }
   };
 
-  const handleCopyAnamnesisLink = async () => {
-    if (!selectedClient) return;
-    const url = `${window.location.origin}/anamnese/${selectedClient.id}`;
-
+  const handleUpdateJourneyStatus = async (journeyId: string, newStatus: string) => {
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copiado para a área de transferência!");
-      } else {
-        // Fallback for non-HTTPS or older browsers
-        const textArea = document.createElement("textarea");
-        textArea.value = url;
+      const { error: journeyError } = await supabase.from('journeys').update({ status: newStatus }).eq('id', journeyId);
+      if (journeyError) throw journeyError;
 
-        // Avoid scrolling to bottom
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.position = "fixed";
-
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        try {
-          const successful = document.execCommand('copy');
-          if (successful) {
-            toast.success("Link copiado para a área de transferência!");
-          } else {
-            toast.error("Não foi possível copiar o link.", { description: "Copie manualmente: " + url });
-          }
-        } catch (err) {
-          toast.error("Não foi possível copiar o link.", { description: "Copie manualmente: " + url });
-        }
-
-        document.body.removeChild(textArea);
+      const journey = journeys.find(j => j.id === journeyId);
+      if (journey && journey.client_id) {
+        await supabase.from('clientes').update({ status: newStatus }).eq('id', journey.client_id);
       }
+
+      toast.success(`Estágio atualizado para "${newStatus}"!`);
+      await fetchClients();
     } catch (error) {
-      console.error("Failed to copy", error);
-      toast.error("Não foi possível copiar o link.", { description: "Copie manualmente: " + url });
-    }
-  };
-
-  const handleSendAnamnesisWhatsApp = () => {
-    if (!selectedClient || !selectedClient.phone) {
-      alert("O cliente não possui um telefone cadastrado.");
-      return;
-    }
-    const url = `${window.location.origin}/anamnese/${selectedClient.id}`;
-    const text = `Olá ${selectedClient.name}! Aqui está o link para você preencher sua ficha de anamnese e assinar as autorizações do estúdio antes da sua sessão: ${url}`;
-    const phoneValid = selectedClient.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${phoneValid}?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploading(true);
-      if (!event.target.files || event.target.files.length === 0) return;
-
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      setNewClientData({ ...newClientData, avatar_url: publicUrl });
-    } catch (error) {
-      alert('Erro ao carregar imagem.');
       console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleUpdateAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      if (!selectedClient || !event.target.files || event.target.files.length === 0) return;
-      setIsUpdatingAvatar(true);
-
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${selectedClient.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from('nx_clients')
-        .update({ avatar_url: publicUrl })
-        .eq('id', selectedClient.id);
-
-      if (updateError) throw updateError;
-
-      // Update local state
-      const updatedClient = { ...selectedClient, avatar_url: publicUrl };
-      setSelectedClient(updatedClient);
-
-      // Update in the clients list
-      setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
-
-    } catch (error) {
-      console.error('Error updating avatar:', error);
-      alert('Erro ao atualizar a foto de perfil.');
-    } finally {
-      setIsUpdatingAvatar(false);
+      toast.error("Erro ao atualizar estágio da jornada.");
     }
   };
 
   const handleCreateClient = async () => {
     try {
       if (!newClientData.name) {
-        alert("O nome é obrigatório.");
+        toast.error("O nome é obrigatório.");
         return;
       }
+      
+      const { data: newClient, error } = await supabase.from('clientes').insert([{
+        name: newClientData.name,
+        phone: newClientData.phone,
+        instagram: newClientData.instagram,
+        birth_date: newClientData.birthDate || null,
+        status: newClientData.status || "Orçamento",
+        notes: newClientData.notes || "",
+        avatar_url: newClientData.avatar_url,
+        referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null)
+      }]).select().single();
 
-      const token = localStorage.getItem("noxus_token");
-      if (!token) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-      }
+      if (error) throw error;
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/clients", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: newClientData.name,
-          phone: newClientData.phone,
-          instagram: newClientData.instagram,
-          age: parseInt(newClientData.age) || 0,
-          avatar_url: newClientData.avatar_url,
-          referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null)
-        })
-      });
+      // Criar a primeira jornada no Kanban
+      await supabase.from('journeys').insert([{
+        client_id: newClient.id,
+        status: newClientData.status || 'Orçamento'
+      }]);
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Erro ao criar cliente");
-      }
-
+      toast.success("Cliente e Jornada criados com sucesso!");
       await fetchClients();
       setIsAddingClient(false);
-      setNewClientData({
-        name: "",
-        phone: "",
-        instagram: "",
-        age: "",
-        avatar_url: "",
-        referred_by_id: ""
-      });
-    } catch (error: any) {
+      setNewClientData({ name: "", phone: "", instagram: "", birthDate: "", status: "Orçamento", notes: "", avatar_url: "", referred_by_id: "" });
+    } catch (error) {
       console.error('Error creating client:', error);
-      alert('Erro ao criar cliente: ' + (error?.message || 'Erro desconhecido.'));
+      toast.error('Erro ao criar cliente.');
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedClient) return;
+    try {
+      const { error } = await supabase.from('clientes').update({ notes: tempNotes }).eq('id', selectedClient.id);
+      if (error) throw error;
+      
+      setSelectedClient(prev => prev ? { ...prev, notes: tempNotes } : null);
+      setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...c, notes: tempNotes } : c));
+      setIsEditingNotes(false);
+      toast.success("Anotações salvas com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao salvar anotações.");
     }
   };
 
@@ -376,7 +288,8 @@ const Clients = () => {
       name: selectedClient.name,
       phone: selectedClient.phone === "Não informado" ? "" : selectedClient.phone,
       instagram: selectedClient.instagram === "@" ? "" : selectedClient.instagram,
-      age: selectedClient.age ? selectedClient.age.toString() : "",
+      birthDate: selectedClient.birthDate || "",
+      status: selectedClient.status || "Orçamento",
       avatar_url: selectedClient.avatar_url || "",
       referred_by_id: selectedClient.referred_by_id || "none"
     });
@@ -386,29 +299,28 @@ const Clients = () => {
   const handleUpdateClient = async () => {
     try {
       if (!editClientData.name) {
-        alert("O nome é obrigatório.");
+        toast.error("O nome é obrigatório.");
         return;
       }
-
       setUploading(true);
-      const { error } = await supabase
-        .from('nx_clients')
-        .update({
-          name: editClientData.name,
-          phone: editClientData.phone,
-          instagram: editClientData.instagram,
-          age: parseInt(editClientData.age) || 0,
-          referred_by_id: editClientData.referred_by_id === "none" ? null : (editClientData.referred_by_id || null)
-        })
-        .eq('id', editClientData.id);
+      
+      const { error } = await supabase.from('clientes').update({
+        name: editClientData.name,
+        phone: editClientData.phone,
+        instagram: editClientData.instagram,
+        birth_date: editClientData.birthDate || null,
+        status: editClientData.status,
+        referred_by_id: editClientData.referred_by_id === "none" ? null : (editClientData.referred_by_id || null)
+      }).eq('id', editClientData.id);
 
       if (error) throw error;
 
+      toast.success("Cliente atualizado com sucesso!");
       await fetchClients();
       setIsEditingClient(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating client:', error);
-      alert('Erro ao atualizar cliente: ' + (error?.message || 'Erro desconhecido.'));
+      toast.error('Erro ao atualizar cliente.');
     } finally {
       setUploading(false);
     }
@@ -416,611 +328,555 @@ const Clients = () => {
 
   const handleDeleteClient = async () => {
     if (!selectedClient) return;
-    if (!window.confirm(`Tem certeza que deseja excluir o cliente ${selectedClient.name}? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+    if (!window.confirm(`Tem certeza que deseja excluir o cliente ${selectedClient.name}? Esta ação não pode ser desfeita.`)) return;
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('nx_clients')
-        .delete()
-        .eq('id', selectedClient.id);
-
+      const { error } = await supabase.from('clientes').delete().eq('id', selectedClient.id);
       if (error) throw error;
 
+      toast.success("Cliente excluído com sucesso!");
       setSelectedClient(null);
       await fetchClients();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting client:', error);
-      alert('Erro ao excluir cliente (Pode haver sessões, fichas de anamnese ou orçamentos associados a ele que precisam ser excluídos antes). erro: ' + (error?.message || 'Erro desconhecido.'));
+      toast.error('Erro ao excluir cliente.');
     } finally {
       setLoading(false);
     }
   };
 
   const filtered = clients.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+    c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
   );
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Clientes</h1>
-          <p className="page-subtitle">Gerencie seus clientes e fichas</p>
-        </div>
-        <Button onClick={() => setIsAddingClient(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Client List */}
-        <div className="lg:col-span-1 bg-card rounded-xl border shadow-sm text-foreground">
-          <div className="p-4 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar cliente..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+        {/* Header do CRM com as Abas Superiores */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="page-title">Clientes & Funil CRM</h1>
+            <p className="page-subtitle">Gerencie sua carteira de clientes, funil de vendas e jornada de garimpo</p>
           </div>
-          <div className="divide-y max-h-[600px] overflow-y-auto">
-            {loading ? (
-              <div className="p-8 text-center text-sm text-muted-foreground font-medium">Carregando...</div>
-            ) : filtered.length > 0 ? (
-              filtered.map((client) => (
-                <button
-                  key={client.id}
-                  onClick={() => setSelectedClient(client)}
-                  className={`w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors text-left ${selectedClient?.id === client.id ? "bg-accent" : ""
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {client.avatar_url ? (
-                      <img src={client.avatar_url} alt={client.name} className="h-10 w-10 rounded-full object-cover border border-accent/20" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center text-sm font-semibold text-primary">
-                        {client.name.charAt(0)}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">{client.sessions} sessões</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))
-            ) : (
-              <div className="p-8 text-center text-sm text-muted-foreground font-medium">Nenhum cliente encontrado</div>
-            )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <TabsList className="bg-accent/40 p-1 rounded-xl border">
+              <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold">
+                <Users className="w-3.5 h-3.5" /> Lista de Clientes
+              </TabsTrigger>
+              <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold">
+                <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
+              </TabsTrigger>
+              <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold">
+                <Filter className="w-3.5 h-3.5" /> Funil
+              </TabsTrigger>
+              <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold">
+                <FileText className="w-3.5 h-3.5" /> Processo Comercial
+              </TabsTrigger>
+            </TabsList>
+
+            <Button onClick={() => setIsAddingClient(true)} className="gap-2 bg-primary text-primary-foreground font-bold shadow-md">
+              <Plus className="h-4 w-4" />
+              Novo Cliente
+            </Button>
           </div>
         </div>
 
-        {/* Client Profile */}
-        <div className="lg:col-span-2">
-          {selectedClient ? (
-            <div className="space-y-6">
-              {/* Info Card */}
-              <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground">
-                <div className="flex items-start gap-4">
-                  <div className="relative group shrink-0">
-                    <label
-                      htmlFor="update-avatar"
-                      className="cursor-pointer block relative rounded-full overflow-hidden h-20 w-20 border-2 border-primary/20 shadow-lg"
+        {/* ABA 1: LISTA DE CLIENTES */}
+        <TabsContent value="lista" className="m-0 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tabela / Lista na Esquerda */}
+            <div className="lg:col-span-1 bg-card rounded-xl border shadow-sm text-foreground">
+              <div className="p-4 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar cliente por nome ou telefone..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 bg-accent/20"
+                  />
+                </div>
+              </div>
+
+              <div className="divide-y max-h-[calc(100vh-280px)] overflow-y-auto">
+                {loading ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">Carregando clientes...</div>
+                ) : filtered.length > 0 ? (
+                  filtered.map((client) => (
+                    <div
+                      key={client.id}
+                      onClick={() => setSelectedClient(client)}
+                      className={`p-4 cursor-pointer hover:bg-accent/40 transition-colors flex items-center justify-between ${
+                        selectedClient?.id === client.id ? "bg-accent/60 font-semibold" : ""
+                      }`}
                     >
-                      {selectedClient.avatar_url ? (
-                        <img src={selectedClient.avatar_url} alt={selectedClient.name} className="h-full w-full object-cover transition-transform group-hover:scale-110 duration-500" />
-                      ) : (
-                        <div className="h-full w-full bg-accent flex items-center justify-center text-2xl font-bold text-primary">
-                          {selectedClient.name.charAt(0)}
-                        </div>
-                      )}
-
-                      {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Camera className="h-6 w-6 text-white" />
-                      </div>
-
-                      {/* Loading State */}
-                      {isUpdatingAvatar && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <div className="h-5 w-5 border-2 border-primary border-t-transparent animate-spin rounded-full"></div>
-                        </div>
-                      )}
-                    </label>
-                    <input
-                      id="update-avatar"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleUpdateAvatar}
-                      disabled={isUpdatingAvatar}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">{selectedClient.name}</h2>
-                        <p className="text-sm text-muted-foreground font-medium">{selectedClient.age} anos</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-3">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={openEditModal} className="h-8 shadow-sm">
-                            <Pencil className="h-3 w-3 mr-1.5" />
-                            Editar
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={handleDeleteClient} className="h-8 shadow-sm">
-                            <Trash2 className="h-3 w-3 mr-1.5" />
-                            Excluir
-                          </Button>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Status de Indicação</p>
-                          {selectedClient.referrer_name ? (
-                            <p className="text-sm font-bold text-primary">Indicado por: {selectedClient.referrer_name}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
+                          {client.avatar_url ? (
+                            <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
                           ) : (
-                            <p className="text-sm font-medium text-muted-foreground italic">Veio por conta própria</p>
+                            client.name.charAt(0)
                           )}
-                          <p className="text-xs font-semibold text-primary mt-0.5">Indicou {referredClients.length} {referredClients.length === 1 ? 'pessoa' : 'pessoas'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{client.name}</p>
+                          <p className="text-xs text-muted-foreground">{client.phone}</p>
                         </div>
                       </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex items-center gap-4 mt-4">
-                      {selectedClient.phone && selectedClient.phone !== "Não informado" && (
-                        <a
-                          href={`https://wa.me/55${selectedClient.phone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors hover:underline"
-                        >
-                          <Phone className="h-4 w-4 text-primary" /> {selectedClient.phone}
-                        </a>
-                      )}
-
-                      {selectedClient.instagram && selectedClient.instagram !== "@" && (
-                        <a
-                          href={`https://instagram.com/${selectedClient.instagram.replace('@', '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors hover:underline"
-                        >
-                          <Instagram className="h-4 w-4 text-primary" /> {selectedClient.instagram}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 mt-8">
-                  <div className="rounded-xl bg-accent/30 p-4 text-center border border-accent/10">
-                    <p className="text-2xl font-bold text-foreground">{selectedClient.sessions}</p>
-                    <p className="text-xs text-muted-foreground font-bold mt-1 uppercase">Sessões</p>
-                  </div>
-                  <div className="rounded-xl bg-accent/30 p-4 text-center border border-accent/10">
-                    <p className="text-2xl font-bold text-foreground">{selectedClient.lastVisit}</p>
-                    <p className="text-xs text-muted-foreground font-bold mt-1 uppercase">Última Visita</p>
-                  </div>
-                  <div className="rounded-xl bg-accent/30 p-4 text-center border border-accent/10">
-                    <p className="text-2xl font-bold text-success">
-                      R$ {clientSessions
-                        .filter(s => s.status === 'Confirmado' || s.status === 'Concluído')
-                        .reduce((acc, curr) => {
-                          const val = typeof curr.value === 'string' ? parseFloat(curr.value) : (curr.value || 0);
-                          return acc + val;
-                        }, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-bold mt-1 uppercase">Faturamento</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Referrals (Indicados) */}
-              <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Pessoas Indicadas</h3>
-                <div className="space-y-3">
-                  {loadingReferrals ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground font-medium">Carregando indicações...</div>
-                  ) : referredClients.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {referredClients.map((client) => (
-                        <div key={client.id} className="bg-primary/10 text-primary border border-primary/20 px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          {client.name}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground font-medium">Este cliente ainda não indicou ninguém.</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Anamnesis Info */}
-              <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground">
-                <div className="flex justify-between items-center border-b pb-4 mb-4">
-                  <h3 className="text-lg font-bold text-foreground">Ficha de Anamnese e Contrato</h3>
-                  {loadingAnamnesis ? (
-                    <span className="text-sm text-muted-foreground">Carregando...</span>
-                  ) : clientAnamnesis ? (
-                    <span className="bg-success text-success-foreground px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Preenchida
-                    </span>
-                  ) : (
-                    <span className="bg-warning text-warning-foreground px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> Pendente
-                    </span>
-                  )}
-                </div>
-
-                {!clientAnamnesis && !loadingAnamnesis && (
-                  <div className="space-y-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Este cliente ainda não preencheu a ficha. Envie o link exclusivo abaixo para ele:
-                    </p>
-                    <div className="flex items-center gap-2 justify-center">
-                      <Button variant="outline" onClick={handleCopyAnamnesisLink} className="w-full font-semibold border-primary/50 text-primary hover:bg-primary/10">
-                        Copiar Link
-                      </Button>
-                      <Button onClick={handleSendAnamnesisWhatsApp} className="w-full bg-[#25D366] hover:bg-[#1DA851] text-white font-bold shadow-lg">
-                        Mandar no WhatsApp
-                      </Button>
-                    </div>
-                  </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</div>
                 )}
+              </div>
+            </div>
 
-                {clientAnamnesis && (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Histórico Clínico Positivo</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(clientAnamnesis.medical_history || {}).map(([key, value]) => {
-                          if (!value) return null;
-                          const labels: Record<string, string> = {
-                            diabetes: "Diabetes",
-                            hepatitis: "Hepatite",
-                            pregnancy: "Gestante/Lactante",
-                            bleeding_disorders: "Prob. Coagulação",
-                            keloids: "Queloide"
-                          };
+            {/* Perfil Selecionado na Direita */}
+            <div className="lg:col-span-2">
+              {selectedClient ? (
+                <div className="space-y-6">
+                  {/* Card de Informações */}
+                  <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-xl flex items-center justify-center shrink-0">
+                          {selectedClient.avatar_url ? (
+                            <img src={selectedClient.avatar_url} alt={selectedClient.name} className="h-full w-full rounded-full object-cover" />
+                          ) : (
+                            selectedClient.name.charAt(0)
+                          )}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
+                          <p className="text-xs text-muted-foreground">{selectedClient.phone} • {selectedClient.instagram}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            setDecisionClient(selectedClient);
+                            setDecisionModalOpen(true);
+                          }}
+                          className="h-9 px-3 bg-primary text-primary-foreground font-bold text-xs gap-1.5 shadow-md"
+                        >
+                          ⚡ Decisão do Cliente
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={openEditModal} className="h-9 text-xs">
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={handleDeleteClient} className="h-9 text-xs">
+                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Resumo de Sessões */}
+                    <div className="grid grid-cols-3 gap-3 pt-2">
+                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Sessões</span>
+                        <span className="text-lg font-bold text-foreground">{selectedClient.sessions}</span>
+                      </div>
+                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Última Visita</span>
+                        <span className="text-lg font-bold text-foreground">{selectedClient.lastVisit}</span>
+                      </div>
+                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Estágio CRM</span>
+                        <span className="text-sm font-bold text-primary">{selectedClient.status}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Aba de Histórico e Comprovantes do Cliente */}
+                  <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                        <History className="h-4 w-4 text-primary" />
+                        Histórico de Agendamentos & Comprovantes no Drive
+                      </h3>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {clientSessions.length} registros
+                      </span>
+                    </div>
+
+                    {loadingSessions ? (
+                      <p className="text-xs text-center p-4 text-muted-foreground">Carregando histórico financeiro...</p>
+                    ) : clientSessions.length > 0 ? (
+                      <div className="space-y-3">
+                        {clientSessions.map((session) => {
+                          const depositVal = Number(session.deposit || 0);
+                          const totalVal = Number(session.value || 0);
+                          const restanteVal = Math.max(0, totalVal - depositVal);
+                          const depositLink = session.deposit_link || session.deposit_drive_link;
+                          const sessionLink = session.drive_link || session.final_drive_link;
+
                           return (
-                            <span key={key} className="bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1 rounded-md text-sm font-bold">
-                              {labels[key] || key}
-                            </span>
+                            <div key={session.id} className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors space-y-2.5">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                                    {session.date ? session.date.split("-").reverse().join("/") : "Sem data"} às {session.startTime || "09:00"}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold bg-card border px-2.5 py-1 rounded-md text-foreground">
+                                    Total: R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
+                                    session.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                                    session.status === 'Confirmado' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' :
+                                    session.status === 'Cancelado' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                                    'bg-primary/10 text-primary border border-primary/20'
+                                  }`}>
+                                    {session.status}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Detalhamento do Sinal e Saldo com Links do Drive */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/40">
+                                <div className="bg-card/70 p-2 rounded-lg border flex items-center justify-between">
+                                  <div>
+                                    <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Sinal de Agendamento</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                      R$ {depositVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  {depositLink ? (
+                                    <a
+                                      href={depositLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
+                                    >
+                                      <span>Drive Sinal</span>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
+                                  )}
+                                </div>
+
+                                <div className="bg-card/70 p-2 rounded-lg border flex items-center justify-between">
+                                  <div>
+                                    <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Saldo Restante</span>
+                                    <span className="font-bold text-foreground">
+                                      R$ {restanteVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  {sessionLink ? (
+                                    <a
+                                      href={sessionLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
+                                    >
+                                      <span>Drive Sessão</span>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           );
                         })}
-                        {Object.values(clientAnamnesis.medical_history || {}).every(v => !v) && (
-                          <span className="text-sm font-medium text-muted-foreground">Nenhuma condição reportada.</span>
-                        )}
                       </div>
-
-                      {/* Care Tips / Recommendations */}
-                      {Object.values(clientAnamnesis.medical_history || {}).some(v => v) && (
-                        <div className="mt-4 bg-warning/10 border border-warning/20 rounded-xl p-4">
-                          <h4 className="text-sm font-bold text-warning flex items-center gap-2 mb-2">
-                            <AlertCircle className="h-4 w-4" /> Recomendações e Cuidados
-                          </h4>
-                          <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
-                            {clientAnamnesis.medical_history?.diabetes && (
-                              <li><strong>Diabetes:</strong> Cicatrização pode ser mais lenta. Recomende cuidados redobrados com a assepsia na cicatrização.</li>
-                            )}
-                            {clientAnamnesis.medical_history?.keloids && (
-                              <li><strong>Queloide:</strong> Alto risco de cicatrização hipertrófica. Evite agredir muito a pele e discuta os riscos com o cliente.</li>
-                            )}
-                            {clientAnamnesis.medical_history?.pregnancy && (
-                              <li><strong>Gestante/Lactante:</strong> Necessário liberação médica por escrito para tatuar. Risco de infecções sistêmicas.</li>
-                            )}
-                            {clientAnamnesis.medical_history?.bleeding_disorders && (
-                              <li><strong>Prob. Coagulação:</strong> O cliente pode sangrar mais que o normal, dificultando a pigmentação. Esteja preparado.</li>
-                            )}
-                            {clientAnamnesis.medical_history?.hepatitis && (
-                              <li><strong>Hepatite:</strong> Atenção máxima aos protocolos de biossegurança e descarte de materiais perfurocortantes.</li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Data de Nascimento</h4>
-                        <p className="text-sm font-medium text-foreground">
-                          {clientAnamnesis.birth_date ? new Date(clientAnamnesis.birth_date).toLocaleDateString('pt-BR') : "Não informada"}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Como nos conheceu</h4>
-                        <p className="text-sm font-medium text-foreground">{clientAnamnesis.discovery_source || "Não informado"}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Alergias</h4>
-                        <p className="text-sm font-medium text-foreground">{clientAnamnesis.allergies || "Nenhuma"}</p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Medicamentos</h4>
-                        <p className="text-sm font-medium text-foreground">{clientAnamnesis.medications || "Nenhum"}</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Contato de Emergência</h4>
-                      <p className="text-sm font-medium text-foreground">{clientAnamnesis.emergency_contact || "Não informado"}</p>
-                    </div>
-
-                    <div className="bg-accent/10 p-4 border border-accent/20 rounded-xl mt-4 text-center">
-                      <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Assinatura Digital de Contrato</p>
-                      <p className="text-sm text-foreground font-medium">Contrato lido e aceito pelo cliente dia <span className="font-bold text-primary">{new Date(clientAnamnesis.signed_at || clientAnamnesis.created_at).toLocaleString('pt-BR')}</span></p>
-                    </div>
+                    ) : (
+                      <p className="text-xs text-center p-6 text-muted-foreground border-2 border-dashed rounded-xl">
+                        Nenhum agendamento ou recebimento registrado para este cliente.
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Session History */}
-              <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Histórico de Sessões</h3>
-                <div className="space-y-3">
-                  {loadingSessions ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground font-medium">Carregando sessões...</div>
-                  ) : clientSessions.length > 0 ? (
-                    clientSessions.map((session, i) => (
-                      <div key={session.id || i} className="flex items-center justify-between p-4 rounded-xl bg-accent/20 transition-all hover:bg-accent/40 border border-transparent hover:border-accent/10">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">Sessão</p>
-                          <p className="text-xs text-muted-foreground font-medium">
-                            {session.date?.includes('-') ? session.date.split('-').reverse().join('/') : session.date}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-foreground">R$ {Number(session.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                          <span className={`text-xs font-bold uppercase ${session.status === 'Concluído' ? 'text-success' :
-                            session.status === 'Cancelado' ? 'text-destructive' :
-                              session.status === 'Confirmado' ? 'text-purple-500' : 'text-primary'
-                            }`}>{session.status === 'Pendente' ? 'Agendado' : (session.status || 'Agendado')}</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground font-medium">Nenhuma sessão registrada.</div>
-                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground space-y-3">
+                  <User className="h-12 w-12 mx-auto text-muted-foreground/40" />
+                  <h3 className="text-lg font-bold text-foreground">Selecione um cliente</h3>
+                  <p className="text-sm">Escolha um cliente na lista à esquerda para visualizar seu perfil completo e comprovantes.</p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-foreground h-[600px] flex flex-col items-center justify-center">
-              <div className="h-20 w-20 rounded-full bg-accent/30 mx-auto flex items-center justify-center mb-4">
-                <User className="h-10 w-10 text-muted-foreground/50" />
-              </div>
-              <h3 className="text-xl font-bold text-foreground">Selecione um cliente</h3>
-              <p className="text-muted-foreground font-medium mt-2 max-w-xs mx-auto">
-                Escolha um cliente na lista à esquerda para visualizar seu perfil completo e histórico.
+          </div>
+        </TabsContent>
+
+        {/* ABA 2: JORNADA DO CLIENTE (KANBAN FUNIL CRM) */}
+        <TabsContent value="jornada" className="m-0">
+          <div className="flex md:grid md:grid-cols-4 lg:grid-cols-8 gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
+            {JOURNEY_STAGES.map((stage) => {
+              const stageJourneys = journeys.filter(j => 
+                j.status === stage.id && 
+                (search === "" || (j.client?.name || "").toLowerCase().includes(search.toLowerCase()) || (j.client?.phone || "").includes(search))
+              );
+
+              return (
+                <div 
+                  key={stage.id} 
+                  className={`w-[84vw] sm:w-[280px] md:w-auto shrink-0 snap-center rounded-2xl p-3 flex flex-col h-[calc(100vh-14rem)] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggedOverStage !== stage.id) setDraggedOverStage(stage.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDraggedOverStage(null);
+                    const journeyId = e.dataTransfer.getData("journeyId");
+                    if (journeyId && journeyId !== "") {
+                      handleUpdateJourneyStatus(journeyId, stage.id);
+                    }
+                  }}
+                >
+                  {/* Cabeçalho da Coluna do Kanban */}
+                  <div className={`flex items-center justify-between mb-3 p-2 rounded-xl border ${stage.headerBg}`}>
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <div className="bg-card p-1.5 rounded-md shadow-sm shrink-0">
+                        {stage.icon}
+                      </div>
+                      <h3 className="font-bold text-xs text-foreground truncate">{stage.title}</h3>
+                    </div>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold shrink-0 ${stage.badgeBg}`}>
+                      {stageJourneys.length}
+                    </span>
+                  </div>
+
+                  {/* Lista de Cards da Coluna */}
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 [&::-webkit-scrollbar]:hidden">
+                    {stageJourneys.length > 0 ? (
+                      stageJourneys.map((journey) => (
+                        <div
+                          key={journey.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("journeyId", journey.id);
+                          }}
+                          onDragEnd={() => setDraggedOverStage(null)}
+                          onClick={() => {
+                            const foundClient = clients.find(c => c.id === journey.client_id);
+                            if (foundClient) setSelectedClient(foundClient);
+                            setActiveTab("lista");
+                          }}
+                          className="bg-card border shadow-sm hover:shadow-md transition-all rounded-xl p-3 cursor-grab active:cursor-grabbing group hover:border-primary/50 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                {journey.client?.avatar_url ? (
+                                  <img src={journey.client.avatar_url} alt={journey.client.name} className="h-full w-full rounded-full object-cover" />
+                                ) : (
+                                  journey.client?.name?.charAt(0) || '?'
+                                )}
+                              </div>
+                              <div className="overflow-hidden">
+                                <h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">{journey.client?.name || 'Cliente'}</h4>
+                                <p className="text-[10px] text-muted-foreground">{journey.client?.phone || ""}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Botões Rápidos no Card do Kanban */}
+                          <div className="flex items-center justify-between pt-2 border-t text-[11px] gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const clientObj = clients.find(c => c.id === journey.client_id) || { id: journey.client_id, name: journey.client?.name || "Cliente", phone: journey.client?.phone || "" };
+                                setDecisionClient(clientObj);
+                                setDecisionModalOpen(true);
+                              }}
+                              className="h-7 px-2 text-[10px] font-bold text-primary hover:bg-primary/10 gap-1"
+                            >
+                              <span>⚡ Decisão</span>
+                            </Button>
+
+                            {journey.client?.phone && journey.client.phone !== "Não informado" && (
+                              <a
+                                href={
+                                  stage.id === "Garimpo"
+                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Tudo bem? Passando para saber como ficou a sua ideia de tatuagem. Conseguimos abrir uma condição especial na agenda este mês! Vamos dar andamento no projeto?`)}`
+                                    : stage.id === "Sem Resposta"
+                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Vi que não conseguimos nos falar depois da ideia do projeto de tatuagem. Ficou alguma dúvida sobre o orçamento que eu possa te ajudar?`)}`
+                                    : `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}`
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className={`flex items-center gap-1 px-2 py-1 rounded font-bold transition-colors text-[10px] ${
+                                  stage.id === "Garimpo" || stage.id === "Sem Resposta"
+                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                                    : "text-muted-foreground hover:text-green-600"
+                                }`}
+                              >
+                                {stage.id === "Garimpo" || stage.id === "Sem Resposta" ? "📲 Resgatar" : "Whats"}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border/50 rounded-xl bg-muted/10">
+                        <p className="text-[11px] text-muted-foreground font-medium">Vazio</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        {/* ABA 3: FUNIL DE CONVERSÃO */}
+        <TabsContent value="funil" className="m-0">
+          <div className="bg-card rounded-2xl border p-6 lg:p-10 shadow-sm overflow-hidden flex flex-col items-center min-h-[450px]">
+            <div className="text-center mb-8 max-w-xl">
+              <h2 className="text-xl font-bold mb-2">Funil de Conversão CRM</h2>
+              <p className="text-sm text-muted-foreground">
+                Análise de conversão acumulada do estúdio. Acompanhe a progressão de orçamentos até o fechamento.
               </p>
             </div>
-          )}
-        </div>
-      </div>
+            
+            <div className="w-full max-w-2xl flex flex-col items-center gap-2">
+              {JOURNEY_STAGES.map((stage, index) => {
+                const count = filtered.filter(c => c.status === stage.id).length;
+                const widthPercent = Math.max(35, 100 - index * 8);
 
-      {/* New Client Modal */}
-      <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
-        <DialogContent className="sm:max-w-lg bg-card text-foreground border-border shadow-2xl p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-2xl font-bold">Novo Cliente</DialogTitle>
-          </DialogHeader>
-
-          <div className="p-6 space-y-6">
-            {/* Photo Upload Section */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative group">
-                <div className="h-24 w-24 rounded-full bg-accent/50 flex items-center justify-center border-2 border-dashed border-accent/40 overflow-hidden relative">
-                  {newClientData.avatar_url ? (
-                    <img src={newClientData.avatar_url} alt="Preview" className="h-full w-full object-cover" />
-                  ) : (
-                    <Camera className="h-8 w-8 text-muted-foreground/50" />
-                  )}
-                  {uploading && (
-                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                      <div className="h-5 w-5 border-2 border-primary border-t-transparent animate-spin rounded-full"></div>
+                return (
+                  <div key={stage.id} style={{ width: `${widthPercent}%` }} className="bg-accent/40 border p-3 rounded-xl flex justify-between items-center transition-all hover:border-primary">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-card border">
+                        {stage.icon}
+                      </div>
+                      <span className="font-bold text-xs text-foreground">{stage.title}</span>
                     </div>
-                  )}
-                </div>
-                <Label
-                  htmlFor="photo-upload"
-                  className="absolute bottom-0 right-0 h-8 w-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition-transform"
-                >
-                  <Plus className="h-4 w-4" />
-                </Label>
-                <input
-                  id="photo-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground font-medium italic">Adicionar foto do cliente</p>
+                    <span className="font-black text-sm text-primary">{count} clientes</span>
+                  </div>
+                );
+              })}
             </div>
+          </div>
+        </TabsContent>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="name" className="text-sm font-bold">Nome Completo *</Label>
-                <Input
-                  id="name"
-                  placeholder="Ex: João Silva"
-                  value={newClientData.name}
-                  onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
-                />
-              </div>
+        {/* ABA 4: PROCESSO COMERCIAL */}
+        <TabsContent value="processo" className="m-0">
+          <PlaybookAccordion />
+        </TabsContent>
+      </Tabs>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-bold">Telefone</Label>
+      {/* Modal Add Client */}
+      <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Cliente (Cadastro Rápido)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome Completo *</Label>
+              <Input
+                placeholder="Ex: Lucas Silva"
+                value={newClientData.name}
+                onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">WhatsApp</Label>
                 <Input
-                  id="phone"
                   placeholder="(11) 99999-9999"
                   value={newClientData.phone}
                   onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="age" className="text-sm font-bold">Idade</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Instagram</Label>
                 <Input
-                  id="age"
-                  type="number"
-                  placeholder="25"
-                  value={newClientData.age}
-                  onChange={(e) => setNewClientData({ ...newClientData, age: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="instagram" className="text-sm font-bold">Instagram</Label>
-                <Input
-                  id="instagram"
                   placeholder="@usuario"
                   value={newClientData.instagram}
                   onChange={(e) => setNewClientData({ ...newClientData, instagram: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="referrer" className="text-sm font-bold">Indicação</Label>
-                <Select
-                  value={newClientData.referred_by_id}
-                  onValueChange={(val) => setNewClientData({ ...newClientData, referred_by_id: val })}
-                >
-                  <SelectTrigger className="bg-accent/20 border-accent/20 h-11">
-                    <SelectValue placeholder="Busque um cliente..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card text-foreground">
-                    <SelectItem value="none" className="font-medium italic">Ninguém (Novidade)</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Estágio Inicial</Label>
+              <Select
+                value={newClientData.status}
+                onValueChange={(val) => setNewClientData({ ...newClientData, status: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOURNEY_STAGES.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          <DialogFooter className="p-6 bg-accent/10 gap-3">
-            <Button variant="ghost" onClick={() => setIsAddingClient(false)} className="hover:bg-accent/20 font-bold">
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCreateClient}
-              disabled={uploading || !newClientData.name}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 h-11 shadow-lg"
-            >
-              Criar Cliente
-            </Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddingClient(false)}>Cancelar</Button>
+            <Button onClick={handleCreateClient}>Salvar Cliente</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Client Modal */}
+      {/* Modal Edit Client */}
       <Dialog open={isEditingClient} onOpenChange={setIsEditingClient}>
-        <DialogContent className="sm:max-w-lg bg-card text-foreground border-border shadow-2xl p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-2xl font-bold">Editar Cliente</DialogTitle>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
           </DialogHeader>
-
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="edit-name" className="text-sm font-bold">Nome Completo *</Label>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome Completo *</Label>
+              <Input
+                value={editClientData.name}
+                onChange={(e) => setEditClientData({ ...editClientData, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">WhatsApp</Label>
                 <Input
-                  id="edit-name"
-                  placeholder="Ex: João Silva"
-                  value={editClientData.name}
-                  onChange={(e) => setEditClientData({ ...editClientData, name: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone" className="text-sm font-bold">Telefone</Label>
-                <Input
-                  id="edit-phone"
-                  placeholder="(11) 99999-9999"
                   value={editClientData.phone}
                   onChange={(e) => setEditClientData({ ...editClientData, phone: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-age" className="text-sm font-bold">Idade</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Instagram</Label>
                 <Input
-                  id="edit-age"
-                  type="number"
-                  placeholder="25"
-                  value={editClientData.age}
-                  onChange={(e) => setEditClientData({ ...editClientData, age: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-instagram" className="text-sm font-bold">Instagram</Label>
-                <Input
-                  id="edit-instagram"
-                  placeholder="@usuario"
                   value={editClientData.instagram}
                   onChange={(e) => setEditClientData({ ...editClientData, instagram: e.target.value })}
-                  className="bg-accent/20 border-accent/20 h-11"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-referrer" className="text-sm font-bold">Indicação</Label>
-                <Select
-                  value={editClientData.referred_by_id}
-                  onValueChange={(val) => setEditClientData({ ...editClientData, referred_by_id: val })}
-                >
-                  <SelectTrigger className="bg-accent/20 border-accent/20 h-11">
-                    <SelectValue placeholder="Busque um cliente..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card text-foreground">
-                    <SelectItem value="none" className="font-medium italic">Ninguém (Novidade)</SelectItem>
-                    {clients.filter(c => c.id !== editClientData.id).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
-
-          <DialogFooter className="p-6 bg-accent/10 gap-3">
-            <Button variant="ghost" onClick={() => setIsEditingClient(false)} className="hover:bg-accent/20 font-bold">
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleUpdateClient}
-              disabled={uploading || !editClientData.name}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8 h-11 shadow-lg"
-            >
-              Cofirmar Alterações
-            </Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingClient(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateClient}>Salvar Alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Decisão do Cliente */}
+      <ClientDecisionModal
+        open={decisionModalOpen}
+        onOpenChange={setDecisionModalOpen}
+        client={decisionClient}
+        onSuccess={fetchClients}
+      />
     </>
   );
 };
