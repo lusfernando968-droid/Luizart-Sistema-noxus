@@ -360,18 +360,18 @@ const Clients = () => {
             <p className="page-subtitle">Gerencie sua carteira de clientes, funil de vendas e jornada de garimpo</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <TabsList className="bg-accent/40 p-1 rounded-xl border">
-              <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold">
+          <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-3">
+            <TabsList className="bg-accent/40 p-1 rounded-xl border flex w-max h-auto">
+              <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
                 <Users className="w-3.5 h-3.5" /> Lista de Clientes
               </TabsTrigger>
-              <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold">
+              <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
                 <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
               </TabsTrigger>
-              <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold">
+              <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
                 <Filter className="w-3.5 h-3.5" /> Funil
               </TabsTrigger>
-              <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold">
+              <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
                 <FileText className="w-3.5 h-3.5" /> Processo Comercial
               </TabsTrigger>
             </TabsList>
@@ -613,7 +613,7 @@ const Clients = () => {
 
         {/* ABA 2: JORNADA DO CLIENTE (KANBAN FUNIL CRM) */}
         <TabsContent value="jornada" className="m-0">
-          <div className="flex md:grid md:grid-cols-4 lg:grid-cols-8 gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
+          <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
             {JOURNEY_STAGES.map((stage) => {
               const stageJourneys = journeys.filter(j => 
                 j.status === stage.id && 
@@ -623,7 +623,7 @@ const Clients = () => {
               return (
                 <div 
                   key={stage.id} 
-                  className={`w-[84vw] sm:w-[280px] md:w-auto shrink-0 snap-center rounded-2xl p-3 flex flex-col h-[calc(100vh-14rem)] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
+                  className={`w-[84vw] sm:w-[280px] md:w-auto shrink-0 snap-center rounded-2xl p-3 flex flex-col h-[calc(100dvh-16rem)] min-h-[500px] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (draggedOverStage !== stage.id) setDraggedOverStage(stage.id);
