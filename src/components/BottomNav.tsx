@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Users, DollarSign, Shield, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Calendar, Users, DollarSign, Shield, MessageSquare, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -27,7 +27,7 @@ export function BottomNav() {
         const token = localStorage.getItem("noxus_token");
         if (!token) return;
 
-        const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/me", {
+        const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/me", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         
@@ -48,28 +48,15 @@ export function BottomNav() {
   const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
   const demoRole = localStorage.getItem("noxus_demo_role");
 
-  let navItems = [];
+  const navItems = [
+    { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { title: "Agenda", path: "/agenda", icon: Calendar },
+    { title: "Clientes", path: "/clientes", icon: Users },
+    { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+  ];
 
-  if (isSuperAdmin || (isDemoMode && demoRole === "admin")) {
-    navItems = [
-      { title: "Painel Adm", path: "/admin-dashboard", icon: LayoutDashboard },
-      { title: "Clientes", path: "/admin-noxus", icon: Shield },
-      { title: "Usuários", path: "/usuarios", icon: Users },
-      { title: "Suporte", path: "/suporte-admin", icon: MessageSquare },
-    ];
-  } else if (role === 'ADMIN') {
-    navItems = [
-      { title: "Usuários", path: "/usuarios", icon: Users },
-      { title: "Suporte", path: "/suporte-admin", icon: MessageSquare },
-      { title: "Vendas", path: "/dev-dashboard", icon: DollarSign },
-    ];
-  } else {
-    navItems = [
-      { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-      { title: "Agenda", path: "/agenda", icon: Calendar },
-      { title: "Clientes", path: "/clientes", icon: Users },
-      { title: "Financeiro", path: "/financeiro", icon: DollarSign },
-    ];
+  if (role === 'ADMIN' || isSuperAdmin) {
+    navItems.push({ title: "Equipe", path: "/equipe", icon: Shield });
   }
 
   return (

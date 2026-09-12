@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { MessageCircle, User, LogOut, X, Send, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,7 @@ export function MobileHeader() {
         const token = localStorage.getItem("noxus_token");
         if (!token) return;
 
-        const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/me", {
+        const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/me", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         
@@ -67,7 +66,7 @@ export function MobileHeader() {
     if (!token) return;
 
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/support", {
+      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/support", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -113,7 +112,7 @@ export function MobileHeader() {
     if (!token) { setSending(false); return; }
 
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/support", {
+      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/support", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -146,7 +145,6 @@ export function MobileHeader() {
     localStorage.clear();
     sessionStorage.clear();
     navigate("/auth", { replace: true });
-    try { await supabase.auth.signOut(); } catch (_) { }
     toast.success("Sessão encerrada");
   };
 

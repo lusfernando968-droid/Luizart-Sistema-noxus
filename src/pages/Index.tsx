@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+
 import {
   Calendar,
   TrendingUp,
@@ -36,6 +36,8 @@ import {
 interface DashboardStats {
   sessionsToday: string;
   monthlyRevenue: string;
+  monthlyExpense?: string;
+  monthlyProfit?: string;
   activeClients: string;
   avgTime: string;
   pendingReceivables: string;
@@ -47,8 +49,10 @@ const Index = () => {
   const [statsData, setStatsData] = useState<DashboardStats>({
     sessionsToday: "0",
     monthlyRevenue: "R$ 0",
+    monthlyExpense: "R$ 0",
+    monthlyProfit: "R$ 0",
     activeClients: "0",
-    avgTime: "0h 00m",
+    avgTime: "2h 30m",
     pendingReceivables: "R$ 0",
     anamnesisCompleted: "0",
     topDiscoverySource: "-",
@@ -75,7 +79,7 @@ const Index = () => {
       const token = localStorage.getItem("noxus_token");
       if (!token) return;
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/dashboard", {
+      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/dashboard", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -84,13 +88,25 @@ const Index = () => {
       if (!res.ok) throw new Error("Falha ao buscar dados");
       const data = await res.json();
 
-      setStatsData(data.stats);
-      setRevenueChartData(data.revenueChartData);
-      setAppointmentsStatusData(data.appointmentsStatusData);
-      setPendingAnamnesisAlerts(data.pendingAnamnesisAlerts);
-      setTodayClients(data.todayClients);
-      setRecentPayments(data.recentPayments);
-      setTomorrowAppointments(data.tomorrowAppointments);
+      if (data.stats) {
+        setStatsData({
+          sessionsToday: data.stats.sessionsToday || "0",
+          monthlyRevenue: data.stats.monthlyRevenue || "R$ 0",
+          monthlyExpense: data.stats.monthlyExpense || "R$ 0",
+          monthlyProfit: data.stats.monthlyProfit || "R$ 0",
+          activeClients: data.stats.activeClients || "0",
+          avgTime: data.stats.avgTime || "2h 30m",
+          pendingReceivables: data.stats.pendingReceivables || "R$ 0",
+          anamnesisCompleted: data.stats.anamnesisCompleted || "0",
+          topDiscoverySource: data.stats.topDiscoverySource || "-",
+        });
+      }
+      setRevenueChartData(data.revenueChartData || []);
+      setAppointmentsStatusData(data.appointmentsStatusData || []);
+      setPendingAnamnesisAlerts(data.pendingAnamnesisAlerts || []);
+      setTodayClients(data.todayClients || []);
+      setRecentPayments(data.recentPayments || []);
+      setTomorrowAppointments(data.tomorrowAppointments || []);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -122,7 +138,7 @@ const Index = () => {
         return;
       }
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/appointments/checkout", {
+      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/appointments/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -151,25 +167,39 @@ const Index = () => {
 
   const stats = [
     {
-      label: "Sessões Hoje",
-      value: statsData.sessionsToday,
-      icon: Calendar,
-      change: "+0 vs ontem", // Seria necessário query de ontem para ser dinâmico
-      trend: "up" as const,
-    },
-    {
       label: "Faturamento do Mês",
       value: statsData.monthlyRevenue,
       icon: DollarSign,
-      change: "+0% vs mês anterior", // Seria necessário query do mês anterior para ser dinâmico
+      change: "Entradas",
       trend: "up" as const,
     },
     {
-      label: "A Receber",
-      value: statsData.pendingReceivables,
-      icon: TrendingUp,
-      change: "Agendado",
+      label: "Despesas do Mês",
+      value: statsData.monthlyExpense || "R$ 0",
+      icon: ArrowDownRight,
+      change: "Saídas",
       trend: "down" as const,
+    },
+    {
+      label: "Lucro Líquido",
+      value: statsData.monthlyProfit || "R$ 0",
+      icon: TrendingUp,
+      change: "Saldo",
+      trend: "up" as const,
+    },
+    {
+      label: "A Receber (Agenda)",
+      value: statsData.pendingReceivables,
+      icon: DollarSign,
+      change: "Agendado",
+      trend: "up" as const,
+    },
+    {
+      label: "Sessões Hoje",
+      value: statsData.sessionsToday,
+      icon: Calendar,
+      change: "Hoje",
+      trend: "up" as const,
     },
     {
       label: "Clientes Ativos",
@@ -190,20 +220,6 @@ const Index = () => {
       value: statsData.topDiscoverySource,
       icon: Users,
       change: "Maior canal",
-      trend: "up" as const,
-    },
-    {
-      label: "Tempo Médio de Sessão",
-      value: statsData.avgTime,
-      icon: Clock,
-      change: "Geral",
-      trend: "down" as const,
-    },
-    {
-      label: "Ticket Médio",
-      value: statsData.monthlyRevenue === "R$ 0" ? "R$ 0" : `R$ ${Math.round(Number(statsData.monthlyRevenue.replace(/\D/g, '')) / 100 / (Number(statsData.sessionsToday) || 1)).toLocaleString('pt-BR')}`,
-      icon: DollarSign,
-      change: "Média",
       trend: "up" as const,
     },
   ];
@@ -268,7 +284,7 @@ const Index = () => {
                   <span className="text-xs text-muted-foreground">Amanhã às {appt.time}</span>
                 </div>
                 <a
-                  href={`https://wa.me/55${appt.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                  href={`https://wa.me/55${(appt.phone || "").replace(/\D/g, '')}?text=${encodeURIComponent(
                     `Olá ${appt.name}! Passando para confirmar seu horário amanhã, dia ${new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('pt-BR')}, às ${appt.time}. Podemos confirmar?`
                   )}`}
                   target="_blank"

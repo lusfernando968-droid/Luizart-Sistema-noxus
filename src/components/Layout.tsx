@@ -5,7 +5,6 @@ import { MobileHeader } from "@/components/MobileHeader";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { SupportChat } from "@/components/SupportChat";
 import { Loader2 } from "lucide-react";
 
@@ -67,7 +66,7 @@ export function Layout({ children }: LayoutProps) {
       <MobileHeader />
 
       <main className={cn(
-        "flex-1 min-h-screen transition-all duration-300 relative",
+        "flex-1 w-full max-w-full overflow-x-hidden min-h-screen transition-all duration-300 relative",
         // Desktop: margem para sidebar
         collapsed ? "lg:ml-[72px]" : "lg:ml-64",
         // Mobile: padding inferior para a bottom nav + superior para o header fixo
@@ -87,3 +86,4 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 }
+

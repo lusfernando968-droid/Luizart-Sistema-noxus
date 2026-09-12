@@ -1,4 +1,4 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+﻿import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import PlaybookAccordion from "@/components/PlaybookAccordion";
 import { supabase } from "@/lib/supabase";
 import html2pdf from "html2pdf.js";
-import { ClientDecisionModal } from "@/components/crm/ClientDecisionModal";
 
 interface Client {
   id: string;
@@ -30,12 +29,12 @@ interface Client {
 }
 
 const JOURNEY_STAGES = [
-  { id: "Orçamento", title: "Orçamento", icon: <MessageSquare className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Primeiro contato, troca de ideias e orçamentos." },
-  { id: "Onboarding", title: "Onboarding", icon: <ClipboardList className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Ficha de anamnese e orientações." },
-  { id: "Sessão Agendada", title: "Sessão Agendada", icon: <Calendar className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Aguardando o dia da sessão. Lembretes e dicas pré-tattoo." },
-  { id: "Projeto em Andamento", title: "Múltiplas Sessões", icon: <List className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Projeto de múltiplas sessões em execução." },
-  { id: "Pós-Tatuagem", title: "Pós-Tatuagem", icon: <HeartPulse className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Acompanhamento da cicatrização (7-15 dias)." },
-  { id: "Concluído", title: "Concluído", icon: <CheckCircle className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Processo finalizado com sucesso." }
+  { id: "OrÃ§amento", title: "OrÃ§amento", icon: <MessageSquare className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Primeiro contato, troca de ideias e orÃ§amentos." },
+  { id: "Onboarding", title: "Onboarding", icon: <ClipboardList className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Ficha de anamnese e orientaÃ§Ãµes." },
+  { id: "SessÃ£o Agendada", title: "SessÃ£o Agendada", icon: <Calendar className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Aguardando o dia da sessÃ£o. Lembretes e dicas prÃ©-tattoo." },
+  { id: "Projeto em Andamento", title: "MÃºltiplas SessÃµes", icon: <List className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Projeto de mÃºltiplas sessÃµes em execuÃ§Ã£o." },
+  { id: "PÃ³s-Tatuagem", title: "PÃ³s-Tatuagem", icon: <HeartPulse className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Acompanhamento da cicatrizaÃ§Ã£o (7-15 dias)." },
+  { id: "ConcluÃ­do", title: "ConcluÃ­do", icon: <CheckCircle className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Processo finalizado com sucesso." }
 ];
 
 const Clients = () => {
@@ -49,10 +48,6 @@ const Clients = () => {
   const [journeys, setJourneys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedOverStage, setDraggedOverStage] = useState<string | null>(null);
-
-  // States do Modal de Decisão do Cliente
-  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
-  const [decisionClient, setDecisionClient] = useState<any | null>(null);
 
   // States for sessions, referrals & anamnesis
   const [clientSessions, setClientSessions] = useState<any[]>([]);
@@ -74,7 +69,7 @@ const Clients = () => {
     phone: "",
     instagram: "",
     birthDate: "",
-    status: "Orçamento",
+    status: "OrÃ§amento",
     notes: "",
     avatar_url: "",
     referred_by_id: ""
@@ -87,7 +82,7 @@ const Clients = () => {
     phone: "",
     instagram: "",
     birthDate: "",
-    status: "Orçamento",
+    status: "OrÃ§amento",
     avatar_url: "",
     referred_by_id: ""
   });
@@ -104,14 +99,14 @@ const Clients = () => {
       const formatted = (clientsData || []).map((c: any) => ({
         id: c.id,
         name: c.name,
-        phone: c.phone || "Não informado",
+        phone: c.phone || "NÃ£o informado",
         instagram: c.instagram || "@",
         birthDate: c.birth_date || "",
         sessions: c.appointments ? c.appointments.length : 0,
         lastVisit: c.appointments && c.appointments.length > 0
           ? new Date(c.appointments[c.appointments.length - 1].date).toLocaleDateString("pt-BR")
           : "Sem visitas",
-        status: c.status || "Orçamento",
+        status: c.status || "OrÃ§amento",
         notes: c.notes || "",
         avatar_url: c.avatar_url,
         referred_by_id: c.referred_by_id,
@@ -222,18 +217,18 @@ const Clients = () => {
         await supabase.from('clientes').update({ status: newStatus }).eq('id', journey.client_id);
       }
 
-      toast.success(`Estágio atualizado para "${newStatus}"!`);
+      toast.success(`EstÃ¡gio atualizado para "${newStatus}"!`);
       await fetchClients();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao atualizar estágio da jornada.");
+      toast.error("Erro ao atualizar estÃ¡gio da jornada.");
     }
   };
 
   const handleCreateClient = async () => {
     try {
       if (!newClientData.name) {
-        toast.error("O nome é obrigatório.");
+        toast.error("O nome Ã© obrigatÃ³rio.");
         return;
       }
       
@@ -242,7 +237,7 @@ const Clients = () => {
         phone: newClientData.phone,
         instagram: newClientData.instagram,
         birth_date: newClientData.birthDate || null,
-        status: newClientData.status || "Orçamento",
+        status: newClientData.status || "OrÃ§amento",
         notes: newClientData.notes || "",
         avatar_url: newClientData.avatar_url,
         referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null)
@@ -253,13 +248,13 @@ const Clients = () => {
       // Criar a primeira jornada no Kanban
       await supabase.from('journeys').insert([{
         client_id: newClient.id,
-        status: newClientData.status || 'Orçamento'
+        status: newClientData.status || 'OrÃ§amento'
       }]);
 
       toast.success("Cliente e Jornada criados com sucesso!");
       await fetchClients();
       setIsAddingClient(false);
-      setNewClientData({ name: "", phone: "", instagram: "", birthDate: "", status: "Orçamento", notes: "", avatar_url: "", referred_by_id: "" });
+      setNewClientData({ name: "", phone: "", instagram: "", birthDate: "", status: "OrÃ§amento", notes: "", avatar_url: "", referred_by_id: "" });
     } catch (error) {
       console.error('Error creating client:', error);
       toast.error('Erro ao criar cliente.');
@@ -275,9 +270,9 @@ const Clients = () => {
       setSelectedClient(prev => prev ? { ...prev, notes: tempNotes } : null);
       setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...c, notes: tempNotes } : c));
       setIsEditingNotes(false);
-      toast.success("Anotações salvas com sucesso!");
+      toast.success("AnotaÃ§Ãµes salvas com sucesso!");
     } catch (error) {
-      toast.error("Erro ao salvar anotações.");
+      toast.error("Erro ao salvar anotaÃ§Ãµes.");
     }
   };
 
@@ -286,10 +281,10 @@ const Clients = () => {
     setEditClientData({
       id: selectedClient.id,
       name: selectedClient.name,
-      phone: selectedClient.phone === "Não informado" ? "" : selectedClient.phone,
+      phone: selectedClient.phone === "NÃ£o informado" ? "" : selectedClient.phone,
       instagram: selectedClient.instagram === "@" ? "" : selectedClient.instagram,
       birthDate: selectedClient.birthDate || "",
-      status: selectedClient.status || "Orçamento",
+      status: selectedClient.status || "OrÃ§amento",
       avatar_url: selectedClient.avatar_url || "",
       referred_by_id: selectedClient.referred_by_id || "none"
     });
@@ -299,7 +294,7 @@ const Clients = () => {
   const handleUpdateClient = async () => {
     try {
       if (!editClientData.name) {
-        toast.error("O nome é obrigatório.");
+        toast.error("O nome Ã© obrigatÃ³rio.");
         return;
       }
       setUploading(true);
@@ -328,14 +323,14 @@ const Clients = () => {
 
   const handleDeleteClient = async () => {
     if (!selectedClient) return;
-    if (!window.confirm(`Tem certeza que deseja excluir o cliente ${selectedClient.name}? Esta ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Tem certeza que deseja excluir o cliente ${selectedClient.name}? Esta aÃ§Ã£o nÃ£o pode ser desfeita.`)) return;
 
     try {
       setLoading(true);
       const { error } = await supabase.from('clientes').delete().eq('id', selectedClient.id);
       if (error) throw error;
 
-      toast.success("Cliente excluído com sucesso!");
+      toast.success("Cliente excluÃ­do com sucesso!");
       setSelectedClient(null);
       await fetchClients();
     } catch (error) {
@@ -438,7 +433,7 @@ const Clients = () => {
             <div className="lg:col-span-2">
               {selectedClient ? (
                 <div className="space-y-6">
-                  {/* Card de Informações */}
+                  {/* Card de InformaÃ§Ãµes */}
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
@@ -451,22 +446,12 @@ const Clients = () => {
                         </div>
                         <div>
                           <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
-                          <p className="text-xs text-muted-foreground">{selectedClient.phone} • {selectedClient.instagram}</p>
+                          <p className="text-xs text-muted-foreground">{selectedClient.phone} â€¢ {selectedClient.instagram}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => {
-                            setDecisionClient(selectedClient);
-                            setDecisionModalOpen(true);
-                          }}
-                          className="h-9 px-3 bg-primary text-primary-foreground font-bold text-xs gap-1.5 shadow-md"
-                        >
-                          ⚡ Decisão do Cliente
-                        </Button>
+                        
                         <Button variant="outline" size="sm" onClick={openEditModal} className="h-9 text-xs">
                           <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
                         </Button>
@@ -476,29 +461,29 @@ const Clients = () => {
                       </div>
                     </div>
 
-                    {/* Resumo de Sessões */}
+                    {/* Resumo de SessÃµes */}
                     <div className="grid grid-cols-3 gap-3 pt-2">
                       <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Sessões</span>
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">SessÃµes</span>
                         <span className="text-lg font-bold text-foreground">{selectedClient.sessions}</span>
                       </div>
                       <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Última Visita</span>
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Ãšltima Visita</span>
                         <span className="text-lg font-bold text-foreground">{selectedClient.lastVisit}</span>
                       </div>
                       <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Estágio CRM</span>
+                        <span className="text-xs text-muted-foreground font-semibold block uppercase">EstÃ¡gio CRM</span>
                         <span className="text-sm font-bold text-primary">{selectedClient.status}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Aba de Histórico e Comprovantes do Cliente */}
+                  {/* Aba de HistÃ³rico e Comprovantes do Cliente */}
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                     <div className="flex items-center justify-between border-b pb-3">
                       <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
                         <History className="h-4 w-4 text-primary" />
-                        Histórico de Agendamentos & Comprovantes no Drive
+                        HistÃ³rico de Agendamentos & Comprovantes no Drive
                       </h3>
                       <span className="text-xs text-muted-foreground font-medium">
                         {clientSessions.length} registros
@@ -506,7 +491,7 @@ const Clients = () => {
                     </div>
 
                     {loadingSessions ? (
-                      <p className="text-xs text-center p-4 text-muted-foreground">Carregando histórico financeiro...</p>
+                      <p className="text-xs text-center p-4 text-muted-foreground">Carregando histÃ³rico financeiro...</p>
                     ) : clientSessions.length > 0 ? (
                       <div className="space-y-3">
                         {clientSessions.map((session) => {
@@ -522,7 +507,7 @@ const Clients = () => {
                                 <div>
                                   <p className="text-sm font-bold flex items-center gap-2 text-foreground">
                                     <Calendar className="h-3.5 w-3.5 text-primary" />
-                                    {session.date ? session.date.split("-").reverse().join("/") : "Sem data"} às {session.startTime || "09:00"}
+                                    {session.date ? session.date.split("-").reverse().join("/") : "Sem data"} Ã s {session.startTime || "09:00"}
                                   </p>
                                 </div>
 
@@ -531,7 +516,7 @@ const Clients = () => {
                                     Total: R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </span>
                                   <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
-                                    session.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                                    session.status === 'ConcluÃ­do' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
                                     session.status === 'Confirmado' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' :
                                     session.status === 'Cancelado' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
                                     'bg-primary/10 text-primary border border-primary/20'
@@ -581,7 +566,7 @@ const Clients = () => {
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
                                     >
-                                      <span>Drive Sessão</span>
+                                      <span>Drive SessÃ£o</span>
                                       <ExternalLink className="w-3 h-3" />
                                     </a>
                                   ) : (
@@ -604,7 +589,7 @@ const Clients = () => {
                 <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground space-y-3">
                   <User className="h-12 w-12 mx-auto text-muted-foreground/40" />
                   <h3 className="text-lg font-bold text-foreground">Selecione um cliente</h3>
-                  <p className="text-sm">Escolha um cliente na lista à esquerda para visualizar seu perfil completo e comprovantes.</p>
+                  <p className="text-sm">Escolha um cliente na lista Ã  esquerda para visualizar seu perfil completo e comprovantes.</p>
                 </div>
               )}
             </div>
@@ -637,7 +622,7 @@ const Clients = () => {
                     }
                   }}
                 >
-                  {/* Cabeçalho da Coluna do Kanban */}
+                  {/* CabeÃ§alho da Coluna do Kanban */}
                   <div className={`flex items-center justify-between mb-3 p-2 rounded-xl border ${stage.headerBg}`}>
                     <div className="flex items-center gap-1.5 overflow-hidden">
                       <div className="bg-card p-1.5 rounded-md shadow-sm shrink-0">
@@ -684,29 +669,17 @@ const Clients = () => {
                             </div>
                           </div>
 
-                          {/* Botões Rápidos no Card do Kanban */}
+                          {/* BotÃµes RÃ¡pidos no Card do Kanban */}
                           <div className="flex items-center justify-between pt-2 border-t text-[11px] gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const clientObj = clients.find(c => c.id === journey.client_id) || { id: journey.client_id, name: journey.client?.name || "Cliente", phone: journey.client?.phone || "" };
-                                setDecisionClient(clientObj);
-                                setDecisionModalOpen(true);
-                              }}
-                              className="h-7 px-2 text-[10px] font-bold text-primary hover:bg-primary/10 gap-1"
-                            >
-                              <span>⚡ Decisão</span>
-                            </Button>
+                            
 
-                            {journey.client?.phone && journey.client.phone !== "Não informado" && (
+                            {journey.client?.phone && journey.client.phone !== "NÃ£o informado" && (
                               <a
                                 href={
                                   stage.id === "Garimpo"
-                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Tudo bem? Passando para saber como ficou a sua ideia de tatuagem. Conseguimos abrir uma condição especial na agenda este mês! Vamos dar andamento no projeto?`)}`
+                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`OlÃ¡ ${journey.client.name}! Tudo bem? Passando para saber como ficou a sua ideia de tatuagem. Conseguimos abrir uma condiÃ§Ã£o especial na agenda este mÃªs! Vamos dar andamento no projeto?`)}`
                                     : stage.id === "Sem Resposta"
-                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Vi que não conseguimos nos falar depois da ideia do projeto de tatuagem. Ficou alguma dúvida sobre o orçamento que eu possa te ajudar?`)}`
+                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`OlÃ¡ ${journey.client.name}! Vi que nÃ£o conseguimos nos falar depois da ideia do projeto de tatuagem. Ficou alguma dÃºvida sobre o orÃ§amento que eu possa te ajudar?`)}`
                                     : `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}`
                                 }
                                 target="_blank"
@@ -718,7 +691,7 @@ const Clients = () => {
                                     : "text-muted-foreground hover:text-green-600"
                                 }`}
                               >
-                                {stage.id === "Garimpo" || stage.id === "Sem Resposta" ? "📲 Resgatar" : "Whats"}
+                                {stage.id === "Garimpo" || stage.id === "Sem Resposta" ? "ðŸ“² Resgatar" : "Whats"}
                               </a>
                             )}
                           </div>
@@ -736,13 +709,13 @@ const Clients = () => {
           </div>
         </TabsContent>
 
-        {/* ABA 3: FUNIL DE CONVERSÃO */}
+        {/* ABA 3: FUNIL DE CONVERSÃƒO */}
         <TabsContent value="funil" className="m-0">
           <div className="bg-card rounded-2xl border p-6 lg:p-10 shadow-sm overflow-hidden flex flex-col items-center min-h-[450px]">
             <div className="text-center mb-8 max-w-xl">
-              <h2 className="text-xl font-bold mb-2">Funil de Conversão CRM</h2>
+              <h2 className="text-xl font-bold mb-2">Funil de ConversÃ£o CRM</h2>
               <p className="text-sm text-muted-foreground">
-                Análise de conversão acumulada do estúdio. Acompanhe a progressão de orçamentos até o fechamento.
+                AnÃ¡lise de conversÃ£o acumulada do estÃºdio. Acompanhe a progressÃ£o de orÃ§amentos atÃ© o fechamento.
               </p>
             </div>
             
@@ -777,7 +750,7 @@ const Clients = () => {
       <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo Cliente (Cadastro Rápido)</DialogTitle>
+            <DialogTitle>Novo Cliente (Cadastro RÃ¡pido)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -807,7 +780,7 @@ const Clients = () => {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Estágio Inicial</Label>
+              <Label className="text-xs font-semibold">EstÃ¡gio Inicial</Label>
               <Select
                 value={newClientData.status}
                 onValueChange={(val) => setNewClientData({ ...newClientData, status: val })}
@@ -865,20 +838,15 @@ const Clients = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditingClient(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateClient}>Salvar Alterações</Button>
+            <Button onClick={handleUpdateClient}>Salvar AlteraÃ§Ãµes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Decisão do Cliente */}
-      <ClientDecisionModal
-        open={decisionModalOpen}
-        onOpenChange={setDecisionModalOpen}
-        client={decisionClient}
-        onSuccess={fetchClients}
-      />
+      
     </>
   );
 };
 
 export default Clients;
+

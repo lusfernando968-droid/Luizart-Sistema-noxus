@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import Index from "./pages/Index";
 import Agenda from "./pages/Agenda";
@@ -10,18 +10,10 @@ import Clients from "./pages/Clients";
 import Financial from "./pages/Financial";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
-import { SupportAdmin } from "./pages/SupportAdmin";
-import Users from "./pages/Users";
-import NotFound from "./pages/NotFound";
+import Team from "./pages/Team";
 import AnamnesisForm from "./pages/AnamnesisForm";
-import SuperAdmin from "./pages/SuperAdmin";
-import AdminDashboard from "./pages/AdminDashboard";
-import Inactive from "./pages/Inactive";
-import { DevDashboard } from "./pages/DevDashboard";
+import NotFound from "./pages/NotFound";
 import { Layout } from "@/components/Layout";
-import { Outlet, Navigate } from "react-router-dom";
-
-import MasterAdmin from "./pages/MasterAdmin";
 
 // Authenticated layout wrapper
 const AuthLayout = () => {
@@ -44,22 +36,16 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/inativo" element={<Inactive />} />
             <Route path="/anamnese/:clientId" element={<AnamnesisForm />} />
-            <Route path="/master" element={<MasterAdmin />} />
 
-            {/* Authenticated Routes with Persistent Layout */}
+            {/* Rotas Autenticadas do Estúdio Noxus Luizart */}
             <Route element={<AuthLayout />}>
               <Route path="/dashboard" element={<Index />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/clientes" element={<Clients />} />
               <Route path="/financeiro" element={<Financial />} />
+              <Route path="/equipe" element={<Team />} />
               <Route path="/perfil" element={<Profile />} />
-              <Route path="/suporte-admin" element={<SupportAdmin />} />
-              <Route path="/dev-dashboard" element={<DevDashboard />} />
-              <Route path="/usuarios" element={<Users />} />
-              <Route path="/admin-noxus" element={<SuperAdmin />} />
-              <Route path="/admin-dashboard" element={<AdminDashboard />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

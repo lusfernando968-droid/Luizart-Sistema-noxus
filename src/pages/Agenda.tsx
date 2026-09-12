@@ -14,21 +14,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, Banknote, CalendarDays, Activity, CheckCircle2, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import { toast } from "sonner";
-
-import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const MONTHS = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
 
 interface Appointment {
   id: string;
@@ -40,13 +38,13 @@ interface Appointment {
   value: number;
   deposit: number;
   deposit_date?: string;
+  deposit_link?: string;
   status: string;
 }
 
 const Agenda = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -54,9 +52,12 @@ const Agenda = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [mobileViewType, setMobileViewType] = useState<string>("timeGridDay");
   const calendarRef = useRef<any>(null);
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date(); d.setHours(0,0,0,0); return d;
   });
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     const d = new Date(today);
@@ -70,7 +71,20 @@ const Agenda = () => {
   const [checkoutData, setCheckoutData] = useState({
     status: 'Recebido',
     value: 0,
-    paymentMethod: 'Pix'
+    paymentMethod: 'Pix',
+    driveLink: ''
+  });
+
+  const [formData, setFormData] = useState({
+    client_id: "",
+    date: "",
+    startTime: "09:00",
+    endTime: "10:00",
+    status: "Agendado",
+    value: 0,
+    deposit: 0,
+    deposit_date: new Date().toISOString().split("T")[0],
+    deposit_link: ""
   });
 
   useEffect(() => {
@@ -79,26 +93,33 @@ const Agenda = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    if (isMobile) {
-      calendarRef.current?.getApi()?.changeView(mobileViewType);
-    }
-  }, [mobileViewType, isMobile]);
-
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*, client:clientes(name)');
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/appointments", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro");
-      const data = await res.json();
-      setAppointments(data);
+      if (error) throw error;
+
+      const formatted = (data || []).map((a: any) => ({
+        id: a.id,
+        client_id: a.client_id,
+        client_name: a.client?.name || "Cliente",
+        date: a.date || "",
+        startTime: a.startTime || "09:00",
+        endTime: a.endTime || "10:00",
+        value: a.value || 0,
+        deposit: a.deposit || 0,
+        deposit_date: a.deposit_date || "",
+        deposit_link: a.deposit_link || a.deposit_drive_link || "",
+        status: a.status || "Agendado"
+      }));
+
+      setAppointments(formatted);
     } catch (error) {
       console.error('Error fetching appointments:', error);
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -106,13 +127,8 @@ const Agenda = () => {
 
   const fetchClients = async () => {
     try {
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api/clients", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro");
-      const data = await res.json();
+      const { data, error } = await supabase.from('clientes').select('*');
+      if (error) throw error;
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -124,48 +140,41 @@ const Agenda = () => {
     fetchClients();
   }, []);
 
-  const [formData, setFormData] = useState({
-    client_id: "",
-    date: "",
-    startTime: "09:00",
-    endTime: "10:00",
-    status: "Agendado",
-    value: 0,
-    deposit: 0,
-    deposit_date: ""
-  });
-
   const getEventColors = (status: string) => {
-    // We use the HSL variables from tailwind theme via standard CSS color mapping or hex
-    // Using CSS variables directly so it adapts to light/dark mode if they change
     switch (status) {
       case "Pendente":
       case "Agendado": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
-      case "Confirmado": return { backgroundColor: "#9333ea", borderColor: "#9333ea" }; // Purple
+      case "Confirmado": return { backgroundColor: "#9333ea", borderColor: "#9333ea" };
       case "Concluído": return { backgroundColor: "hsl(var(--success))", borderColor: "hsl(var(--success))" };
       case "Cancelado": return { backgroundColor: "hsl(var(--destructive))", borderColor: "hsl(var(--destructive))" };
       default: return { backgroundColor: "hsl(var(--muted))", borderColor: "hsl(var(--muted))" };
     }
   };
 
-  const calendarEvents = appointments.map(appt => {
-    const colors = getEventColors(appt.status);
-    return {
-      id: appt.id,
-      title: appt.client_name,
-      start: appt.date + 'T' + appt.startTime,
-      end: appt.date + 'T' + appt.endTime,
-      backgroundColor: colors.backgroundColor,
-      borderColor: colors.borderColor,
-      textColor: "#ffffff",
-      extendedProps: {
-        status: appt.status,
-        value: appt.value,
-        deposit: appt.deposit,
-        deposit_date: appt.deposit_date
-      }
-    };
-  });
+  const calendarEvents = useMemo(() => {
+    if (!Array.isArray(appointments)) return [];
+    return appointments
+      .filter(appt => appt && appt.date && appt.startTime)
+      .map(appt => {
+        const colors = getEventColors(appt.status);
+        return {
+          id: appt.id,
+          title: appt.client_name || "Cliente",
+          start: `${appt.date}T${appt.startTime}`,
+          end: `${appt.date}T${appt.endTime || appt.startTime}`,
+          backgroundColor: colors.backgroundColor,
+          borderColor: colors.borderColor,
+          textColor: "#ffffff",
+          extendedProps: {
+            status: appt.status,
+            value: appt.value,
+            deposit: appt.deposit,
+            deposit_date: appt.deposit_date,
+            deposit_link: appt.deposit_link
+          }
+        };
+      });
+  }, [appointments]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -178,20 +187,8 @@ const Agenda = () => {
     }
   };
 
-  const getEventClass = (status: string) => {
-    switch (status) {
-      case "Confirmado": return "px-2 py-0.5 rounded-md text-xs font-medium";
-      case "Pendente":
-      case "Agendado": return "px-2 py-0.5 rounded-md text-xs font-medium";
-      case "Concluído": return "px-2 py-0.5 rounded-md text-xs font-medium";
-      case "Cancelado": return "px-2 py-0.5 rounded-md text-xs font-medium";
-      default: return "px-2 py-0.5 rounded-md text-xs font-medium";
-    }
-  };
-
   const handleDateClick = (arg: { dateStr: string }) => {
     setEditingAppointment(null);
-    setSelectedDate(arg.dateStr);
     setFormData({
       client_id: "",
       date: arg.dateStr.includes("T") ? arg.dateStr.split("T")[0] : arg.dateStr,
@@ -202,7 +199,8 @@ const Agenda = () => {
       status: "Agendado",
       value: 0,
       deposit: 0,
-      deposit_date: ""
+      deposit_date: new Date().toISOString().split("T")[0],
+      deposit_link: ""
     });
     setModalOpen(true);
   };
@@ -219,28 +217,20 @@ const Agenda = () => {
         status: appt.status,
         value: appt.value,
         deposit: appt.deposit,
-        deposit_date: appt.deposit_date || ""
+        deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
+        deposit_link: appt.deposit_link || ""
       });
       setModalOpen(true);
     }
   };
-
-
 
   const handleDelete = async () => {
     if (!editingAppointment) return;
 
     try {
       setLoading(true);
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments/${editingAppointment.id}`, {
-        method: 'DELETE',
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (!res.ok) throw new Error("Erro ao excluir agendamento.");
+      const { error } = await supabase.from('appointments').delete().eq('id', editingAppointment.id);
+      if (error) throw error;
 
       toast.success("Agendamento excluído com sucesso.");
       setModalOpen(false);
@@ -257,49 +247,71 @@ const Agenda = () => {
   const handleSave = async () => {
     try {
       if (!formData.client_id) {
-        alert("Por favor, selecione um cliente.");
+        toast.error("Por favor, selecione um cliente.");
         return;
       }
 
-      const token = localStorage.getItem("noxus_token");
-      if (!token) {
-        alert("Sessão expirada.");
-        return;
-      }
+      const clientObj = clients.find(c => c.id === formData.client_id);
+      const clientName = clientObj?.name || "Cliente";
+
+      const payload: any = {
+        client_id: formData.client_id,
+        date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        status: formData.status,
+        value: formData.value,
+        deposit: formData.deposit,
+        deposit_date: formData.deposit_date,
+        deposit_link: formData.deposit_link
+      };
 
       if (editingAppointment) {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments/${editingAppointment.id}`, {
-          method: 'PUT',
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(formData)
-        });
-        if (!res.ok) throw new Error("Erro ao atualizar");
+        const { error } = await supabase.from('appointments').update(payload).eq('id', editingAppointment.id);
+        if (error) throw error;
       } else {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments`, {
-          method: 'POST',
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(formData)
-        });
-        if (!res.ok) throw new Error("Erro ao criar");
+        const { error } = await supabase.from('appointments').insert([payload]);
+        if (error) throw error;
+      }
+
+      // Se houver sinal > 0 e for um novo agendamento ou se preencheu o sinal agora, cria entrada no financeiro
+      if (formData.deposit > 0 && formData.deposit_link) {
+        try {
+          const token = localStorage.getItem("noxus_token");
+          if (token) {
+            await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                description: `Sinal de Agendamento - ${clientName}`,
+                value: formData.deposit,
+                date: formData.deposit_date || formData.date,
+                type: "entrada",
+                status: "Pago",
+                driveLink: formData.deposit_link,
+                isDeductible: false
+              })
+            });
+          }
+        } catch (e) {
+          console.log("Aviso: Falha ao lançar sinal no financeiro automático", e);
+        }
       }
 
       await fetchAppointments();
       setModalOpen(false);
+      toast.success("Agendamento salvo com sucesso!");
     } catch (error) {
       console.error('Error saving appointment:', error);
-      alert('Erro ao salvar agendamento.');
+      toast.error('Erro ao salvar agendamento.');
     }
   };
 
   const handleSelect = (arg: any) => {
     setEditingAppointment(null);
-    setSelectedDate(arg.startStr.split("T")[0]);
     setFormData({
       client_id: "",
       date: arg.startStr.split("T")[0],
@@ -308,7 +320,8 @@ const Agenda = () => {
       status: "Agendado",
       value: 0,
       deposit: 0,
-      deposit_date: ""
+      deposit_date: new Date().toISOString().split("T")[0],
+      deposit_link: ""
     });
     setModalOpen(true);
   };
@@ -316,28 +329,16 @@ const Agenda = () => {
   const handleEventChange = async (changeInfo: any) => {
     const { event } = changeInfo;
     try {
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-
       const appt = appointments.find(a => a.id === event.id);
       if (!appt) return;
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments/${event.id}`, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({
-          client_id: appt.client_id,
-          date: event.startStr.split("T")[0],
-          startTime: event.startStr.split("T")[1].substring(0, 5),
-          endTime: event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime,
-          status: appt.status,
-          value: appt.value,
-          deposit: appt.deposit,
-          deposit_date: appt.deposit_date
-        })
-      });
+      const { error } = await supabase.from('appointments').update({
+        date: event.startStr.split("T")[0],
+        startTime: event.startStr.split("T")[1].substring(0, 5),
+        endTime: event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime,
+      }).eq('id', event.id);
 
-      if (!res.ok) throw new Error("Erro");
+      if (error) throw error;
       await fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -348,26 +349,8 @@ const Agenda = () => {
   const handleConfirmAppointment = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-      const appt = appointments.find(a => a.id === id);
-      if (!appt) return;
-      
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/appointments/${id}`, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({
-          client_id: appt.client_id,
-          date: appt.date,
-          startTime: appt.startTime,
-          endTime: appt.endTime,
-          status: 'Confirmado',
-          value: appt.value,
-          deposit: appt.deposit,
-          deposit_date: appt.deposit_date
-        })
-      });
-      if (!res.ok) throw new Error("Erro");
+      const { error } = await supabase.from('appointments').update({ status: 'Confirmado' }).eq('id', id);
+      if (error) throw error;
 
       await fetchAppointments();
       toast.success("Agendamento confirmado com sucesso!");
@@ -383,7 +366,8 @@ const Agenda = () => {
     setCheckoutData({
       status: 'Recebido',
       value: Math.max(0, (appt.value || 0) - (appt.deposit || 0)),
-      paymentMethod: 'Pix'
+      paymentMethod: 'Pix',
+      driveLink: ''
     });
     setCheckoutModalOpen(true);
   };
@@ -391,26 +375,32 @@ const Agenda = () => {
   const handleCheckout = async () => {
     if (!selectedCheckout) return;
     try {
-      const token = localStorage.getItem("noxus_token");
-      if (!token) {
-        toast.error("Você precisa estar logado.");
-        return;
+      // 1. Atualizar o agendamento
+      const { error: apptError } = await supabase.from('appointments').update({ status: checkoutData.status }).eq('id', selectedCheckout.id);
+      if (apptError) throw apptError;
+
+      // 2. Se for "Recebido", lançar no financeiro com o link do comprovante final
+      if (checkoutData.status === 'Recebido') {
+        const token = localStorage.getItem("noxus_token");
+        if (token) {
+          await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
+              type: "entrada",
+              value: checkoutData.value,
+              date: new Date().toISOString().split("T")[0],
+              status: "Pago",
+              driveLink: checkoutData.driveLink,
+              payment_method: checkoutData.paymentMethod
+            })
+          });
+        }
       }
-
-      const res = await fetch((import.meta.env.VITE_API_URL || "http://localhost:3000") + '/api/appointments/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          appointmentId: selectedCheckout.id,
-          status: checkoutData.status,
-          value: checkoutData.value,
-          paymentMethod: checkoutData.paymentMethod,
-          name: selectedCheckout.client_name,
-          date: selectedCheckout.date
-        })
-      });
-
-      if (!res.ok) throw new Error("Erro");
 
       toast.success("Sessão baixada com sucesso!");
       setCheckoutModalOpen(false);
@@ -426,7 +416,6 @@ const Agenda = () => {
     .filter(a => a.date === todayStr)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // ── Week Strip helpers (Google Calendar style) ──
   const WEEK_DAYS_SHORT = ["D", "S", "T", "Q", "Q", "S", "S"];
 
   const getWeekDays = (weekStart: Date) => {
@@ -445,330 +434,317 @@ const Agenda = () => {
     const newStart = new Date(currentWeekStart);
     newStart.setDate(newStart.getDate() + direction * 7);
     setCurrentWeekStart(newStart);
-    const today = new Date(); today.setHours(0,0,0,0);
-    const weekEnd = new Date(newStart); weekEnd.setDate(newStart.getDate() + 6);
-    const todayInWeek = today >= newStart && today <= weekEnd;
-    const newDay = todayInWeek ? today : new Date(newStart);
-    setSelectedDay(newDay);
-    calendarRef.current?.getApi()?.gotoDate(newDay);
   };
 
-  const selectDay = (day: Date) => {
-    const d = new Date(day); d.setHours(0,0,0,0);
-    setSelectedDay(d);
-    calendarRef.current?.getApi()?.gotoDate(d);
+  const handlePrev = () => {
+    if (calendarRef.current) {
+      calendarRef.current.getApi().prev();
+      setSelectedDay(calendarRef.current.getApi().getDate());
+    }
   };
 
-  const daysWithEvents = useMemo(
-    () => new Set(appointments.map(a => a.date)),
-    [appointments]
-  );
+  const handleNext = () => {
+    if (calendarRef.current) {
+      calendarRef.current.getApi().next();
+      setSelectedDay(calendarRef.current.getApi().getDate());
+    }
+  };
+
+  const handleToday = () => {
+    if (calendarRef.current) {
+      calendarRef.current.getApi().today();
+      setSelectedDay(new Date());
+    }
+  };
 
   return (
     <>
-      {/* Page header — compacto no mobile */}
-      <div className={cn("page-header", isMobile && "mb-2")}>
+      <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="page-title">Agenda</h1>
-          <p className="page-subtitle hidden sm:block">Gerencie seus agendamentos</p>
+          <h1 className="page-title">Agenda & Recebimentos</h1>
+          <p className="page-subtitle">Gerencie suas sessões, sinais e baixas financeiras</p>
         </div>
-        <div className="flex items-center gap-2">
-          {isMobile && (
-            <div className="flex bg-muted p-1 rounded-md">
-              <button
-                onClick={() => setMobileViewType("timeGridDay")}
-                className={cn("px-3 py-1 text-xs font-medium rounded-sm transition-colors", mobileViewType === "timeGridDay" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
-              >
-                Dia
-              </button>
-              <button
-                onClick={() => setMobileViewType("timeGridWeek")}
-                className={cn("px-3 py-1 text-xs font-medium rounded-sm transition-colors", mobileViewType === "timeGridWeek" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
-              >
-                Semana
-              </button>
-            </div>
-          )}
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingAppointment(null);
-              setFormData({
-                client_id: "",
-                date: new Date().toISOString().split("T")[0],
-                startTime: "09:00",
-                endTime: "10:00",
-                status: "Agendado",
-                value: 0,
-                deposit: 0,
-                deposit_date: ""
-              });
-              setModalOpen(true);
-            }}
-            className="shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="ml-1.5 hidden sm:inline">Novo Agendamento</span>
-            <span className="ml-1.5 sm:hidden">Novo</span>
-          </Button>
-        </div>
+        <Button onClick={() => {
+          setEditingAppointment(null);
+          setFormData({
+            client_id: "",
+            date: new Date().toISOString().split("T")[0],
+            startTime: "09:00",
+            endTime: "10:00",
+            status: "Agendado",
+            value: 0,
+            deposit: 0,
+            deposit_date: new Date().toISOString().split("T")[0],
+            deposit_link: ""
+          });
+          setModalOpen(true);
+        }}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Agendamento
+        </Button>
       </div>
 
-      {/* Agendamentos de Hoje — apenas desktop */}
-      {todayAppointments.length > 0 && (
-        <div className="mb-2 hidden lg:block">
-          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Agendamentos de Hoje</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {todayAppointments.map((appt) => (
-              <div
-                key={appt.id}
-                className="bg-card rounded-xl border shadow-sm p-4 flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => {
-                  setEditingAppointment(appt);
-                  setFormData({
-                    client_id: appt.client_id || "",
-                    date: appt.date,
-                    startTime: appt.startTime,
-                    endTime: appt.endTime,
-                    status: appt.status,
-                    value: appt.value,
-                    deposit: appt.deposit,
-                    deposit_date: appt.deposit_date || ""
-                  });
-                  setModalOpen(true);
-                }}
-              >
-                <div>
-                  <p className="font-bold text-foreground">{appt.startTime} - {appt.endTime}</p>
-                  <p className="text-sm text-muted-foreground">{appt.client_name}</p>
-                  <span className={`inline-block mt-2 px-2 py-0.5 rounded-md text-xs font-semibold ${statusColor(appt.status)}`}>
-                    {appt.status}
-                  </span>
-                </div>
-                {appt.status === 'Agendado' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-success text-success hover:bg-success hover:text-white"
-                    onClick={(e) => handleConfirmAppointment(appt.id, e)}
-                  >
-                    <Check className="h-4 w-4 mr-1.5" />
-                    Confirmar
-                  </Button>
-                )}
-                {appt.status !== 'Concluído' && appt.status !== 'Cancelado' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs px-3 rounded-full border-primary/20 text-primary hover:bg-primary/10 ml-2"
-                    onClick={(e) => openCheckout(appt, e)}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                    Dar Baixa
-                  </Button>
-                )}
-              </div>
-            ))}
+      {isMobile ? (
+        <div className="space-y-4">
+          <div className="bg-card rounded-xl border p-3 shadow-sm flex items-center justify-between">
+            <Button variant="ghost" size="icon" onClick={() => navigateWeek(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-semibold capitalize">
+              {currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </span>
+            <Button variant="ghost" size="icon" onClick={() => navigateWeek(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      )}
 
-      {/* Calendário — edge-to-edge no mobile, card no desktop */}
-      <div className={cn(
-        "bg-card border shadow-sm overflow-hidden flex flex-col",
-        isMobile
-          ? "-mx-4 -mb-4 mt-0 rounded-none border-x-0 border-b-0 h-[calc(100dvh-12rem)]"
-          : "rounded-xl p-4"
-      )}>
+          <div className="bg-card rounded-xl border p-2 shadow-sm">
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((dateObj, idx) => {
+                const isSelected = dateObj.toDateString() === selectedDay.toDateString();
+                const isToday = dateObj.toDateString() === new Date().toDateString();
+                const dateStr = dateObj.toISOString().split("T")[0];
+                const dayAppointmentsCount = appointments.filter(a => a.date === dateStr).length;
 
-        {/* Week Strip — apenas mobile (estilo Google Calendar) */}
-        {isMobile && (
-          <div className="border-b border-border/50 bg-card">
-            {/* Cabeçalho do mês + navegação */}
-            <div className="flex items-center justify-between px-3 pt-2 pb-0.5">
-              <button
-                onClick={() => navigateWeek(-1)}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-xs font-semibold text-muted-foreground capitalize">
-                {weekDays[0].toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-              </span>
-              <button
-                onClick={() => navigateWeek(1)}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Linha de dias */}
-            <div className="grid grid-cols-7 px-1 pb-2">
-              {weekDays.map((day, i) => {
-                const dayStr = day.toISOString().split("T")[0];
-                const isSelected = dayStr === selectedDay.toISOString().split("T")[0];
-                const isToday = dayStr === todayStr;
-                const hasEvents = daysWithEvents.has(dayStr);
                 return (
                   <button
-                    key={i}
-                    onClick={() => selectDay(day)}
-                    className="flex flex-col items-center gap-0.5 py-1"
+                    key={idx}
+                    onClick={() => setSelectedDay(dateObj)}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2 rounded-xl text-xs font-medium transition-all relative",
+                      isSelected ? "bg-primary text-primary-foreground font-bold shadow-md" : "hover:bg-accent",
+                      isToday && !isSelected && "border border-primary text-primary"
+                    )}
                   >
-                    <span className={cn(
-                      "text-[10px] font-semibold uppercase",
-                      isToday && !isSelected ? "text-primary" : "text-muted-foreground"
-                    )}>
-                      {WEEK_DAYS_SHORT[day.getDay()]}
-                    </span>
-                    <span className={cn(
-                      "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-150",
-                      isSelected
-                        ? "bg-primary text-primary-foreground shadow-md"
-                        : isToday
-                        ? "text-primary font-bold"
-                        : "text-foreground"
-                    )}>
-                      {day.getDate()}
-                    </span>
-                    <span className={cn(
-                      "h-1 w-1 rounded-full transition-all",
-                      hasEvents
-                        ? isSelected ? "bg-primary-foreground" : "bg-primary"
-                        : "bg-transparent"
-                    )} />
+                    <span className="text-[10px] opacity-80">{WEEK_DAYS_SHORT[dateObj.getDay()]}</span>
+                    <span className="text-sm">{dateObj.getDate()}</span>
+                    {dayAppointmentsCount > 0 && (
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full mt-1",
+                        isSelected ? "bg-primary-foreground" : "bg-primary"
+                      )} />
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
-        )}
 
-        {/* FullCalendar */}
-        <div className={cn(isMobile ? "flex-1 overflow-hidden" : "")} style={{ height: isMobile ? '100%' : '720px' }}>
+          <div className="bg-card rounded-xl border p-2 shadow-sm flex items-center justify-center gap-1">
+            <Button
+              variant={mobileViewType === "timeGridDay" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setMobileViewType("timeGridDay")}
+              className="text-xs flex-1"
+            >
+              Lista do Dia
+            </Button>
+            <Button
+              variant={mobileViewType === "dayGridMonth" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setMobileViewType("dayGridMonth")}
+              className="text-xs flex-1"
+            >
+              Calendário Mensal
+            </Button>
+          </div>
+
+          {mobileViewType === "timeGridDay" ? (
+            <div className="bg-card rounded-xl border p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h3 className="font-bold text-sm capitalize">
+                  {selectedDay.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+                </h3>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {appointments.filter(a => a.date === selectedDay.toISOString().split("T")[0]).length} agendamentos
+                </span>
+              </div>
+
+              {appointments.filter(a => a.date === selectedDay.toISOString().split("T")[0]).length > 0 ? (
+                <div className="space-y-2.5">
+                  {appointments
+                    .filter(a => a.date === selectedDay.toISOString().split("T")[0])
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .map(appt => (
+                      <div
+                        key={appt.id}
+                        onClick={() => {
+                          setEditingAppointment(appt);
+                          setFormData({
+                            client_id: appt.client_id || "",
+                            date: appt.date,
+                            startTime: appt.startTime,
+                            endTime: appt.endTime,
+                            status: appt.status,
+                            value: appt.value,
+                            deposit: appt.deposit,
+                            deposit_date: appt.deposit_date || "",
+                            deposit_link: appt.deposit_link || ""
+                          });
+                          setModalOpen(true);
+                        }}
+                        className="p-3 border rounded-xl hover:bg-accent/40 transition-colors flex items-center justify-between gap-2"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-foreground">{appt.client_name}</span>
+                            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold", statusColor(appt.status))}>
+                              {appt.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-2">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            <span>{appt.startTime} às {appt.endTime}</span>
+                          </p>
+
+                          {appt.deposit > 0 && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium pt-0.5">
+                              <DollarSign className="w-3 h-3" />
+                              <span>Sinal: R$ {appt.deposit.toLocaleString("pt-BR")}</span>
+                              {appt.deposit_link && (
+                                <a
+                                  href={appt.deposit_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-0.5 text-primary hover:underline ml-1"
+                                >
+                                  <span>Drive</span>
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {appt.status !== 'Concluído' && appt.status !== 'Cancelado' && (
+                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={(e) => openCheckout(appt, e)}>
+                              Baixa
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-xs text-muted-foreground">
+                  Nenhum agendamento para este dia.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-card rounded-xl border p-2 shadow-sm overflow-hidden">
+              <FullCalendar
+                plugins={[dayGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                locale={ptBrLocale}
+                events={calendarEvents}
+                headerToolbar={{ left: "title", center: "", right: "prev,next" }}
+                dateClick={handleDateClick}
+                eventClick={handleEventClick}
+                height="auto"
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-            initialDate={selectedDay}
+            initialView="timeGridWeek"
+            locale={ptBrLocale}
             events={calendarEvents}
-            locale="pt-br"
-            headerToolbar={isMobile ? false : {
+            editable={true}
+            selectable={true}
+            selectMirror={true}
+            dayMaxEvents={true}
+            headerToolbar={{
               left: "prev,next today",
               center: "title",
               right: "dayGridMonth,timeGridWeek,timeGridDay"
             }}
-            height="100%"
-            slotMinTime="08:00:00"
-            slotMaxTime="22:00:00"
-            allDaySlot={false}
-            nowIndicator={true}
-            slotLabelFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              omitZeroMinute: false,
-              meridiem: false
-            }}
-            eventClassNames={(arg) => {
-              const status = arg.event.extendedProps?.status || "Agendado";
-              return getEventClass(status);
-            }}
-            buttonText={{
-              today: 'Hoje',
-              month: 'Mês',
-              week: 'Semana',
-              day: 'Dia',
-              list: 'Lista'
-            }}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
-            selectable={true}
-            selectMirror={true}
             select={handleSelect}
-            selectLongPressDelay={500}
-            eventLongPressDelay={500}
-            editable={true}
-            eventDrop={handleEventChange}
-            eventResize={handleEventChange}
+            eventChange={handleEventChange}
+            height="calc(100vh - 220px)"
           />
         </div>
-      </div>
+      )}
 
-      {/* New Appointment Modal */}
+      {/* Modal de Cadastro/Edição de Agendamento */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo Agendamento"}</DialogTitle>
+            <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo Agendamento & Sinal"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <Label className="flex items-center gap-1.5"><User className="w-4 h-4 text-muted-foreground" /> Cliente</Label>
-                <Popover open={clientDropdownOpen} onOpenChange={setClientDropdownOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={clientDropdownOpen}
-                      className="w-full justify-between mt-1.5"
-                    >
-                      {formData.client_id
-                        ? clients.find((c) => c.id === formData.client_id)?.name
-                        : "Selecione um cliente..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" style={{ zIndex: 9999 }}>
-                    <Command>
-                      <div className="flex items-center border-b px-3">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <CommandInput placeholder="Pesquisar cliente..." className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50" />
-                      </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="flex items-center gap-1.5"><User className="w-4 h-4 text-muted-foreground" /> Cliente</Label>
+              <Popover open={clientDropdownOpen} onOpenChange={setClientDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientDropdownOpen}
+                    className="w-full justify-between mt-1.5"
+                  >
+                    {formData.client_id
+                      ? clients.find((c) => c.id === formData.client_id)?.name
+                      : "Selecione um cliente..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" style={{ zIndex: 9999 }}>
+                  <Command>
+                    <CommandInput placeholder="Buscar cliente..." />
+                    <CommandList>
                       <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                       <CommandGroup>
-                        <CommandList>
-                          {clients.map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              value={c.name}
-                              onSelect={() => {
-                                setFormData({ ...formData, client_id: c.id });
-                                setClientDropdownOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.client_id === c.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {c.name} {c.phone ? `(${c.phone})` : ""}
-                            </CommandItem>
-                          ))}
-                        </CommandList>
+                        {clients.map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={client.name}
+                            onSelect={() => {
+                              setFormData(prev => ({ ...prev, client_id: client.id }));
+                              setClientDropdownOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {client.name}
+                          </CommandItem>
+                        ))}
                       </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-muted-foreground" /> Data</Label>
+              <div className="space-y-2">
+                <Label>Data da Sessão</Label>
                 <Input
                   type="date"
-                  className="mt-1.5"
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label className="flex items-center gap-1.5"><Activity className="w-4 h-4 text-muted-foreground" /> Status</Label>
+              <div className="space-y-2">
+                <Label>Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(v) => setFormData({ ...formData, status: v })}
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
                 >
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Agendado">Agendado</SelectItem>
@@ -779,77 +755,88 @@ const Agenda = () => {
                 </Select>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" /> Início</Label>
+              <div className="space-y-2">
+                <Label>Horário de Início</Label>
                 <Input
                   type="time"
-                  className="mt-1.5"
                   value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" /> Fim</Label>
+              <div className="space-y-2">
+                <Label>Horário de Término</Label>
                 <Input
                   type="time"
-                  className="mt-1.5"
                   value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="flex items-center gap-1.5"><Banknote className="w-4 h-4 text-muted-foreground" /> Valor Total + Sinal (R$)</Label>
-                <Input
-                  type="number"
-                  placeholder="0,00"
-                  className="mt-1.5"
-                  value={formData.value || ""}
-                  onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label className="flex items-center gap-1.5"><Banknote className="w-4 h-4 text-muted-foreground opacity-70" /> Sinal (R$)</Label>
-                <Input
-                  type="number"
-                  placeholder="0,00"
-                  className="mt-1.5"
-                  value={formData.deposit || ""}
-                  onChange={(e) => setFormData({ ...formData, deposit: Number(e.target.value) })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
                 />
               </div>
             </div>
 
-            {formData.deposit > 0 && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                <Label className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-muted-foreground" /> Data do Pagamento do Sinal</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Valor Total da Sessão (R$)</Label>
                 <Input
-                  type="date"
-                  className="mt-1.5 w-full"
-                  value={formData.deposit_date}
-                  onChange={(e) => setFormData({ ...formData, deposit_date: e.target.value })}
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => setFormData(prev => ({ ...prev, value: Number(e.target.value) }))}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Valor do Sinal (R$)</Label>
+                <Input
+                  type="number"
+                  value={formData.deposit}
+                  onChange={(e) => setFormData(prev => ({ ...prev, deposit: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+
+            {/* Se houver sinal, exibe campos do Sinal e Link do Drive */}
+            {formData.deposit > 0 && (
+              <div className="bg-accent/20 border border-primary/20 p-3 rounded-xl space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Data do Pagamento do Sinal</Label>
+                  <Input
+                    type="date"
+                    value={formData.deposit_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deposit_date: e.target.value }))}
+                    className="h-8 text-xs bg-card"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold flex items-center gap-1">
+                    <LinkIcon className="w-3 h-3 text-primary" /> Link do Comprovante do Sinal (Drive)
+                  </Label>
+                  <Input
+                    placeholder="https://drive.google.com/file/d/..."
+                    value={formData.deposit_link}
+                    onChange={(e) => setFormData(prev => ({ ...prev, deposit_link: e.target.value }))}
+                    className="h-8 text-xs bg-card"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Cole o link do Google Drive para vincular no perfil do cliente e lançar automaticamente no financeiro.
+                  </p>
+                </div>
+              </div>
             )}
-            
-            <div className="flex items-center gap-2 mt-2">
-              {editingAppointment && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeleteAlertOpen(true)}
-                  disabled={loading}
-                  title="Excluir Agendamento"
-                >
-                  <Trash2 className="h-5 w-5" />
+
+            <div className="flex justify-between items-center pt-4">
+              {editingAppointment ? (
+                <Button variant="destructive" size="icon" onClick={() => setDeleteAlertOpen(true)}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              )}
-              <Button className="w-full h-10" onClick={handleSave} disabled={loading}>
-                {editingAppointment ? "Atualizar Agendamento" : "Salvar Agendamento"}
-              </Button>
+              ) : <div />}
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSave}>
+                  {editingAppointment ? "Atualizar Agendamento" : "Salvar Agendamento"}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -860,7 +847,7 @@ const Agenda = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza que deseja excluir?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso removerá o agendamento e todos os dados financeiros associados (como sinais pagos).
+              Esta ação não pode ser desfeita. Isso removerá o agendamento do sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -872,7 +859,7 @@ const Agenda = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Checkout Modal */}
+      {/* Modal de Baixa de Sessão */}
       <Dialog open={checkoutModalOpen} onOpenChange={setCheckoutModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -882,6 +869,9 @@ const Agenda = () => {
             <div className="bg-muted p-3 rounded-md flex flex-col gap-1 text-sm">
               <span className="font-semibold text-foreground">Cliente: {selectedCheckout?.client_name}</span>
               <span className="text-muted-foreground">Horário: {selectedCheckout?.startTime} - {selectedCheckout?.endTime}</span>
+              {selectedCheckout?.deposit ? (
+                <span className="text-xs text-emerald-600 font-semibold">Sinal Já Abatido: R$ {selectedCheckout.deposit.toLocaleString("pt-BR")}</span>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -904,7 +894,7 @@ const Agenda = () => {
             {checkoutData.status === 'Recebido' && (
               <>
                 <div className="space-y-2">
-                  <Label>Valor Recebido (R$)</Label>
+                  <Label>Valor Restante Recebido (R$)</Label>
                   <Input
                     type="number"
                     value={checkoutData.value}
@@ -927,6 +917,18 @@ const Agenda = () => {
                       <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-xs">
+                    <LinkIcon className="w-3.5 h-3.5 text-primary" /> Link do Comprovante Final (Google Drive)
+                  </Label>
+                  <Input
+                    placeholder="https://drive.google.com/file/d/..."
+                    value={checkoutData.driveLink}
+                    onChange={(e) => setCheckoutData(prev => ({ ...prev, driveLink: e.target.value }))}
+                    className="text-xs"
+                  />
                 </div>
               </>
             )}

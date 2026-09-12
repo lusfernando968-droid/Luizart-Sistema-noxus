@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/lib/supabase";
-import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, ShieldCheck, Building2 } from "lucide-react";
 
 export default function AnamnesisForm() {
     const { clientId } = useParams();
@@ -17,6 +17,7 @@ export default function AnamnesisForm() {
     const [errorMsg, setErrorMsg] = useState("");
 
     const [clientData, setClientData] = useState<any>(null);
+    const [studioPhone, setStudioPhone] = useState("5511999999999");
 
     const [formData, setFormData] = useState({
         birth_date: "",
@@ -29,29 +30,43 @@ export default function AnamnesisForm() {
         allergies: "",
         medications: "",
         emergency_contact: "",
-        agreed_to_terms: false
+        agreed_to_terms: false,
+        client_ip: ""
     });
+
+    useEffect(() => {
+        // Capturar o IP do cliente assim que a tela abre
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                setFormData(prev => ({ ...prev, client_ip: data.ip }));
+            })
+            .catch(err => console.log("Erro ao capturar IP:", err));
+    }, []);
 
     useEffect(() => {
         const fetchClient = async () => {
             if (!clientId) return;
 
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/anamnesis/${clientId}`);
-                const data = await res.json();
+                // Check if client exists
+                const { data: clientData, error: clientError } = await supabase.from('clientes').select('*').eq('id', clientId).single();
                 
-                if (!res.ok) {
-                    setErrorMsg(data.error || "Cliente não encontrado ou link inválido.");
+                if (clientError || !clientData) {
+                    setErrorMsg("Cliente não encontrado ou link inválido.");
                     return;
                 }
 
-                if (data.hasAnamnesis) {
+                // Check if anamnesis exists
+                const { data: anamnesisData } = await supabase.from('anamnesis').select('*').eq('client_id', clientId).single();
+
+                if (anamnesisData) {
                     setSuccess(true);
                     setLoading(false);
                     return;
                 }
 
-                setClientData(data.client);
+                setClientData(clientData);
             } catch (err) {
                 console.error("Error fetching client:", err);
                 setErrorMsg("Erro ao carregar os dados.");
@@ -63,11 +78,18 @@ export default function AnamnesisForm() {
         fetchClient();
     }, [clientId]);
 
+    const handleCheckboxChange = (field: keyof typeof formData) => {
+        setFormData(prev => ({
+            ...prev,
+            [field]: !prev[field]
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.agreed_to_terms) {
-            alert("Você preisa ler e concordar com os termos de serviço para continuar.");
+            alert("Você precisa ler e concordar com os termos de serviço para continuar.");
             return;
         }
 
@@ -79,75 +101,77 @@ export default function AnamnesisForm() {
         try {
             setSubmitting(true);
 
-            // Calculate age from birth date
-            const birthDate = new Date(formData.birth_date);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
+            const { error: insertError } = await supabase.from('anamnesis').insert([{
+                client_id: clientId,
+                discovery_source: formData.discovery_source,
+                answers: formData
+            }]);
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/anamnesis/${clientId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    formData,
-                    age
-                })
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Erro ao salvar anamnese");
+            if (insertError) {
+                console.error("Insert Error:", insertError);
+                alert("Erro ao salvar sua ficha. Tente novamente.");
+                return;
             }
 
             setSuccess(true);
-        } catch (err: any) {
-            console.error("Error saving anamnesis:", err);
-            alert("Erro ao salvar o formulário: " + (err.message || "Tente novamente."));
+        } catch (err) {
+            console.error("Submit error:", err);
+            alert("Erro inesperado ao enviar.");
         } finally {
             setSubmitting(false);
         }
     };
 
-    const handleCheckboxChange = (field: keyof typeof formData) => {
-        setFormData(prev => ({ ...prev, [field]: !prev[field] }));
-    };
-
     if (loading) {
         return (
-            <div className="flex-1 w-full min-h-screen bg-background flex flex-col items-center justify-center p-4">
-                <div className="h-8 w-8 border-4 border-primary border-t-transparent animate-spin rounded-full"></div>
-                <p className="mt-4 text-muted-foreground font-medium">Carregando formulário...</p>
+            <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
             </div>
         );
     }
 
     if (errorMsg) {
         return (
-            <div className="flex-1 w-full min-h-screen bg-background flex flex-col items-center justify-center p-4">
-                <div className="bg-destructive/10 text-destructive p-6 rounded-xl max-w-md w-full text-center border border-destructive/20 shadow-lg">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Ops! Alguma coisa deu errado.</h2>
-                    <p className="text-sm">{errorMsg}</p>
+            <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+                <div className="bg-card border p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-xl">
+                    <AlertCircle className="w-16 h-16 text-destructive mx-auto" />
+                    <h2 className="text-xl font-bold">{errorMsg}</h2>
+                    <p className="text-sm text-muted-foreground">Solicite um novo link de anamnese para o seu tatuador.</p>
                 </div>
             </div>
         );
     }
 
     if (success) {
+        const whatsappMsg = encodeURIComponent(`Olá! Acabei de responder e assinar a ficha de anamnese no site.`);
         return (
-            <div className="flex-1 w-full min-h-screen bg-background flex flex-col items-center justify-center p-4">
-                <div className="bg-card text-foreground p-8 rounded-2xl max-w-md w-full text-center border shadow-xl">
-                    <div className="h-20 w-20 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle2 className="h-10 w-10 text-success" />
+            <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+                <div className="bg-card border p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-xl">
+                    <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-10 h-10" />
                     </div>
                     <h2 className="text-2xl font-bold mb-2">Formulário Concluído!</h2>
-                    <p className="text-muted-foreground mb-8">
-                        Sua ficha de anamnese e contrato foram preenchidos com sucesso e já estão no sistema do estúdio.
+                    <p className="text-muted-foreground mb-6">
+                        Sua ficha de anamnese e contrato foram preenchidos com sucesso e já estão salvos com validade jurídica no nosso sistema!
                     </p>
-                    <p className="text-sm font-semibold opacity-70">
+                    
+                    <div className="bg-accent/10 border border-accent/20 p-4 rounded-xl mb-6 text-sm text-left">
+                        <p className="font-semibold mb-1 flex items-center gap-1.5 text-foreground">
+                            <ShieldCheck className="w-4 h-4 text-green-500" /> Segurança Jurídica:
+                        </p>
+                        <p className="text-muted-foreground text-xs">Sua assinatura digital, data, hora e IP do dispositivo foram autenticados no termo.</p>
+                    </div>
+
+                    <a 
+                        href={`https://wa.me/${studioPhone}?text=${whatsappMsg}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center w-full h-12 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors mb-4"
+                    >
+                        Confirmar via WhatsApp
+                    </a>
+
+                    <p className="text-xs font-semibold opacity-70 mt-4">
                         Muito obrigado, e até a sua sessão!
                     </p>
                 </div>
@@ -160,14 +184,25 @@ export default function AnamnesisForm() {
             <div className="max-w-2xl mx-auto space-y-8">
 
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tight">Ficha de Anamnese & Contrato</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Ficha de Anamnese & Contrato de Serviço</h1>
                     <p className="text-muted-foreground">Preencha com atenção para a sua própria segurança durante o procedimento.</p>
                 </div>
 
                 <div className="bg-card border shadow-xl rounded-2xl overflow-hidden text-left">
-                    <div className="p-6 bg-accent/20 border-b">
-                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-1">Cliente</p>
-                        <p className="font-bold text-lg">{clientData?.name}</p>
+                    {/* Identificação das Partes no Cabeçalho */}
+                    <div className="p-6 bg-accent/20 border-b grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <p className="text-muted-foreground uppercase tracking-wider font-semibold mb-0.5 flex items-center gap-1">
+                                <Building2 className="w-3.5 h-3.5 text-primary" /> Prestador do Serviço
+                            </p>
+                            <p className="font-bold text-sm text-foreground">Noxus Tattoo Studio / Profissional</p>
+                            <p className="text-muted-foreground">Ateliê Profissional de Arte & Estética</p>
+                        </div>
+                        <div>
+                            <p className="text-muted-foreground uppercase tracking-wider font-semibold mb-0.5">Tomador / Cliente</p>
+                            <p className="font-bold text-sm text-foreground">{clientData?.name}</p>
+                            <p className="text-muted-foreground">{clientData?.phone || "CPF Registrado no Sistema"}</p>
+                        </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-10">
@@ -290,8 +325,11 @@ export default function AnamnesisForm() {
                                     className="mt-1 h-5 w-5 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                                 />
                                 <div className="space-y-1 leading-none">
-                                    <span className="text-base font-bold text-foreground">Li e concordo com os termos de serviço</span>
+                                    <span className="text-base font-bold text-foreground">Li e concordo com os termos de serviço e contrato</span>
                                     <p className="text-xs text-muted-foreground">Esta caixa vale como uma assinatura digital, validando meu consentimento com as regras e cuidados apresentados acima.</p>
+                                    {formData.client_ip && (
+                                        <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">IP Registrado para validade jurídica: {formData.client_ip}</p>
+                                    )}
                                 </div>
                             </label>
 
