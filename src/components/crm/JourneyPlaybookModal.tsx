@@ -17,8 +17,6 @@ interface JourneyPlaybookModalProps {
 
 export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: JourneyPlaybookModalProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [step, setStep] = useState(1);
-
   // Formulário - Etapa 1: Orçamento
   const [tattooLocation, setTattooLocation] = useState("");
   const [tattooSize, setTattooSize] = useState("");
@@ -30,15 +28,6 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const [customStudentName, setCustomStudentName] = useState("");
 
   if (!client) return null;
-
-  const handleNext = () => {
-    if (!tattooLocation || !tattooSize || !tattooStyle) {
-      toast.error("Preencha Local, Tamanho e Estilo para continuar.");
-      return;
-    }
-    setStep(2);
-  };
-
   const handleApplyPlaybook = async () => {
     if (!decision) {
       toast.error("Selecione uma decisão final para o Orçamento.");
@@ -106,8 +95,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   };
 
   const resetState = () => {
-    setStep(1);
-    setTattooLocation("");
+        setTattooLocation("");
     setTattooSize("");
     setTattooStyle("");
     setDecision(null);
@@ -128,7 +116,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
           </DialogTitle>
         </DialogHeader>
 
-        {step === 1 && (
+        
           <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl mb-4">
               <p className="text-xs font-semibold text-primary">Etapa 1: Orçamento (Triagem)</p>
@@ -206,16 +194,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               </Select>
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={handleNext} className="gap-2 bg-primary text-primary-foreground font-bold">
-                Avançar <ArrowRight className="w-4 h-4" />
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
+}
 
-        {step === 2 && (
+        <div className="mt-4 pt-4 border-t space-y-4">
           <div className="space-y-4 py-2 animate-in slide-in-from-right-4 duration-200">
              <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl mb-4">
               <p className="text-xs font-semibold text-primary">Tomada de Decisão do Orçamento</p>
@@ -312,17 +293,20 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               </div>
             )}
 
-            <DialogFooter className="pt-2">
-              <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button onClick={handleApplyPlaybook} disabled={submitting || !decision} className="bg-primary text-primary-foreground font-bold">
                 {submitting ? "Processando..." : "Confirmar e Mover"}
               </Button>
             </DialogFooter>
           </div>
-        )}
+          </div>
       </DialogContent>
     </Dialog>
   );
 }
+
+
+
 
 
