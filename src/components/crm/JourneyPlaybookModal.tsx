@@ -118,9 +118,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
         
           <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl mb-4">
-              <p className="text-xs font-semibold text-primary">Etapa 1: Orçamento (Triagem)</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
+            <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+              <p className="text-sm font-semibold text-foreground">Etapa 1: Orçamento (Triagem)</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 Colete as informações básicas da tatuagem para decidir se o projeto segue no estúdio.
               </p>
             </div>
@@ -130,7 +130,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground" /> Local do Corpo
               </Label>
               <Select value={tattooLocation} onValueChange={setTattooLocation}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-10 text-sm">
                   <SelectValue placeholder="Selecione o local principal..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,7 +159,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                 <Ruler className="w-3.5 h-3.5 text-muted-foreground" /> Tamanho (Aproximado)
               </Label>
               <Select value={tattooSize} onValueChange={setTattooSize}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-10 text-sm">
                   <SelectValue placeholder="Selecione o tamanho..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -179,7 +179,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                 <Palette className="w-3.5 h-3.5 text-muted-foreground" /> Estilo da Tatuagem
               </Label>
               <Select value={tattooStyle} onValueChange={setTattooStyle}>
-                <SelectTrigger className="h-9 text-xs">
+                <SelectTrigger className="h-10 text-sm">
                   <SelectValue placeholder="Selecione o estilo..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,9 +196,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
 <div className="mt-4 pt-4 border-t space-y-4">
           <div className="space-y-4 py-2 animate-in slide-in-from-right-4 duration-200">
-             <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl mb-4">
-              <p className="text-xs font-semibold text-primary">Tomada de Decisão do Orçamento</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
+             <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+              <p className="text-sm font-semibold text-foreground">Tomada de Decisão do Orçamento</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 Com base no estilo <strong>({tattooStyle})</strong>, qual é o destino deste projeto?
               </p>
             </div>
@@ -215,8 +215,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">Vou Executar no Estúdio</p>
-                    <p className="text-[11px] text-muted-foreground">Estilo dentro do nosso padrão. Avançar para Onboarding.</p>
+                    <p className="text-sm font-bold text-foreground">Vou Executar no Estúdio</p>
+                    <p className="text-xs text-muted-foreground">Estilo dentro do nosso padrão. Avançar para Onboarding.</p>
                   </div>
                 </div>
               </div>
@@ -232,8 +232,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                     <User className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">Repassar para Aluno/Parceiro</p>
-                    <p className="text-[11px] text-muted-foreground">Não fazemos esse estilo. Transferir lead.</p>
+                    <p className="text-sm font-bold text-foreground">Repassar para Aluno/Parceiro</p>
+                    <p className="text-xs text-muted-foreground">Não fazemos esse estilo. Transferir lead.</p>
                   </div>
                 </div>
               </div>
@@ -249,21 +249,21 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                     <XCircle className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground">Recusar Trabalho</p>
-                    <p className="text-[11px] text-muted-foreground">Encerrar a jornada deste cliente aqui.</p>
+                    <p className="text-sm font-bold text-foreground">Recusar Trabalho</p>
+                    <p className="text-xs text-muted-foreground">Encerrar a jornada deste cliente aqui.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {decision === "repassar" && (
-              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl space-y-3 mt-2 animate-in fade-in">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
-                    <User className="w-3.5 h-3.5" /> Indicar para qual Parceiro/Aluno?
+              <div className="bg-card border border-border p-4 rounded-xl space-y-4 mt-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                    <User className="w-4 h-4 text-primary" /> Indicar para qual Parceiro/Aluno?
                   </Label>
                   <Select value={studentName} onValueChange={setStudentName}>
-                    <SelectTrigger className="h-8 text-xs bg-card">
+                    <SelectTrigger className="h-10 text-sm bg-background">
                       <SelectValue placeholder="Selecione o tatuador parceiro..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -279,10 +279,10 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
                 {studentName === "Outro Parceiro/Aluno (Digitar)" && (
                   <div className="space-y-1.5 animate-in fade-in">
-                    <Label className="text-xs font-semibold text-amber-700 dark:text-amber-300">Nome do Novo Parceiro</Label>
+                    <Label className="text-xs font-semibold text-foreground">Nome do Novo Parceiro</Label>
                     <Input
                       placeholder="Digite o nome do parceiro..."
-                      className="h-8 text-xs bg-card"
+                      className="h-10 text-sm bg-background"
                       value={customStudentName}
                       onChange={(e) => setCustomStudentName(e.target.value)}
                     />
@@ -304,6 +304,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
     </Dialog>
   );
 }
+
 
 
 
