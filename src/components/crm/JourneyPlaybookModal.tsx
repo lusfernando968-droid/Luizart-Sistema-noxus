@@ -135,24 +135,49 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               <Label className="text-xs font-semibold flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-muted-foreground" /> Local do Corpo
               </Label>
-              <Input
-                placeholder="Ex: Antebraço, Costela, etc."
-                value={tattooLocation}
-                onChange={(e) => setTattooLocation(e.target.value)}
-                className="h-9 text-xs"
-              />
+              <Select value={tattooLocation} onValueChange={setTattooLocation}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione o local principal..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Antebraço">Antebraço</SelectItem>
+                  <SelectItem value="Braço (Inteiro)">Braço (Inteiro)</SelectItem>
+                  <SelectItem value="Braço (Parte Externa/Interna)">Braço (Parte Externa/Interna)</SelectItem>
+                  <SelectItem value="Ombro">Ombro</SelectItem>
+                  <SelectItem value="Costela">Costela</SelectItem>
+                  <SelectItem value="Costas (Inteira)">Costas (Inteira)</SelectItem>
+                  <SelectItem value="Costas (Superior/Avulsa)">Costas (Superior/Avulsa)</SelectItem>
+                  <SelectItem value="Peito">Peito</SelectItem>
+                  <SelectItem value="Barriga">Barriga</SelectItem>
+                  <SelectItem value="Perna (Inteira)">Perna (Inteira)</SelectItem>
+                  <SelectItem value="Panturrilha">Panturrilha</SelectItem>
+                  <SelectItem value="Coxa">Coxa</SelectItem>
+                  <SelectItem value="Mão">Mão</SelectItem>
+                  <SelectItem value="Pescoço">Pescoço</SelectItem>
+                  <SelectItem value="Vários Locais">Vários Locais</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
                 <Ruler className="w-3.5 h-3.5 text-muted-foreground" /> Tamanho (Aproximado)
               </Label>
-              <Input
-                placeholder="Ex: 15cm, Fechamento completo, etc."
-                value={tattooSize}
-                onChange={(e) => setTattooSize(e.target.value)}
-                className="h-9 text-xs"
-              />
+              <Select value={tattooSize} onValueChange={setTattooSize}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione o tamanho..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Micro/Minimalista (Até 5cm)">Micro/Minimalista (Até 5cm)</SelectItem>
+                  <SelectItem value="Pequena (5 a 10cm)">Pequena (5 a 10cm)</SelectItem>
+                  <SelectItem value="Média (10 a 20cm)">Média (10 a 20cm)</SelectItem>
+                  <SelectItem value="Grande (20 a 30cm)">Grande (20 a 30cm)</SelectItem>
+                  <SelectItem value="Fechamento Parcial (Ex: Meio Braço)">Fechamento Parcial (Ex: Meio Braço)</SelectItem>
+                  <SelectItem value="Fechamento Completo">Fechamento Completo</SelectItem>
+                  <SelectItem value="Projeto Especial/Múltiplos">Projeto Especial/Múltiplos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
