@@ -28,6 +28,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const [customStudentName, setCustomStudentName] = useState("");
 
   const [estimatedHours, setEstimatedHours] = useState("");
+
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionTime, setSessionTime] = useState("");
   const [sessionCount, setSessionCount] = useState("");
 
   if (!client) return null;
@@ -44,7 +47,57 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   };
 
   const handleApplyPlaybook = async () => {
-    
+
+    if (client.status === "Sessão Agendada") {
+      if (!sessionDate || !sessionTime) {
+        toast.error("Preencha a data e horário da sessão.");
+        return;
+      }
+      const playbookLog = `[Playbook CRM - Agendamento]\nData Marcada: ${sessionDate.split('-').reverse().join('/')}\nHorário: ${sessionTime}\nLembretes programados.\nData de Registro: ${new Date().toLocaleDateString()}\n------------------------`;
+      
+      const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
+      
+      // Calculate end time (assuming ~2.5h or default to +2 hours)
+      const [h, m] = sessionTime.split(':').map(Number);
+      const endH = Math.min(23, h + 2).toString().padStart(2, '0');
+      const endM = m.toString().padStart(2, '0');
+      const endTime = `${endH}:${endM}`;
+
+      // Insert appointment
+      const { error: apptError } = await supabase.from("appointments").insert([{
+        client_id: client.id,
+        date: sessionDate,
+        startTime: sessionTime,
+        endTime: endTime,
+        status: "Agendado",
+        value: 0,
+        deposit: 0
+      }]);
+
+      if (apptError) {
+        console.error(apptError);
+        toast.error("Erro ao salvar agendamento.");
+        return;
+      }
+
+      // Update client status
+      const { error } = await supabase
+        .from("clientes")
+        .update({ status: "Sessão Agendada", notes: updatedNotes })
+        .eq("id", client.id);
+
+      if (error) {
+        console.error(error);
+        toast.error("Erro ao aplicar playbook.");
+      } else {
+        toast.success("Agendamento concluído e salvo na Agenda!");
+        onSuccess();
+        onOpenChange(false);
+      }
+      setSubmitting(false);
+      return;
+    }
+
     if (client.status === "Onboarding") {
       const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours || "Não definido"}h\nSessões: ${sessionCount || "Não definido"}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       
@@ -424,6 +477,81 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleApplyPlaybook} disabled={submitting} className="bg-primary text-primary-foreground font-bold">
               {submitting ? "Processando..." : "Concluir Onboarding"}
+            </Button>
+          </DialogFooter>
+        </div>
+      )}
+
+
+      {/* SESSÃO AGENDADA RENDER */}
+      {client.status === "Sessão Agendada" && (
+        <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+            <p className="text-sm font-semibold text-foreground">Etapa 3: Sessão Agendada</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Registre a data no sistema e utilize as mensagens para enviar lembretes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" /> Data da Sessão
+              </Label>
+              <Input
+                type="date"
+                value={sessionDate}
+                onChange={(e) => setSessionDate(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Horário
+              </Label>
+              <Input
+                type="time"
+                value={sessionTime}
+                onChange={(e) => setSessionTime(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <p className="text-sm font-semibold text-foreground">Avisos e Lembretes (WhatsApp)</p>
+            
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleSendWhatsApp(`Olá! Passando para te lembrar que nossa sessão de tatuagem será semana que vem, dia ${sessionDate ? sessionDate.split('-').reverse().join('/') : "[DATA]"} às ${sessionTime || "[HORÁRIO]"}!\n\nNão agende nada nesse dia e se prepare com antecedência.`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /> Lembrete: 1 Semana Antes</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Mensagem para 7 dias antes da sessão.</span>
+                </div>
+                <Send className="w-4 h-4 text-primary shrink-0" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleSendWhatsApp(`Olá! Nossa sessão é amanhã, dia ${sessionDate ? sessionDate.split('-').reverse().join('/') : "[DATA]"} às ${sessionTime || "[HORÁRIO]"}!\n\nVenha bem alimentado(a), hidratado(a) e use roupas confortáveis. Até lá!`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Confirmação: 1 Dia Antes</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Mensagem final de véspera.</span>
+                </div>
+                <Send className="w-4 h-4 text-primary shrink-0" />
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t mt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={handleApplyPlaybook} disabled={submitting || !sessionDate || !sessionTime} className="bg-primary text-primary-foreground font-bold">
+              {submitting ? "Processando..." : "Registrar Agendamento"}
             </Button>
           </DialogFooter>
         </div>
