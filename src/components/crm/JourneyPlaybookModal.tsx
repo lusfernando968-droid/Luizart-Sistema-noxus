@@ -46,10 +46,6 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const handleApplyPlaybook = async () => {
     
     if (client.status === "Onboarding") {
-      if (!estimatedHours || !sessionCount) {
-        toast.error("Preencha a estimativa de horas e sessões.");
-        return;
-      }
       const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours || "Não definido"}h\nSessões: ${sessionCount || "Não definido"}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       
       const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
@@ -351,7 +347,17 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                 type="number"
                 placeholder="Ex: 10"
                 value={estimatedHours}
-                onChange={(e) => setEstimatedHours(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEstimatedHours(val);
+                  if (val && !isNaN(Number(val))) {
+                    const hours = parseFloat(val);
+                    const calculatedSessions = Math.ceil(hours / 2.5);
+                    setSessionCount(calculatedSessions.toString());
+                  } else {
+                    setSessionCount("");
+                  }
+                }}
                 className="h-9 text-xs"
               />
             </div>
