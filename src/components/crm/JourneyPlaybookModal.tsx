@@ -400,7 +400,10 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleSendWhatsApp(`Antes da nossa sessão, preciso que você preencha rapidinho essa ficha de anamnese. É super importante para a segurança do procedimento:\n\n[LINK_DA_ANAMNESE]`)}
+                onClick={() => {
+                  const link = `${window.location.origin}/anamnese/${client.id}`;
+                  handleSendWhatsApp(`Antes da nossa sessão, preciso que você preencha rapidinho essa ficha de anamnese. É super importante para a segurança do procedimento:\n\n${link}`);
+                }}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /> 3. Ficha de Anamnese</span>
