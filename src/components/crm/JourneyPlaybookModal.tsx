@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -206,64 +206,52 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             <div className="grid grid-cols-1 gap-2.5">
               <div
                 onClick={() => setDecision("executar")}
-                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                  decision === "executar" ? "border-emerald-500 bg-emerald-500/10 font-bold" : "hover:bg-accent/40"
+                className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center gap-3 ${
+                  decision === "executar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Vou Executar no Estúdio</p>
-                    <p className="text-xs text-muted-foreground">Estilo dentro do nosso padrão. Avançar para Onboarding.</p>
-                  </div>
+                <div className="text-xl">✅</div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Vou Executar no Estúdio</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Estilo dentro do nosso padrão.</p>
                 </div>
               </div>
 
               <div
                 onClick={() => setDecision("repassar")}
-                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                  decision === "repassar" ? "border-amber-500 bg-amber-500/10 font-bold" : "hover:bg-accent/40"
+                className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center gap-3 ${
+                  decision === "repassar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Repassar para Aluno/Parceiro</p>
-                    <p className="text-xs text-muted-foreground">Não fazemos esse estilo. Transferir lead.</p>
-                  </div>
+                <div className="text-xl">🤝</div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Repassar para Aluno/Parceiro</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Não é nosso foco. Transferir lead.</p>
                 </div>
               </div>
 
               <div
                 onClick={() => setDecision("recusar")}
-                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                  decision === "recusar" ? "border-rose-500 bg-rose-500/10 font-bold" : "hover:bg-accent/40"
+                className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center gap-3 ${
+                  decision === "recusar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400">
-                    <XCircle className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Recusar Trabalho</p>
-                    <p className="text-xs text-muted-foreground">Encerrar a jornada deste cliente aqui.</p>
-                  </div>
+                <div className="text-xl">❌</div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Recusar Trabalho</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Encerrar a jornada deste cliente aqui.</p>
                 </div>
               </div>
             </div>
 
             {decision === "repassar" && (
-              <div className="bg-card border border-border p-4 rounded-xl space-y-4 mt-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
-                    <User className="w-4 h-4 text-primary" /> Indicar para qual Parceiro/Aluno?
+              <div className="bg-card border border-border p-3 rounded-lg space-y-3 mt-2 shadow-sm animate-in fade-in">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                    👤 Indicar para qual Parceiro/Aluno?
                   </Label>
                   <Select value={studentName} onValueChange={setStudentName}>
-                    <SelectTrigger className="h-10 text-sm bg-background">
+                    <SelectTrigger className="h-9 text-xs bg-background">
                       <SelectValue placeholder="Selecione o tatuador parceiro..." />
                     </SelectTrigger>
                     <SelectContent>
