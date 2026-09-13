@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon } from "lucide-react";
 
 interface JourneyPlaybookModalProps {
   open: boolean;
@@ -27,9 +27,44 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const [studentName, setStudentName] = useState("");
   const [customStudentName, setCustomStudentName] = useState("");
 
+  const [estimatedHours, setEstimatedHours] = useState("");
+  const [sessionCount, setSessionCount] = useState("");
+
   if (!client) return null;
+  
+  const handleCopy = (textToCopy: string) => {
+    navigator.clipboard.writeText(textToCopy);
+    toast.success("Mensagem copiada!");
+  };
+
   const handleApplyPlaybook = async () => {
-    if (!decision) {
+    
+    if (client.status === "Onboarding") {
+      if (!estimatedHours || !sessionCount) {
+        toast.error("Preencha a estimativa de horas e sessões.");
+        return;
+      }
+      const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours}h\nSessões: ${sessionCount}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+      
+      const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
+      const { error } = await supabase
+        .from("clientes")
+        .update({ status: "Sessão Agendada", notes: updatedNotes })
+        .eq("id", client.id);
+
+      if (error) {
+        console.error(error);
+        toast.error("Erro ao aplicar playbook.");
+      } else {
+        toast.success("Onboarding concluído!");
+        onSuccess();
+        onOpenChange(false);
+      }
+      setSubmitting(false);
+      return;
+    }
+
+      if (!decision) {
       toast.error("Selecione uma decisão final para o Orçamento.");
       return;
     }
@@ -117,7 +152,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
         </DialogHeader>
 
         
-          <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+          {client.status === "Orçamento" && (
+<div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
               <p className="text-sm font-semibold text-foreground">Etapa 1: Orçamento (Triagem)</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -288,6 +324,96 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
           </div>
           </div>
           </div>
+        )}
+
+      {/* ONBOARDING RENDER */}
+      {client.status === "Onboarding" && (
+        <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+            <p className="text-sm font-semibold text-foreground">Etapa 2: Onboarding</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Apresente o método de trabalho, alinhe as sessões e envie a ficha de anamnese.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Horas Estimadas
+              </Label>
+              <Input
+                type="number"
+                placeholder="Ex: 10"
+                value={estimatedHours}
+                onChange={(e) => setEstimatedHours(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" /> Qtd. de Sessões
+              </Label>
+              <Input
+                type="number"
+                placeholder="Ex: 2"
+                value={sessionCount}
+                onChange={(e) => setSessionCount(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <p className="text-sm font-semibold text-foreground">Mensagens Prontas (WhatsApp)</p>
+            
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleCopy(`Olá! Que legal que vamos fazer esse projeto juntos.\n\nNosso método de trabalho funciona por sessões focadas para garantir o melhor resultado na sua pele e uma boa cicatrização.\nCada sessão tem um tempo de duração e precisamos respeitar os intervalos.`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /> 1. Método de Trabalho</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Explicação básica sobre sessões e intervalos...</span>
+                </div>
+                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleCopy(`Para o seu projeto, estimo aproximadamente ${estimatedHours || "[X]"} horas de trabalho no total.\n\nPodemos dividir isso em ${sessionCount || "[Y]"} sessões. O intervalo ideal entre elas é de 15 dias para a pele respirar.\nVamos agendar a primeira?`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> 2. Tempo e Sessões</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Estimativa de horas e divisão (usa os dados acima)...</span>
+                </div>
+                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleCopy(`Antes da nossa sessão, preciso que você preencha rapidinho essa ficha de anamnese. É super importante para a segurança do procedimento:\n\n[LINK_DA_ANAMNESE]`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /> 3. Ficha de Anamnese</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Link para cadastro de saúde do cliente...</span>
+                </div>
+                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t mt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={handleApplyPlaybook} disabled={submitting || !estimatedHours || !sessionCount} className="bg-primary text-primary-foreground font-bold">
+              {submitting ? "Processando..." : "Concluir Onboarding"}
+            </Button>
+          </DialogFooter>
+        </div>
+      )}
+
       </DialogContent>
     </Dialog>
   );
