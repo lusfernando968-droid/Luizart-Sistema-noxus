@@ -210,7 +210,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                   decision === "executar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="text-xl">✅</div>
+                <div className="text-primary/70"><CheckCircle2 className="w-5 h-5" /></div>
                 <div>
                   <p className="text-sm font-bold text-foreground">Vou Executar no Estúdio</p>
                   <p className="text-xs text-muted-foreground leading-tight">Estilo dentro do nosso padrão.</p>
@@ -223,7 +223,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                   decision === "repassar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="text-xl">🤝</div>
+                <div className="text-primary/70"><User className="w-5 h-5" /></div>
                 <div>
                   <p className="text-sm font-bold text-foreground">Repassar para Aluno/Parceiro</p>
                   <p className="text-xs text-muted-foreground leading-tight">Não é nosso foco. Transferir lead.</p>
@@ -236,7 +236,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                   decision === "recusar" ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "bg-card hover:bg-accent/40 border-border"
                 }`}
               >
-                <div className="text-xl">❌</div>
+                <div className="text-primary/70"><XCircle className="w-5 h-5" /></div>
                 <div>
                   <p className="text-sm font-bold text-foreground">Recusar Trabalho</p>
                   <p className="text-xs text-muted-foreground leading-tight">Encerrar a jornada deste cliente aqui.</p>
