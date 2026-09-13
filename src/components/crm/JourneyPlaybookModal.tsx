@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   // Decisão com base no Estilo
   const [decision, setDecision] = useState<"executar" | "repassar" | "recusar" | null>(null);
   const [studentName, setStudentName] = useState("");
+  const [customStudentName, setCustomStudentName] = useState("");
 
   if (!client) return null;
 
@@ -47,6 +48,10 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
       toast.error("Informe o nome do aluno/tatuador parceiro.");
       return;
     }
+    if (decision === "repassar" && studentName === "Outro Parceiro/Aluno (Digitar)" && !customStudentName) {
+      toast.error("Informe o nome do aluno/tatuador parceiro.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -59,7 +64,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
         decisionText = "Estúdio vai executar o projeto.";
       } else if (decision === "repassar") {
         targetStatus = "Concluído";
-        decisionText = `Repassado para Aluno/Parceiro: ${studentName}`;
+        decisionText = `Repassado para Aluno/Parceiro: ${studentName === "Outro Parceiro/Aluno (Digitar)" ? customStudentName : studentName}`;
       } else if (decision === "recusar") {
         targetStatus = "Concluído";
         decisionText = "Trabalho Recusado.";
@@ -107,6 +112,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
     setTattooStyle("");
     setDecision(null);
     setStudentName("");
+    setCustomStudentName("");
   };
 
   return (
@@ -272,16 +278,37 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             </div>
 
             {decision === "repassar" && (
-              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl space-y-2 mt-2 animate-in fade-in">
-                <Label className="text-xs font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
-                  <User className="w-3.5 h-3.5" /> Nome do Aluno/Tatuador
-                </Label>
-                <Input
-                  placeholder="Ex: João Silva"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  className="h-8 text-xs bg-card"
-                />
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl space-y-3 mt-2 animate-in fade-in">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
+                    <User className="w-3.5 h-3.5" /> Indicar para qual Parceiro/Aluno?
+                  </Label>
+                  <Select value={studentName} onValueChange={setStudentName}>
+                    <SelectTrigger className="h-8 text-xs bg-card">
+                      <SelectValue placeholder="Selecione o tatuador parceiro..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* TODO: No futuro, puxar essa lista do banco de dados (Tabela Parceiros) */}
+                      <SelectItem value="Carlos Eduardo (Realismo)">Carlos Eduardo (Realismo)</SelectItem>
+                      <SelectItem value="Ana Beatriz (Fineline)">Ana Beatriz (Fineline)</SelectItem>
+                      <SelectItem value="Rafael Souza (Old School)">Rafael Souza (Old School)</SelectItem>
+                      <SelectItem value="Juliana Costa (Aquarela)">Juliana Costa (Aquarela)</SelectItem>
+                      <SelectItem value="Outro Parceiro/Aluno (Digitar)">Outro Parceiro/Aluno (Digitar...)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {studentName === "Outro Parceiro/Aluno (Digitar)" && (
+                  <div className="space-y-1.5 animate-in fade-in">
+                    <Label className="text-xs font-semibold text-amber-700 dark:text-amber-300">Nome do Novo Parceiro</Label>
+                    <Input
+                      placeholder="Digite o nome do parceiro..."
+                      className="h-8 text-xs bg-card"
+                      value={customStudentName}
+                      onChange={(e) => setCustomStudentName(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -297,3 +324,5 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
     </Dialog>
   );
 }
+
+
