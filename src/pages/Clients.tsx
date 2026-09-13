@@ -496,7 +496,56 @@ const Clients = () => {
                     </div>
                   </div>
 
-                  {/* Aba de Histórico e Comprovantes do Cliente */}
+                  
+                    {/* Aba de Jornadas / Projetos do Cliente */}
+                    <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
+                      <div className="flex items-center justify-between border-b pb-3">
+                        <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                          <List className="h-4 w-4 text-primary" />
+                          Jornadas & Projetos
+                        </h3>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {journeys.filter(j => j.client_id === selectedClient.id).length} registros
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {journeys.filter(j => j.client_id === selectedClient.id).length > 0 ? (
+                          journeys.filter(j => j.client_id === selectedClient.id).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(journey => (
+                            <div key={journey.id} className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                              <div>
+                                <p className="font-bold text-sm text-foreground flex items-center gap-2">
+                                  {journey.status === 'Concluído' ? <CheckCircle className="w-3.5 h-3.5 text-success" /> : <List className="w-3.5 h-3.5 text-primary" />}
+                                  {journey.status === 'Concluído' ? 'Projeto Concluído (Antigo)' : 'Projeto em Andamento (Atual)'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Iniciado em: {new Date(journey.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-success/10 text-success border-success/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                                  {journey.status}
+                                </span>
+                                {journey.status !== 'Concluído' && (
+                                  <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => {
+                                    setPlaybookClient(selectedClient);
+                                    setPlaybookModalOpen(true);
+                                  }}>
+                                    Abrir Playbook
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-center p-6 text-muted-foreground border-2 border-dashed rounded-xl">
+                            Nenhuma jornada registrada para este cliente.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Aba de Histórico e Comprovantes do Cliente */}
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                     <div className="flex items-center justify-between border-b pb-3">
                       <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
