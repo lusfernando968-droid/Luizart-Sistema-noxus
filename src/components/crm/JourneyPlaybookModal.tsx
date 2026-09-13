@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon } from "lucide-react";
+import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon, Send } from "lucide-react";
 
 interface JourneyPlaybookModalProps {
   open: boolean;
@@ -32,7 +32,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
   if (!client) return null;
   
-  const handleCopy = (textToCopy: string) => {
+  const handleSendWhatsApp = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy);
     toast.success("Mensagem copiada!");
   };
@@ -44,7 +44,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
         toast.error("Preencha a estimativa de horas e sessões.");
         return;
       }
-      const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours}h\nSessões: ${sessionCount}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+      const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours || "Não definido"}h\nSessões: ${sessionCount || "Não definido"}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       
       const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
       const { error } = await supabase
@@ -370,44 +370,44 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleCopy(`Olá! Que legal que vamos fazer esse projeto juntos.\n\nNosso método de trabalho funciona por sessões focadas para garantir o melhor resultado na sua pele e uma boa cicatrização.\nCada sessão tem um tempo de duração e precisamos respeitar os intervalos.`)}
+                onClick={() => handleSendWhatsApp(`Olá! Que legal que vamos fazer esse projeto juntos.\n\nNosso método de trabalho funciona por sessões focadas para garantir o melhor resultado na sua pele e uma boa cicatrização.\nCada sessão tem um tempo de duração e precisamos respeitar os intervalos.`)}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /> 1. Método de Trabalho</span>
                   <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Explicação básica sobre sessões e intervalos...</span>
                 </div>
-                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Send className="w-4 h-4 text-primary shrink-0" />
               </Button>
 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleCopy(`Para o seu projeto, estimo aproximadamente ${estimatedHours || "[X]"} horas de trabalho no total.\n\nPodemos dividir isso em ${sessionCount || "[Y]"} sessões. O intervalo ideal entre elas é de 15 dias para a pele respirar.\nVamos agendar a primeira?`)}
+                onClick={() => handleSendWhatsApp(estimatedHours && sessionCount ? `Para o seu projeto, estimo aproximadamente ${estimatedHours} horas de trabalho no total.\n\nPodemos dividir isso em ${sessionCount} sessões. O intervalo ideal entre elas é de 15 dias para a pele respirar.\nVamos agendar a primeira?` : `Para o seu projeto, vamos alinhando a quantidade de sessões e horas de trabalho com calma.\n\nO intervalo ideal entre sessões é de 15 dias para a pele respirar.\nVamos agendar a primeira?`)}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> 2. Tempo e Sessões</span>
                   <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Estimativa de horas e divisão (usa os dados acima)...</span>
                 </div>
-                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Send className="w-4 h-4 text-primary shrink-0" />
               </Button>
 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleCopy(`Antes da nossa sessão, preciso que você preencha rapidinho essa ficha de anamnese. É super importante para a segurança do procedimento:\n\n[LINK_DA_ANAMNESE]`)}
+                onClick={() => handleSendWhatsApp(`Antes da nossa sessão, preciso que você preencha rapidinho essa ficha de anamnese. É super importante para a segurança do procedimento:\n\n[LINK_DA_ANAMNESE]`)}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><LinkIcon className="w-4 h-4 text-primary" /> 3. Ficha de Anamnese</span>
                   <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Link para cadastro de saúde do cliente...</span>
                 </div>
-                <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                <Send className="w-4 h-4 text-primary shrink-0" />
               </Button>
             </div>
           </div>
 
           <DialogFooter className="pt-4 border-t mt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleApplyPlaybook} disabled={submitting || !estimatedHours || !sessionCount} className="bg-primary text-primary-foreground font-bold">
+            <Button onClick={handleApplyPlaybook} disabled={submitting} className="bg-primary text-primary-foreground font-bold">
               {submitting ? "Processando..." : "Concluir Onboarding"}
             </Button>
           </DialogFooter>
@@ -418,6 +418,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
     </Dialog>
   );
 }
+
+
 
 
 
