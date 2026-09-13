@@ -31,6 +31,7 @@ const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 interface Appointment {
   id: string;
   client_id: string;
+  journey_id?: string;
   client_name?: string;
   date: string;
   startTime: string;
@@ -93,6 +94,32 @@ const Agenda = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  
+  const [clientJourneys, setClientJourneys] = useState<any[]>([]);
+  const [loadingJourneys, setLoadingJourneys] = useState(false);
+
+  useEffect(() => {
+    if (formData.client_id) {
+      const fetchClientJourneys = async () => {
+        setLoadingJourneys(true);
+        const { data } = await supabase.from('journeys').select('*').eq('client_id', formData.client_id).order('created_at', { ascending: false });
+        setClientJourneys(data || []);
+        
+        // Auto-select the first active journey if not editing or if journey_id is empty
+        if (data && data.length > 0 && !formData.journey_id) {
+          // Try to find one not "Concluído"
+          const active = data.find(j => j.status !== 'Concluído') || data[0];
+          setFormData(prev => ({ ...prev, journey_id: active.id }));
+        }
+        setLoadingJourneys(false);
+      };
+      fetchClientJourneys();
+    } else {
+      setClientJourneys([]);
+      setFormData(prev => ({ ...prev, journey_id: "" }));
+    }
+  }, [formData.client_id]);
+
   const fetchAppointments = async () => {
     try {
       setLoading(true);
@@ -105,6 +132,7 @@ const Agenda = () => {
       const formatted = (data || []).map((a: any) => ({
         id: a.id,
         client_id: a.client_id,
+          journey_id: a.journey_id,
         client_name: a.client?.name || "Cliente",
         date: a.date || "",
         startTime: a.startTime || "09:00",
@@ -211,6 +239,7 @@ const Agenda = () => {
       setEditingAppointment(appt);
       setFormData({
         client_id: appt.client_id || "",
+          journey_id: appt.journey_id || "",
         date: appt.date,
         startTime: appt.startTime,
         endTime: appt.endTime,
@@ -256,6 +285,7 @@ const Agenda = () => {
 
       const payload: any = {
         client_id: formData.client_id,
+          journey_id: formData.journey_id || null,
         date: formData.date,
         startTime: formData.startTime,
         endTime: formData.endTime,
@@ -572,6 +602,7 @@ const Agenda = () => {
                           setEditingAppointment(appt);
                           setFormData({
                             client_id: appt.client_id || "",
+          journey_id: appt.journey_id || "",
                             date: appt.date,
                             startTime: appt.startTime,
                             endTime: appt.endTime,
@@ -708,7 +739,7 @@ const Agenda = () => {
                             key={client.id}
                             value={client.name}
                             onSelect={() => {
-                              setFormData(prev => ({ ...prev, client_id: client.id }));
+                              setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
                               setClientDropdownOpen(false);
                             }}
                           >
