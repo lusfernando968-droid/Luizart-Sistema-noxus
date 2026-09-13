@@ -194,9 +194,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               </Select>
             </div>
 
-}
-
-        <div className="mt-4 pt-4 border-t space-y-4">
+<div className="mt-4 pt-4 border-t space-y-4">
           <div className="space-y-4 py-2 animate-in slide-in-from-right-4 duration-200">
              <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl mb-4">
               <p className="text-xs font-semibold text-primary">Tomada de Decisão do Orçamento</p>
@@ -301,10 +299,13 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             </DialogFooter>
           </div>
           </div>
+          </div>
       </DialogContent>
     </Dialog>
   );
 }
+
+
 
 
 
