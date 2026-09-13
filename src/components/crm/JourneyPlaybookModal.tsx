@@ -33,8 +33,14 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   if (!client) return null;
   
   const handleSendWhatsApp = (textToCopy: string) => {
-    navigator.clipboard.writeText(textToCopy);
-    toast.success("Mensagem copiada!");
+    if (!client.phone) {
+      toast.error("Cliente não tem número de WhatsApp cadastrado.");
+      return;
+    }
+    const phone = client.phone.replace(/\D/g, "");
+    const prefix = phone.length <= 11 ? "55" : "";
+    const url = `https://wa.me/${prefix}${phone}?text=${encodeURIComponent(textToCopy)}`;
+    window.open(url, "_blank");
   };
 
   const handleApplyPlaybook = async () => {
