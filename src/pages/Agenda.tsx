@@ -136,8 +136,8 @@ const Agenda = () => {
           journey_id: a.journey_id,
         client_name: a.client?.name || "Cliente",
         date: a.date || "",
-        startTime: a.startTime || "09:00",
-        endTime: a.endTime || "10:00",
+          startTime: a.start_time || a.startTime || "09:00",
+          endTime: a.end_time || a.endTime || "10:00",
         value: a.value || 0,
         deposit: a.deposit || 0,
         deposit_date: a.deposit_date || "",
@@ -287,21 +287,20 @@ const Agenda = () => {
       const payload: any = {
         client_id: formData.client_id,
         date: formData.date,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        start_time: formData.startTime,
+        end_time: formData.endTime,
         status: formData.status,
         value: formData.value,
         deposit: formData.deposit,
-        deposit_date: formData.deposit_date,
-        deposit_link: formData.deposit_link
+        deposit_date: formData.deposit_date || null,
       };
 
       if (editingAppointment) {
         const { error } = await supabase.from('appointments').update(payload).eq('id', editingAppointment.id);
-        if (error) throw error;
+        if (error) { console.error("Supabase update error:", JSON.stringify(error)); throw error; }
       } else {
         const { error } = await supabase.from('appointments').insert([payload]);
-        if (error) throw error;
+        if (error) { console.error("Supabase insert error:", JSON.stringify(error)); throw error; }
       }
 
       // Se houver sinal > 0 e for um novo agendamento ou se preencheu o sinal agora, cria entrada no financeiro
@@ -334,9 +333,9 @@ const Agenda = () => {
       await fetchAppointments();
       setModalOpen(false);
       toast.success("Agendamento salvo com sucesso!");
-    } catch (error) {
-      console.error('Error saving appointment:', error);
-      toast.error('Erro ao salvar agendamento.');
+    } catch (error: any) {
+        console.error('Error saving appointment:', error);
+        toast.error(`Erro ao salvar: ${error?.message || JSON.stringify(error)}`);
     }
   };
 
@@ -363,10 +362,10 @@ const Agenda = () => {
       if (!appt) return;
 
       const { error } = await supabase.from('appointments').update({
-        date: event.startStr.split("T")[0],
-        startTime: event.startStr.split("T")[1].substring(0, 5),
-        endTime: event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime,
-      }).eq('id', event.id);
+          date: event.startStr.split("T")[0],
+          start_time: event.startStr.split("T")[1].substring(0, 5),
+          end_time: event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime,
+        }).eq('id', event.id);
 
       if (error) throw error;
       await fetchAppointments();
