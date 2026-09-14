@@ -286,7 +286,6 @@ const Agenda = () => {
 
       const payload: any = {
         client_id: formData.client_id,
-          journey_id: formData.journey_id || null,
         date: formData.date,
         startTime: formData.startTime,
         endTime: formData.endTime,
