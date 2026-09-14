@@ -738,18 +738,24 @@ const Agenda = () => {
                           <CommandItem
                             key={client.id}
                             value={client.name}
-                            onSelect={() => {
-                              setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
-                              setTimeout(() => setClientDropdownOpen(false), 10);
-                            }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.client_id === client.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {client.name}
+                            <div 
+                              className="flex items-center w-full"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
+                                setClientDropdownOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {client.name}
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>
