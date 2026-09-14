@@ -740,13 +740,7 @@ const Agenda = () => {
                             value={client.name}
                             onSelect={() => {
                               setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
-                              setClientDropdownOpen(false);
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
-                              setClientDropdownOpen(false);
+                              setTimeout(() => setClientDropdownOpen(false), 10);
                             }}
                           >
                             <Check
