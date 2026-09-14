@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,25 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const [sessionDate, setSessionDate] = useState("");
   const [sessionTime, setSessionTime] = useState("");
   const [sessionCount, setSessionCount] = useState("");
+
+  const [clientAppointments, setClientAppointments] = useState<any[]>([]);
+  const [loadingAppts, setLoadingAppts] = useState(false);
+
+  useEffect(() => {
+    if (open && client?.id) {
+      const fetchAppts = async () => {
+        setLoadingAppts(true);
+        const { data } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("date", { ascending: false });
+        setClientAppointments(data || []);
+        setLoadingAppts(false);
+      };
+      fetchAppts();
+    }
+  }, [open, client?.id]);
 
   if (!client) return null;
   
@@ -67,8 +86,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
       const { error: apptError } = await supabase.from("appointments").insert([{
         client_id: client.id,
         date: sessionDate,
-        startTime: sessionTime,
-        endTime: endTime,
+        start_time: sessionTime,
+        end_time: endTime,
         status: "Agendado",
         value: 0,
         deposit: 0
@@ -516,6 +535,43 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                 className="h-9 text-xs"
               />
             </div>
+
+          {/* Agendamentos existentes */}
+          {loadingAppts ? (
+            <p className="text-xs text-center text-muted-foreground py-2">Carregando agendamentos...</p>
+          ) : clientAppointments.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5 text-primary" /> Sessões Agendadas
+              </p>
+              {clientAppointments.map((appt) => (
+                <div key={appt.id} className="flex items-center justify-between p-2.5 rounded-lg border bg-accent/10 hover:bg-accent/20 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4 text-primary" />
+                    <div>
+                      <p className="text-sm font-bold text-foreground">
+                        {appt.date ? appt.date.split('-').reverse().join('/') : '—'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {appt.start_time || '—'} — {appt.end_time || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                    appt.status === 'Confirmado' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                    appt.status === 'Cancelado' ? 'bg-red-500/10 text-red-600 border-red-500/20' :
+                    'bg-primary/10 text-primary border-primary/20'
+                  }`}>
+                    {appt.status || 'Agendado'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground border-2 border-dashed rounded-lg p-3">
+              Nenhum agendamento registrado para este cliente ainda.
+            </p>
+          )}
           </div>
 
           <div className="mt-4 pt-4 border-t space-y-3">
