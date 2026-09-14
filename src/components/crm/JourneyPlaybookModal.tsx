@@ -508,33 +508,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
           <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
             <p className="text-sm font-semibold text-foreground">Etapa 3: Sessão Agendada</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Registre a data no sistema e utilize as mensagens para enviar lembretes.
+              Acompanhe os agendamentos do cliente e envie lembretes via WhatsApp.
             </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <CalendarClock className="w-3.5 h-3.5 text-muted-foreground" /> Data da Sessão
-              </Label>
-              <Input
-                type="date"
-                value={sessionDate}
-                onChange={(e) => setSessionDate(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Horário
-              </Label>
-              <Input
-                type="time"
-                value={sessionTime}
-                onChange={(e) => setSessionTime(e.target.value)}
-                className="h-9 text-xs"
-              />
-            </div>
 
           {/* Agendamentos existentes */}
           {loadingAppts ? (
@@ -569,10 +545,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             </div>
           ) : (
             <p className="text-xs text-center text-muted-foreground border-2 border-dashed rounded-lg p-3">
-              Nenhum agendamento registrado para este cliente ainda.
+              Nenhum agendamento registrado. Agende pela <strong>Agenda</strong>.
             </p>
           )}
-          </div>
 
           <div className="mt-4 pt-4 border-t space-y-3">
             <p className="text-sm font-semibold text-foreground">Avisos e Lembretes (WhatsApp)</p>
@@ -581,7 +556,12 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleSendWhatsApp(`Olá! Passando para te lembrar que nossa sessão de tatuagem será semana que vem, dia ${sessionDate ? sessionDate.split('-').reverse().join('/') : "[DATA]"} às ${sessionTime || "[HORÁRIO]"}!\n\nNão agende nada nesse dia e se prepare com antecedência.`)}
+                onClick={() => {
+                  const nextAppt = clientAppointments.find(a => a.status !== 'Cancelado' && a.status !== 'Concluído');
+                  const dateStr = nextAppt?.date ? nextAppt.date.split('-').reverse().join('/') : "[DATA]";
+                  const timeStr = nextAppt?.start_time || "[HORÁRIO]";
+                  handleSendWhatsApp(`Olá! Passando para te lembrar que nossa sessão de tatuagem será semana que vem, dia ${dateStr} às ${timeStr}!\n\nNão agende nada nesse dia e se prepare com antecedência.`);
+                }}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /> Lembrete: 1 Semana Antes</span>
@@ -593,7 +573,12 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               <Button
                 variant="outline"
                 className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
-                onClick={() => handleSendWhatsApp(`Olá! Nossa sessão é amanhã, dia ${sessionDate ? sessionDate.split('-').reverse().join('/') : "[DATA]"} às ${sessionTime || "[HORÁRIO]"}!\n\nVenha bem alimentado(a), hidratado(a) e use roupas confortáveis. Até lá!`)}
+                onClick={() => {
+                  const nextAppt = clientAppointments.find(a => a.status !== 'Cancelado' && a.status !== 'Concluído');
+                  const dateStr = nextAppt?.date ? nextAppt.date.split('-').reverse().join('/') : "[DATA]";
+                  const timeStr = nextAppt?.start_time || "[HORÁRIO]";
+                  handleSendWhatsApp(`Olá! Nossa sessão é amanhã, dia ${dateStr} às ${timeStr}!\n\nVenha bem alimentado(a), hidratado(a) e use roupas confortáveis. Até lá!`);
+                }}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Confirmação: 1 Dia Antes</span>
@@ -605,10 +590,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
           </div>
 
           <DialogFooter className="pt-4 border-t mt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleApplyPlaybook} disabled={submitting || !sessionDate || !sessionTime} className="bg-primary text-primary-foreground font-bold">
-              {submitting ? "Processando..." : "Registrar Agendamento"}
-            </Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
           </DialogFooter>
         </div>
       )}
