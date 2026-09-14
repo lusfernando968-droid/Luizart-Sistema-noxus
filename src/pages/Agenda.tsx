@@ -54,6 +54,7 @@ const Agenda = () => {
   const [mobileViewType, setMobileViewType] = useState<string>("timeGridDay");
   const calendarRef = useRef<any>(null);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
 
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date(); d.setHours(0,0,0,0); return d;
@@ -714,50 +715,58 @@ const Agenda = () => {
           <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
               <Label className="flex items-center gap-1.5"><User className="w-4 h-4 text-muted-foreground" /> Cliente</Label>
-              <Popover open={clientDropdownOpen} onOpenChange={setClientDropdownOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={clientDropdownOpen}
-                    className="w-full justify-between mt-1.5"
-                  >
-                    {formData.client_id
-                      ? clients.find((c) => c.id === formData.client_id)?.name
-                      : "Selecione um cliente..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" style={{ zIndex: 9999 }}>
-                  <Command>
-                    <CommandInput placeholder="Buscar cliente..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="w-full justify-between mt-1.5"
+                  onClick={() => setClientDropdownOpen(prev => !prev)}
+                >
+                  {formData.client_id
+                    ? clients.find((c) => c.id === formData.client_id)?.name
+                    : "Selecione um cliente..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+                {clientDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-hidden">
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Buscar cliente..."
+                        value={clientSearch}
+                        onChange={(e) => setClientSearch(e.target.value)}
+                        className="h-8"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-3">Nenhum cliente encontrado.</p>
+                      ) : (
+                        clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).map((client) => (
+                          <button
                             key={client.id}
-                            value={`${client.id} ${client.name}`}
-                            onSelect={(currentValue) => {
-                              const selectedId = currentValue.split(' ')[0];
-                              setFormData(prev => ({ ...prev, client_id: selectedId, journey_id: "" }));
-                              setTimeout(() => setClientDropdownOpen(false), 10);
+                            type="button"
+                            className="flex items-center w-full px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
+                              setClientDropdownOpen(false);
+                              setClientSearch("");
                             }}
                           >
                             <Check
                               className={cn(
-                                "mr-2 h-4 w-4",
+                                "mr-2 h-4 w-4 shrink-0",
                                 formData.client_id === client.id ? "opacity-100" : "opacity-0"
                               )}
                             />
                             {client.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {formData.client_id && (
