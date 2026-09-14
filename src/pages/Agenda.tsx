@@ -737,25 +737,20 @@ const Agenda = () => {
                         {clients.map((client) => (
                           <CommandItem
                             key={client.id}
-                            value={client.name}
+                            value={`${client.id} ${client.name}`}
+                            onSelect={(currentValue) => {
+                              const selectedId = currentValue.split(' ')[0];
+                              setFormData(prev => ({ ...prev, client_id: selectedId, journey_id: "" }));
+                              setTimeout(() => setClientDropdownOpen(false), 10);
+                            }}
                           >
-                            <div 
-                              className="flex items-center w-full"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
-                                setClientDropdownOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.client_id === client.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {client.name}
-                            </div>
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {client.name}
                           </CommandItem>
                         ))}
                       </CommandGroup>
