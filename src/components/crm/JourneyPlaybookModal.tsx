@@ -36,19 +36,39 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const [clientAppointments, setClientAppointments] = useState<any[]>([]);
   const [loadingAppts, setLoadingAppts] = useState(false);
 
+  const [projectType, setProjectType] = useState<"unica" | "multipla" | "">("");
+  const [activeJourney, setActiveJourney] = useState<any>(null);
+
   useEffect(() => {
     if (open && client?.id) {
-      const fetchAppts = async () => {
+      const fetchData = async () => {
         setLoadingAppts(true);
-        const { data } = await supabase
+        // Fetch appointments
+        const { data: appts } = await supabase
           .from("appointments")
           .select("*")
           .eq("client_id", client.id)
           .order("date", { ascending: false });
-        setClientAppointments(data || []);
+        setClientAppointments(appts || []);
+        
+        // Fetch current journey
+        const { data: journeys } = await supabase
+          .from("journeys")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+          
+        if (journeys && journeys.length > 0) {
+          setActiveJourney(journeys[0]);
+          if (journeys[0].playbook_data?.projectType) {
+            setProjectType(journeys[0].playbook_data.projectType);
+          }
+        }
+        
         setLoadingAppts(false);
       };
-      fetchAppts();
+      fetchData();
     }
   }, [open, client?.id]);
 
@@ -68,48 +88,24 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
   const handleApplyPlaybook = async () => {
 
     if (client.status === "Sessão Agendada") {
-      if (!sessionDate || !sessionTime) {
-        toast.error("Preencha a data e horário da sessão.");
-        return;
-      }
-      const playbookLog = `[Playbook CRM - Agendamento]\nData Marcada: ${sessionDate.split('-').reverse().join('/')}\nHorário: ${sessionTime}\nLembretes programados.\nData de Registro: ${new Date().toLocaleDateString()}\n------------------------`;
-      
+      setSubmitting(true);
+      const nextStatus = projectType === "unica" ? "Pós-Tatuagem" : "Múltiplas Sessões";
+      const playbookLog = `[Playbook CRM - Sessão Realizada]\nAvançado para: ${nextStatus}\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
-      
-      // Calculate end time (assuming ~2.5h or default to +2 hours)
-      const [h, m] = sessionTime.split(':').map(Number);
-      const endH = Math.min(23, h + 2).toString().padStart(2, '0');
-      const endM = m.toString().padStart(2, '0');
-      const endTime = `${endH}:${endM}`;
 
-      // Insert appointment
-      const { error: apptError } = await supabase.from("appointments").insert([{
-        client_id: client.id,
-        date: sessionDate,
-        start_time: sessionTime,
-        end_time: endTime,
-        status: "Agendado",
-        value: 0,
-        deposit: 0
-      }]);
-
-      if (apptError) {
-        console.error(apptError);
-        toast.error("Erro ao salvar agendamento.");
-        return;
-      }
-
-      // Update client status
       const { error } = await supabase
         .from("clientes")
-        .update({ status: "Sessão Agendada", notes: updatedNotes })
+        .update({ status: nextStatus, notes: updatedNotes })
         .eq("id", client.id);
 
       if (error) {
         console.error(error);
-        toast.error("Erro ao aplicar playbook.");
+        toast.error("Erro ao avançar etapa.");
       } else {
-        toast.success("Agendamento concluído e salvo na Agenda!");
+        if (activeJourney) {
+          await supabase.from("journeys").update({ status: nextStatus }).eq("id", activeJourney.id);
+        }
+        toast.success(`Sessão realizada! Avançado para ${nextStatus}.`);
         onSuccess();
         onOpenChange(false);
       }
@@ -118,22 +114,36 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
     }
 
     if (client.status === "Onboarding") {
-      const playbookLog = `[Playbook CRM - Onboarding]\nHoras Estimadas: ${estimatedHours || "Não definido"}h\nSessões: ${sessionCount || "Não definido"}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+      if (!projectType) {
+        toast.error("Selecione o tipo de projeto (Sessão Única ou Múltiplas Sessões).");
+        return;
+      }
+      const playbookLog = `[Playbook CRM - Onboarding]\nTipo: ${projectType === 'unica' ? 'Sessão Única' : 'Múltiplas Sessões'}\nHoras Estimadas: ${estimatedHours || "Não definido"}h\nSessões: ${sessionCount || "Não definido"}\nMétodo de Trabalho Enviado.\nFicha de Anamnese Enviada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       
       const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
-      const { error } = await supabase
+      const { error: clientError } = await supabase
         .from("clientes")
         .update({ status: "Sessão Agendada", notes: updatedNotes })
         .eq("id", client.id);
 
-      if (error) {
-        console.error(error);
+      if (clientError) {
+        console.error(clientError);
         toast.error("Erro ao aplicar playbook.");
-      } else {
-        toast.success("Onboarding concluído!");
-        onSuccess();
-        onOpenChange(false);
+        setSubmitting(false);
+        return;
       }
+
+      if (activeJourney) {
+        const newPlaybookData = { ...(activeJourney.playbook_data || {}), projectType };
+        await supabase
+          .from("journeys")
+          .update({ status: "Sessão Agendada", playbook_data: newPlaybookData })
+          .eq("id", activeJourney.id);
+      }
+
+      toast.success("Onboarding concluído!");
+      onSuccess();
+      onOpenChange(false);
       setSubmitting(false);
       return;
     }
@@ -410,6 +420,19 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             </p>
           </div>
 
+          <div className="space-y-1.5 mb-4">
+            <Label className="text-xs font-semibold text-foreground">Tipo de Projeto</Label>
+            <Select value={projectType} onValueChange={(val: any) => setProjectType(val)}>
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue placeholder="Selecione o tipo de projeto..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unica">Sessão Única (Vai direto para Pós-Tattoo)</SelectItem>
+                <SelectItem value="multipla">Múltiplas Sessões (Loop de Sessões)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -512,6 +535,24 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             </p>
           </div>
 
+          <div className="space-y-1.5 mb-4">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              Tipo de Projeto (Roteamento)
+            </Label>
+            <Select value={projectType} onValueChange={(val: any) => setProjectType(val)}>
+              <SelectTrigger className="h-10 text-sm">
+                <SelectValue placeholder="Selecione o tipo de projeto..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unica">Sessão Única (Vai direto para Pós-Tattoo)</SelectItem>
+                <SelectItem value="multipla">Múltiplas Sessões (Loop de Sessões)</SelectItem>
+              </SelectContent>
+            </Select>
+            {!projectType && (
+              <p className="text-[10px] text-destructive mt-1">* Obrigatório para avançar de etapa.</p>
+            )}
+          </div>
+
           {/* Agendamentos existentes */}
           {loadingAppts ? (
             <p className="text-xs text-center text-muted-foreground py-2">Carregando agendamentos...</p>
@@ -591,6 +632,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
           <DialogFooter className="pt-4 border-t mt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+            <Button onClick={handleApplyPlaybook} disabled={submitting || !projectType} className="bg-primary text-primary-foreground font-bold">
+              {submitting ? "Processando..." : "Sessão Realizada (Avançar Etapa)"}
+            </Button>
           </DialogFooter>
         </div>
       )}
