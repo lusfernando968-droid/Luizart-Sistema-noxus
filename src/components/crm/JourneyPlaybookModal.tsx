@@ -89,8 +89,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
     if (client.status === "Sessão Agendada") {
       setSubmitting(true);
-      const nextStatus = projectType === "unica" ? "Pós-Tatuagem" : "Múltiplas Sessões";
-      const playbookLog = `[Playbook CRM - Sessão Realizada]\nAvançado para: ${nextStatus}\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+      const nextStatus = projectType === "unica" ? "Pós-Tatuagem" : "Projeto em Andamento";
+      const playbookLog = `[Playbook CRM - Sessão Realizada]\nAvançado para: ${nextStatus === 'Projeto em Andamento' ? 'Múltiplas Sessões' : nextStatus}\nData: ${new Date().toLocaleDateString()}\n------------------------`;
       const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
 
       const { error } = await supabase
@@ -634,6 +634,81 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
             <Button onClick={handleApplyPlaybook} disabled={submitting || !projectType} className="bg-primary text-primary-foreground font-bold">
               {submitting ? "Processando..." : "Sessão Realizada (Avançar Etapa)"}
+            </Button>
+          </DialogFooter>
+        </div>
+      )}
+
+      {/* PROJETO EM ANDAMENTO (MÚLTIPLAS SESSÕES) */}
+      {client.status === "Projeto em Andamento" && (
+        <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+            <p className="text-sm font-semibold text-foreground">Etapa 4: Múltiplas Sessões</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Gerencie o andamento do projeto. Acompanhe os agendamentos já registrados.
+            </p>
+          </div>
+
+          {/* Agendamentos existentes */}
+          {loadingAppts ? (
+            <p className="text-xs text-center text-muted-foreground py-2">Carregando sessões...</p>
+          ) : clientAppointments.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5 text-primary" /> Sessões do Projeto
+              </p>
+              {clientAppointments.map((appt, i) => (
+                <div key={appt.id} className="flex items-center justify-between p-2.5 rounded-lg border bg-accent/10 hover:bg-accent/20 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4 text-primary" />
+                    <div>
+                      <p className="text-sm font-bold text-foreground">
+                        Sessão {clientAppointments.length - i} • {appt.date ? appt.date.split('-').reverse().join('/') : '—'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {appt.start_time || '—'} — {appt.end_time || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                    appt.status === 'Confirmado' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                    appt.status === 'Cancelado' ? 'bg-red-500/10 text-red-600 border-red-500/20' :
+                    'bg-primary/10 text-primary border-primary/20'
+                  }`}>
+                    {appt.status || 'Agendado'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground border-2 border-dashed rounded-lg p-3">
+              Nenhum agendamento registrado. Agende as sessões pela <strong>Agenda</strong>.
+            </p>
+          )}
+
+          <DialogFooter className="pt-4 border-t mt-4 flex justify-between">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+            <Button 
+              onClick={async () => {
+                setSubmitting(true);
+                const nextStatus = "Pós-Tatuagem";
+                const playbookLog = `[Playbook CRM - Projeto Concluído]\nTodas as sessões realizadas.\nAvançado para: ${nextStatus}\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+                const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
+                const { error } = await supabase.from("clientes").update({ status: nextStatus, notes: updatedNotes }).eq("id", client.id);
+                if (activeJourney) {
+                  await supabase.from("journeys").update({ status: nextStatus }).eq("id", activeJourney.id);
+                }
+                setSubmitting(false);
+                if (!error) {
+                  toast.success("Projeto finalizado! Movido para Pós-Tatuagem.");
+                  onSuccess();
+                  onOpenChange(false);
+                }
+              }} 
+              disabled={submitting} 
+              className="bg-primary text-primary-foreground font-bold"
+            >
+              {submitting ? "Processando..." : "Finalizar Projeto (Ir p/ Pós-Tattoo)"}
             </Button>
           </DialogFooter>
         </div>
