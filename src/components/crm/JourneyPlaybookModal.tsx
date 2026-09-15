@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon, Send } from "lucide-react";
+import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon, Send, HeartPulse, Search, Star } from "lucide-react";
 
 interface JourneyPlaybookModalProps {
   open: boolean;
@@ -710,6 +710,108 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
             >
               {submitting ? "Processando..." : "Finalizar Projeto (Ir p/ Pós-Tattoo)"}
             </Button>
+          </DialogFooter>
+        </div>
+      )}
+
+      {/* PÓS-TATUAGEM */}
+      {client.status === "Pós-Tatuagem" && (
+        <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
+            <p className="text-sm font-semibold text-foreground">Etapa 5: Pós-Tatuagem</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Acompanhe a cicatrização e mantenha o relacionamento com o cliente.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-foreground">Acompanhamento (WhatsApp)</p>
+            
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleSendWhatsApp(`Olá ${client.name.split(' ')[0]}! Muito obrigado pela confiança no meu trabalho. Passando para te lembrar dos cuidados com a sua tatuagem nos próximos dias: manter sempre limpa, passar a pomada indicada e evitar sol/mar/piscina. Qualquer dúvida, estou por aqui!`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><HeartPulse className="w-4 h-4 text-primary" /> 1. Cuidados Iniciais</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Lembrete de cuidados logo após a sessão.</span>
+                </div>
+                <Send className="w-4 h-4 text-primary shrink-0" />
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleSendWhatsApp(`Oi ${client.name.split(' ')[0]}! Tudo bem? Já se passaram alguns dias desde a nossa sessão. Como está a cicatrização da sua tattoo? Está sentindo alguma coisa? Se puder me mandar uma foto para eu dar uma olhada, agradeço!`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><Search className="w-4 h-4 text-primary" /> 2. Acompanhamento (7 a 15 dias)</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Pedir foto e perguntar da cicatrização.</span>
+                </div>
+                <Send className="w-4 h-4 text-primary shrink-0" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full justify-between h-auto p-3 bg-card hover:bg-accent/40 border-border text-left"
+                onClick={() => handleSendWhatsApp(`Olá ${client.name.split(' ')[0]}! Fiquei muito feliz com o resultado do nosso projeto. Se você gostou da experiência, poderia deixar uma avaliação pra mim? Isso me ajuda muito! [LINK_DO_GOOGLE_AQUI]`)}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold flex items-center gap-2"><Star className="w-4 h-4 text-yellow-500" /> 3. Pedir Avaliação (Feedback)</span>
+                  <span className="text-xs text-muted-foreground font-normal whitespace-normal line-clamp-1">Solicitar review no Google/Instagram.</span>
+                </div>
+                <Send className="w-4 h-4 text-primary shrink-0" />
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t mt-4 flex justify-between">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+            <Button 
+              onClick={async () => {
+                setSubmitting(true);
+                const nextStatus = "Concluído";
+                const playbookLog = `[Playbook CRM - Concluído]\nJornada totalmente finalizada.\nData: ${new Date().toLocaleDateString()}\n------------------------`;
+                const updatedNotes = client.notes ? `${playbookLog}\n\n${client.notes}` : playbookLog;
+                
+                const { error } = await supabase.from("clientes").update({ status: nextStatus, notes: updatedNotes }).eq("id", client.id);
+                if (activeJourney) {
+                  await supabase.from("journeys").update({ status: nextStatus }).eq("id", activeJourney.id);
+                }
+                setSubmitting(false);
+                if (!error) {
+                  toast.success("Jornada Concluída com Sucesso!");
+                  onSuccess();
+                  onOpenChange(false);
+                } else {
+                  toast.error("Erro ao concluir jornada.");
+                }
+              }} 
+              disabled={submitting} 
+              className="bg-primary text-primary-foreground font-bold"
+            >
+              {submitting ? "Processando..." : "Concluir Jornada (Finalizar)"}
+            </Button>
+          </DialogFooter>
+        </div>
+      )}
+
+      {/* CONCLUÍDO */}
+      {client.status === "Concluído" && (
+        <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200 text-center">
+          <div className="bg-green-500/10 border-transparent p-6 rounded-xl mb-4 flex flex-col items-center justify-center space-y-3">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
+            <div>
+              <p className="text-lg font-bold text-foreground">Jornada Concluída</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tatuagem finalizada, cicatrizada e cliente satisfeito!
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 mt-4 flex justify-center sm:justify-center">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar Playbook</Button>
           </DialogFooter>
         </div>
       )}
