@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Key, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const Auth = () => {
     const navigate = useNavigate();
@@ -37,24 +38,23 @@ const Auth = () => {
 
         setLoading(true);
         try {
-            const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ accessCode: accessCode.trim().toUpperCase() })
-            });
+            const { data: user, error } = await supabase
+                .from('team')
+                .select('*')
+                .eq('accessCode', accessCode.trim().toUpperCase())
+                .eq('isActive', true)
+                .single();
 
-            const data = await res.json();
-            
-            if (!res.ok) {
-                throw new Error(data.error || "Erro ao fazer login");
+            if (error || !user) {
+                throw new Error("Código inválido ou acesso desativado.");
             }
 
-            localStorage.setItem("noxus_token", data.token);
-            localStorage.setItem("noxus_user", JSON.stringify(data.user));
+            localStorage.setItem("noxus_token", `token-${user.id}`);
+            localStorage.setItem("noxus_user", JSON.stringify(user));
 
             toast({
                 title: "Bem-vindo de volta!",
-                description: `Acesso liberado para ${data.user.name || data.user.accessCode}`,
+                description: `Acesso liberado para ${user.name || user.accessCode}`,
             });
             
             navigate("/dashboard");
