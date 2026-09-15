@@ -182,15 +182,11 @@
   --fc-button-bg-color: hsl(var(--secondary));
   --fc-button-border-color: hsl(var(--border));
   --fc-button-hover-bg-color: hsl(var(--accent));
-  --fc-button-hover-border-color: hsl(var(--border));
-  --fc-button-active-bg-color: hsl(var(--primary));
-  --fc-button-active-border-color: hsl(var(--primary));
-  --fc-button-text-color: hsl(var(--foreground));
-  --fc-border-color: hsl(var(--border));
-  --fc-event-bg-color: hsl(var(--primary));
-  --fc-event-border-color: hsl(var(--primary));
-  --fc-today-bg-color: transparent !important;
-  --fc-page-bg-color: transparent;
+  --fc-button-border-color: hsl(var(--border));
+  --fc-today-bg-color: hsl(var(--primary) / 0.05);
+  --fc-highlight-color: hsl(var(--primary) / 0.1);
+  --fc-neutral-bg-color: hsl(var(--background));
+  --fc-page-bg-color: hsl(var(--background));
   font-family: inherit;
 }
 
@@ -240,7 +236,13 @@
 }
 
 .fc .fc-col-header-cell {
-  @apply py-3 bg-muted/30 font-semibold text-xs uppercase tracking-wider text-muted-foreground border-b;
+  background-color: transparent !important;
+  font-size: 0.75rem !important;
+  text-transform: capitalize !important;
+  font-weight: 600 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
 }
 
 .fc .fc-timegrid-slot-label {
@@ -261,9 +263,14 @@
 .fc div.fc-day-today,
 .fc .fc-daygrid-day.fc-day-today,
 .fc .fc-timegrid-col.fc-day-today {
-  background-color: transparent !important;
-  background: transparent !important;
-  box-shadow: inset 0 0 0 2.5px hsl(var(--primary) / 0.5) !important;
+  background-color: hsl(var(--primary) / 0.05) !important;
+  box-shadow: none !important;
+}
+
+.fc-theme-standard th, 
+.fc-theme-standard td, 
+.fc-theme-standard .fc-scrollgrid {
+  border-color: hsl(var(--border)) !important;
 }
 
 /* Visibility Fixes - Force text contrast */

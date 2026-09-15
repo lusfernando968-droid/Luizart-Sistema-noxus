@@ -593,6 +593,7 @@ const Agenda = () => {
               selectable={true}
               selectMirror={true}
               dayMaxEvents={true}
+              allDaySlot={false}
               headerToolbar={false}
               dateClick={handleDateClick}
               eventClick={handleEventClick}
@@ -617,6 +618,7 @@ const Agenda = () => {
             selectable={true}
             selectMirror={true}
             dayMaxEvents={true}
+              allDaySlot={false}
             headerToolbar={{
               left: "prev,next today",
               center: "title",
