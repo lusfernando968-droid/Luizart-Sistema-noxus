@@ -493,7 +493,7 @@ const Agenda = () => {
           <h1 className="page-title">Agenda & Recebimentos</h1>
           <p className="page-subtitle">Gerencie suas sessões, sinais e baixas financeiras</p>
         </div>
-          <Button className="hidden sm:flex" onClick={() => {
+        <Button className="hidden sm:flex" onClick={() => {
           setEditingAppointment(null);
           setFormData({
             client_id: "",
@@ -519,14 +519,14 @@ const Agenda = () => {
           <div className="bg-card rounded-xl border p-2 shadow-sm space-y-2">
             <div className="flex items-center justify-between px-2 pt-1">
               <span className="text-[15px] font-bold capitalize tracking-tight">
-                {currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                {calendarRef.current ? calendarRef.current.getApi().view.title : currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
               </span>
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-accent/50 rounded-lg p-0.5">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => navigateWeek(-1)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => calendarRef.current?.getApi().prev()}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => navigateWeek(1)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => calendarRef.current?.getApi().next()}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -534,53 +534,29 @@ const Agenda = () => {
                   <Button
                     variant={mobileViewType === 'timeGridDay' ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => setMobileViewType('timeGridDay')}
+                    onClick={() => { setMobileViewType('timeGridDay'); calendarRef.current?.getApi().changeView('timeGridDay'); }}
                     className="h-7 px-2.5 text-[11px] rounded-md"
                   >
                     Dia
                   </Button>
                   <Button
+                    variant={mobileViewType === 'timeGridWeek' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => { setMobileViewType('timeGridWeek'); calendarRef.current?.getApi().changeView('timeGridWeek'); }}
+                    className="h-7 px-2.5 text-[11px] rounded-md"
+                  >
+                    Semana
+                  </Button>
+                  <Button
                     variant={mobileViewType === 'dayGridMonth' ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => setMobileViewType('dayGridMonth')}
+                    onClick={() => { setMobileViewType('dayGridMonth'); calendarRef.current?.getApi().changeView('dayGridMonth'); }}
                     className="h-7 px-2.5 text-[11px] rounded-md"
                   >
                     Mês
                   </Button>
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-7 gap-0.5 px-1 pb-1">
-              {weekDays.map((dateObj, idx) => {
-                const isSelected = dateObj.toDateString() === selectedDay.toDateString();
-                const isToday = dateObj.toDateString() === new Date().toDateString();
-                const dateStr = dateObj.toISOString().split("T")[0];
-                const dayAppointmentsCount = appointments.filter(a => a.date === dateStr).length;
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedDay(dateObj)}
-                    className={cn(
-                      "flex flex-col items-center justify-center py-1.5 rounded-lg transition-all relative",
-                      isSelected ? "bg-primary text-primary-foreground font-bold shadow-md" : "hover:bg-accent",
-                      isToday && !isSelected && "text-primary font-semibold"
-                    )}
-                  >
-                    <span className="text-[10px] opacity-70 mb-0.5">{WEEK_DAYS_SHORT[dateObj.getDay()]}</span>
-                    <span className={cn("text-[14px] leading-none", isToday && !isSelected && "border-b-2 border-primary pb-0.5")}>{dateObj.getDate()}</span>
-                    <div className="h-2 flex items-center justify-center mt-1">
-                      {dayAppointmentsCount > 0 && (
-                        <span className={cn(
-                          "w-1 h-1 rounded-full",
-                          isSelected ? "bg-primary-foreground" : "bg-primary"
-                        )} />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
             </div>
           </div>
 
@@ -606,105 +582,28 @@ const Agenda = () => {
             <Plus className="h-6 w-6" />
           </Button>
 
-          {mobileViewType === "timeGridDay" ? (
-            <div className="bg-card rounded-xl border p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="font-bold text-sm capitalize">
-                  {selectedDay.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
-                </h3>
-                <span className="text-xs text-muted-foreground font-medium">
-                  {appointments.filter(a => a.date === selectedDay.toISOString().split("T")[0]).length} agendamentos
-                </span>
-              </div>
-
-              {appointments.filter(a => a.date === selectedDay.toISOString().split("T")[0]).length > 0 ? (
-                <div className="space-y-2.5">
-                  {appointments
-                    .filter(a => a.date === selectedDay.toISOString().split("T")[0])
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                    .map(appt => (
-                      <div
-                        key={appt.id}
-                        onClick={() => {
-                          setEditingAppointment(appt);
-                          setFormData({
-                            client_id: appt.client_id || "",
-          journey_id: appt.journey_id || "",
-                            date: appt.date,
-                            startTime: appt.startTime,
-                            endTime: appt.endTime,
-                            status: appt.status,
-                            value: appt.value,
-                            deposit: appt.deposit,
-                            deposit_date: appt.deposit_date || "",
-                            deposit_link: appt.deposit_link || ""
-                          });
-                          setModalOpen(true);
-                        }}
-                        className="p-3 border rounded-xl hover:bg-accent/40 transition-colors flex items-center justify-between gap-2"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-foreground">{appt.client_name}</span>
-                            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold", statusColor(appt.status))}>
-                              {appt.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground flex items-center gap-2">
-                            <Clock className="w-3 h-3 text-muted-foreground" />
-                            <span>{appt.startTime} às {appt.endTime}</span>
-                          </p>
-
-                          {appt.deposit > 0 && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium pt-0.5">
-                              <DollarSign className="w-3 h-3" />
-                              <span>Sinal: R$ {appt.deposit.toLocaleString("pt-BR")}</span>
-                              {appt.deposit_link && (
-                                <a
-                                  href={appt.deposit_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-0.5 text-primary hover:underline ml-1"
-                                >
-                                  <span>Drive</span>
-                                  <ExternalLink className="w-2.5 h-2.5" />
-                                </a>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          {appt.status !== 'Concluído' && appt.status !== 'Cancelado' && (
-                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={(e) => openCheckout(appt, e)}>
-                              Baixa
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-xs text-muted-foreground">
-                  Nenhum agendamento para este dia.
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-card rounded-xl border p-2 shadow-sm overflow-hidden">
-              <FullCalendar
-                plugins={[dayGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
-                locale={ptBrLocale}
-                events={calendarEvents}
-                headerToolbar={{ left: "title", center: "", right: "prev,next" }}
-                dateClick={handleDateClick}
-                eventClick={handleEventClick}
-                height="auto"
-              />
-            </div>
-          )}
+          <div className="bg-card rounded-xl border p-2 shadow-sm overflow-hidden">
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView={mobileViewType}
+              locale={ptBrLocale}
+              events={calendarEvents}
+              editable={true}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              headerToolbar={false}
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+              select={handleSelect}
+              eventChange={handleEventChange}
+              height="calc(100vh - 200px)"
+              datesSet={() => {
+                setMobileViewType(calendarRef.current?.getApi().view.type || 'timeGridDay');
+              }}
+            />
+          </div>
         </div>
       ) : (
         <div className="bg-card rounded-xl border p-4 shadow-sm">
