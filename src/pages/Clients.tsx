@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost } from "lucide-react";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
+import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
 import PlaybookAccordion from "@/components/PlaybookAccordion";
 import { supabase } from "@/lib/supabase";
 import html2pdf from "html2pdf.js";
@@ -63,6 +64,9 @@ const Clients = () => {
   const [loadingAnamnesis, setLoadingAnamnesis] = useState(false);
   const [playbookModalOpen, setPlaybookModalOpen] = useState(false);
   const [playbookClient, setPlaybookClient] = useState<any | null>(null);
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedJourneyDetails, setSelectedJourneyDetails] = useState<any | null>(null);
 
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [tempNotes, setTempNotes] = useState("");
@@ -512,9 +516,16 @@ const Clients = () => {
                       <div className="space-y-3">
                         {journeys.filter(j => j.client_id === selectedClient.id).length > 0 ? (
                           journeys.filter(j => j.client_id === selectedClient.id).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(journey => (
-                            <div key={journey.id} className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div 
+                              key={journey.id} 
+                              className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer group"
+                              onClick={() => {
+                                setSelectedJourneyDetails(journey);
+                                setDetailsModalOpen(true);
+                              }}
+                            >
                               <div>
-                                <p className="font-bold text-sm text-foreground flex items-center gap-2">
+                                <p className="font-bold text-sm text-foreground flex items-center gap-2 group-hover:text-primary transition-colors">
                                   {journey.status === 'Concluído' ? <CheckCircle className="w-3.5 h-3.5 text-success" /> : <List className="w-3.5 h-3.5 text-primary" />}
                                   {journey.status === 'Concluído' ? 'Projeto Concluído (Antigo)' : 'Projeto em Andamento (Atual)'}
                                 </p>
@@ -526,8 +537,16 @@ const Clients = () => {
                                 <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-success/10 text-success border-success/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                                   {journey.status}
                                 </span>
+                                <Button size="sm" variant="ghost" className="h-7 text-[10px] bg-background/50 hover:bg-background border" onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedJourneyDetails(journey);
+                                  setDetailsModalOpen(true);
+                                }}>
+                                  Ver Detalhes
+                                </Button>
                                 {journey.status !== 'Concluído' && (
-                                  <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => {
+                                  <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => {
+                                    e.stopPropagation();
                                     setPlaybookClient(selectedClient);
                                     setPlaybookModalOpen(true);
                                   }}>
@@ -914,6 +933,15 @@ const Clients = () => {
         onOpenChange={setPlaybookModalOpen}
         client={playbookClient}
         onSuccess={fetchClients}
+      />
+
+      {/* Modal Detalhes da Jornada */}
+      <JourneyDetailsModal
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
+        journey={selectedJourneyDetails}
+        client={selectedClient}
+        anamnesis={clientAnamnesis}
       />
     </>
   );
