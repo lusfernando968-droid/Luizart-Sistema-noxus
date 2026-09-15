@@ -684,7 +684,13 @@ const Clients = () => {
 
         {/* ABA 2: JORNADA DO CLIENTE (KANBAN FUNIL CRM) */}
         <TabsContent value="jornada" className="m-0">
-          <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none">
+          {/* Indicador de Swipe para Mobile */}
+          <div className="md:hidden flex items-center justify-center gap-2 text-xs text-muted-foreground mb-3 animate-pulse">
+            <span className="font-medium">Deslize para os lados para ver as etapas</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </div>
+          
+          <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-3 overflow-x-auto pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] -mx-4 px-4 md:mx-0 md:px-0">
             {JOURNEY_STAGES.map((stage) => {
               const stageJourneys = journeys.filter(j => 
                 j.status === stage.id && 
@@ -694,7 +700,7 @@ const Clients = () => {
               return (
                 <div 
                   key={stage.id} 
-                  className={`w-[84vw] sm:w-[280px] md:w-auto shrink-0 snap-center rounded-2xl p-3 flex flex-col h-[calc(100dvh-16rem)] min-h-[500px] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
+                  className={`w-[85vw] sm:w-[320px] md:w-auto shrink-0 snap-start rounded-2xl p-3 flex flex-col h-[calc(100dvh-18rem)] min-h-[500px] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (draggedOverStage !== stage.id) setDraggedOverStage(stage.id);
