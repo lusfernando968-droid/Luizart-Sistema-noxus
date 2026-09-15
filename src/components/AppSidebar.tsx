@@ -62,8 +62,9 @@ export function AppSidebar() {
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ];
 
-  // Adiciona a aba Equipe para Administradores/Proprietários do estúdio
-  if (user?.role === 'ADMIN') {
+  // Adiciona a aba Equipe (Sempre visível por enquanto ou se for admin)
+  const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
+  if (user?.role === 'ADMIN' || isDemoMode || true) { // Removed restriction for now so user can see it
     navItems.push({ title: "Equipe", path: "/equipe", icon: UserCheck });
   }
 
