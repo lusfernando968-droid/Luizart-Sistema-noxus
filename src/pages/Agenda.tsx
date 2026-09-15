@@ -493,7 +493,7 @@ const Agenda = () => {
           <h1 className="page-title">Agenda & Recebimentos</h1>
           <p className="page-subtitle">Gerencie suas sessões, sinais e baixas financeiras</p>
         </div>
-        <Button onClick={() => {
+          <Button className="hidden sm:flex" onClick={() => {
           setEditingAppointment(null);
           setFormData({
             client_id: "",
@@ -515,20 +515,43 @@ const Agenda = () => {
 
       {isMobile ? (
         <div className="space-y-4">
-          <div className="bg-card rounded-xl border p-3 shadow-sm flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navigateWeek(-1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-semibold capitalize">
-              {currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-            </span>
-            <Button variant="ghost" size="icon" onClick={() => navigateWeek(1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Cabeçalho Unificado do Calendário Mobile (Estilo Google Agenda) */}
+          <div className="bg-card rounded-xl border p-2 shadow-sm space-y-2">
+            <div className="flex items-center justify-between px-2 pt-1">
+              <span className="text-[15px] font-bold capitalize tracking-tight">
+                {currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-accent/50 rounded-lg p-0.5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => navigateWeek(-1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => navigateWeek(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center bg-accent/50 p-0.5 rounded-lg border">
+                  <Button
+                    variant={mobileViewType === 'timeGridDay' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setMobileViewType('timeGridDay')}
+                    className="h-7 px-2.5 text-[11px] rounded-md"
+                  >
+                    Dia
+                  </Button>
+                  <Button
+                    variant={mobileViewType === 'dayGridMonth' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setMobileViewType('dayGridMonth')}
+                    className="h-7 px-2.5 text-[11px] rounded-md"
+                  >
+                    Mês
+                  </Button>
+                </div>
+              </div>
+            </div>
 
-          <div className="bg-card rounded-xl border p-2 shadow-sm">
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 px-1 pb-1">
               {weekDays.map((dateObj, idx) => {
                 const isSelected = dateObj.toDateString() === selectedDay.toDateString();
                 const isToday = dateObj.toDateString() === new Date().toDateString();
@@ -540,43 +563,48 @@ const Agenda = () => {
                     key={idx}
                     onClick={() => setSelectedDay(dateObj)}
                     className={cn(
-                      "flex flex-col items-center justify-center p-2 rounded-xl text-xs font-medium transition-all relative",
+                      "flex flex-col items-center justify-center py-1.5 rounded-lg transition-all relative",
                       isSelected ? "bg-primary text-primary-foreground font-bold shadow-md" : "hover:bg-accent",
-                      isToday && !isSelected && "border border-primary text-primary"
+                      isToday && !isSelected && "text-primary font-semibold"
                     )}
                   >
-                    <span className="text-[10px] opacity-80">{WEEK_DAYS_SHORT[dateObj.getDay()]}</span>
-                    <span className="text-sm">{dateObj.getDate()}</span>
-                    {dayAppointmentsCount > 0 && (
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full mt-1",
-                        isSelected ? "bg-primary-foreground" : "bg-primary"
-                      )} />
-                    )}
+                    <span className="text-[10px] opacity-70 mb-0.5">{WEEK_DAYS_SHORT[dateObj.getDay()]}</span>
+                    <span className={cn("text-[14px] leading-none", isToday && !isSelected && "border-b-2 border-primary pb-0.5")}>{dateObj.getDate()}</span>
+                    <div className="h-2 flex items-center justify-center mt-1">
+                      {dayAppointmentsCount > 0 && (
+                        <span className={cn(
+                          "w-1 h-1 rounded-full",
+                          isSelected ? "bg-primary-foreground" : "bg-primary"
+                        )} />
+                      )}
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border p-2 shadow-sm flex items-center justify-center gap-1">
-            <Button
-              variant={mobileViewType === "timeGridDay" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setMobileViewType("timeGridDay")}
-              className="text-xs flex-1"
-            >
-              Lista do Dia
-            </Button>
-            <Button
-              variant={mobileViewType === "dayGridMonth" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setMobileViewType("dayGridMonth")}
-              className="text-xs flex-1"
-            >
-              Calendário Mensal
-            </Button>
-          </div>
+          {/* Botão Flutuante (FAB) para Mobile */}
+          <Button
+            className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-xl shadow-primary/40 z-50 p-0 flex items-center justify-center"
+            onClick={() => {
+              setEditingAppointment(null);
+              setFormData({
+                client_id: "",
+                date: new Date().toISOString().split("T")[0],
+                startTime: "09:00",
+                endTime: "10:00",
+                status: "Agendado",
+                value: 0,
+                deposit: 0,
+                deposit_date: new Date().toISOString().split("T")[0],
+                deposit_link: ""
+              });
+              setModalOpen(true);
+            }}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
 
           {mobileViewType === "timeGridDay" ? (
             <div className="bg-card rounded-xl border p-4 shadow-sm space-y-3">
