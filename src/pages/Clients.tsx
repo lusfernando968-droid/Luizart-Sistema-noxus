@@ -27,7 +27,8 @@ interface Client {
   referrer_name?: string;
   referred_by_id?: string;
   notes?: string;
-  sessions?: number;
+  sessions?: number;  totalInvoiced?: number;
+
   lastVisit?: string;
 }
 
@@ -102,7 +103,7 @@ const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const { data: clientsData, error: clientsError } = await supabase.from('clientes').select('*, appointments(id, date), referrer:clientes!referred_by_id(name)');
+      const { data: clientsData, error: clientsError } = await supabase.from('clientes').select('*, appointments(id, date, value), referrer:clientes!referred_by_id(name)');
       if (clientsError) throw clientsError;
 
       const { data: journeysData, error: journeysError } = await supabase.from('journeys').select('*, client:clientes(name, avatar_url, phone, appointments(date))');
@@ -115,6 +116,7 @@ const Clients = () => {
         instagram: c.instagram || "@",
         birthDate: c.birth_date || "",
         sessions: c.appointments ? c.appointments.length : 0,
+        totalInvoiced: c.appointments ? c.appointments.reduce((sum: number, app: any) => sum + (Number(app.value) || 0), 0) : 0,
         lastVisit: c.appointments && c.appointments.length > 0
           ? new Date(c.appointments[c.appointments.length - 1].date).toLocaleDateString("pt-BR")
           : "Sem visitas",
@@ -412,6 +414,7 @@ const Clients = () => {
                     <TableHead>Cliente</TableHead>
                     <TableHead>Contato</TableHead>
                     <TableHead>Estágio CRM</TableHead>
+                    <TableHead className="text-right">Faturamento</TableHead>
                     <TableHead className="text-center">Sessões</TableHead>
                     <TableHead>Última Visita</TableHead>
                   </TableRow>
@@ -419,7 +422,7 @@ const Clients = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Carregando clientes...</TableCell>
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Carregando clientes...</TableCell>
                     </TableRow>
                   ) : filtered.length > 0 ? (
                     filtered.map((client) => (
@@ -452,7 +455,7 @@ const Clients = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Nenhum cliente encontrado.</TableCell>
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum cliente encontrado.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
