@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost } from "lucide-react";
 import { toast } from "sonner";
@@ -391,60 +392,80 @@ const Clients = () => {
 
         {/* ABA 1: LISTA DE CLIENTES */}
         <TabsContent value="lista" className="m-0 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Tabela / Lista na Esquerda */}
-            <div className="lg:col-span-1 bg-card rounded-xl border shadow-sm text-foreground">
-              <div className="p-4 border-b">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar cliente por nome ou telefone..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 bg-accent/20"
-                  />
-                </div>
-              </div>
-
-              <div className="divide-y max-h-[calc(100vh-280px)] overflow-y-auto">
-                {loading ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Carregando clientes...</div>
-                ) : filtered.length > 0 ? (
-                  filtered.map((client) => (
-                    <div
-                      key={client.id}
-                      onClick={() => setSelectedClient(client)}
-                      className={`p-4 cursor-pointer hover:bg-accent/40 transition-colors flex items-center justify-between ${
-                        selectedClient?.id === client.id ? "bg-accent/60 font-semibold" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
-                          {client.avatar_url ? (
-                            <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
-                          ) : (
-                            client.name.charAt(0)
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-foreground">{client.name}</p>
-                          <p className="text-xs text-muted-foreground">{client.phone}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</div>
-                )}
+          <div className="bg-card rounded-xl border shadow-sm text-foreground">
+            <div className="p-4 border-b">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente por nome ou telefone..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 bg-accent/20 h-11"
+                />
               </div>
             </div>
 
-            {/* Perfil Selecionado na Direita */}
-            <div className="lg:col-span-2">
-              {selectedClient ? (
-                <div className="space-y-6">
-                  {/* Card de Informações */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Estágio CRM</TableHead>
+                    <TableHead className="text-center">Sessões</TableHead>
+                    <TableHead>Última Visita</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Carregando clientes...</TableCell>
+                    </TableRow>
+                  ) : filtered.length > 0 ? (
+                    filtered.map((client) => (
+                      <TableRow 
+                        key={client.id} 
+                        onClick={() => setSelectedClient(client)}
+                        className="cursor-pointer hover:bg-accent/40"
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
+                              {client.avatar_url ? (
+                                <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
+                              ) : (
+                                client.name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <span className="font-bold">{client.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{client.phone}</TableCell>
+                        <TableCell>
+                           <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
+                             {client.status}
+                           </span>
+                        </TableCell>
+                        <TableCell className="font-medium text-center">{client.sessions}</TableCell>
+                        <TableCell className="text-muted-foreground">{client.lastVisit}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Nenhum cliente encontrado.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
+            <div className="bg-background rounded-xl">
+              {selectedClient && (
+                <div className="space-y-6 p-4 sm:p-6">
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
@@ -671,18 +692,11 @@ const Clients = () => {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground space-y-3">
-                  <User className="h-12 w-12 mx-auto text-muted-foreground/40" />
-                  <h3 className="text-lg font-bold text-foreground">Selecione um cliente</h3>
-                  <p className="text-sm">Escolha um cliente na lista à esquerda para visualizar seu perfil completo e comprovantes.</p>
-                </div>
               )}
             </div>
-          </div>
-        </TabsContent>
+          </DialogContent>
+        </Dialog>
 
-        {/* ABA 2: JORNADA DO CLIENTE (KANBAN FUNIL CRM) */}
         <TabsContent value="jornada" className="m-0">
           {/* Indicador de Swipe para Mobile */}
           <div className="md:hidden flex items-center justify-center gap-2 text-xs text-muted-foreground mb-3 animate-pulse">
