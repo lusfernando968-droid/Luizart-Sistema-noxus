@@ -21,6 +21,8 @@ import {
   ChevronRight,
   Shield,
   Megaphone,
+  GraduationCap,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -34,24 +36,19 @@ export function AppSidebar() {
   const [user, setUser] = useState<{ email?: string; name?: string; role?: string } | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUser = () => {
       try {
         const token = localStorage.getItem("noxus_token");
-        if (!token) return;
-
-        const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/me", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const userStr = localStorage.getItem("noxus_user");
         
-        if (res.ok) {
-          const { user } = await res.json();
-          setUser({ email: user.email, name: user.name, role: user.role });
-        }
+        if (!token || !userStr) return;
+
+        const userData = JSON.parse(userStr);
+        setUser({ email: userData.email, name: userData.name, role: userData.role });
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
       }
     };
-
     fetchUser();
   }, []);
 
@@ -60,6 +57,8 @@ export function AppSidebar() {
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+    { title: "Cursos", path: "/cursos", icon: GraduationCap },
+    { title: "Mentorias", path: "/mentorias", icon: Target },
   ];
 
   // Adiciona a aba Equipe (Sempre visível por enquanto ou se for admin)

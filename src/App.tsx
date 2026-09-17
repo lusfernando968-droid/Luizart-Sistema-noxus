@@ -13,6 +13,8 @@ import Profile from "./pages/Profile";
 import Team from "./pages/Team";
 import AnamnesisForm from "./pages/AnamnesisForm";
 import NotFound from "./pages/NotFound";
+import Courses from "./pages/Courses";
+import Mentorship from "./pages/Mentorship";
 import { Layout } from "@/components/Layout";
 
 // Authenticated layout wrapper
@@ -46,6 +48,8 @@ const App = () => (
               <Route path="/financeiro" element={<Financial />} />
               <Route path="/equipe" element={<Team />} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/cursos" element={<Courses />} />
+              <Route path="/mentorias" element={<Mentorship />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
