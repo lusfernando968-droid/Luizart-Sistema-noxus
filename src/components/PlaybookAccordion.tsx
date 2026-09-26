@@ -14,14 +14,14 @@ export default function PlaybookAccordion() {
       </div>
 
       <Accordion type="single" collapsible className="w-full space-y-4">
-        {/* PASTA 1: ORÇAMENTO E NEGOCIAÇÃO */}
+        {/* PASTA 1: ORï¿½AMENTO E NEGOCIAï¿½ï¿½O */}
         <AccordionItem value="item-1" className="border rounded-xl px-4 bg-muted/20">
           <AccordionTrigger className="hover:no-underline py-4">
             <div className="flex items-center gap-3">
               <div className="bg-blue-500/10 p-2 rounded-lg">
                 <MessageSquare className="h-5 w-5 text-blue-500" />
               </div>
-              <span className="font-bold text-base">1. Primeiro Contato & Orçamento</span>
+              <span className="font-bold text-base">1. Primeiro Contato & Orï¿½amento</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-5">
@@ -32,31 +32,31 @@ export default function PlaybookAccordion() {
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
                   <li>Elogie a ideia e confirme o local do corpo.</li>
-                  <li>Pergunte o tamanho aproximado em centímetros.</li>
-                  <li>Envie o orçamento base e explique o que está incluso (qualidade do material, biossegurança, retoque se necessário).</li>
+                  <li>Pergunte o tamanho aproximado em centï¿½metros.</li>
+                  <li>Envie o orï¿½amento base e explique o que estï¿½ incluso (qualidade do material, biosseguranï¿½a, retoque se necessï¿½rio).</li>
                 </ul>
               </div>
 
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500" /> O cliente está confuso ou não sabe? (NÃO)
+                  <AlertCircle className="h-4 w-4 text-amber-500" /> O cliente estï¿½ confuso ou nï¿½o sabe? (Nï¿½O)
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>Não passe preço direto! Primeiro faça perguntas para entender o estilo que ele gosta.</li>
-                  <li>Envie um painel de referências (fotos do Instagram do Luiz).</li>
-                  <li>Ofereça ajuda para criar um projeto exclusivo (Gatilho de Exclusividade).</li>
+                  <li>Nï¿½o passe preï¿½o direto! Primeiro faï¿½a perguntas para entender o estilo que ele gosta.</li>
+                  <li>Envie um painel de referï¿½ncias (fotos do Instagram do Luiz).</li>
+                  <li>Ofereï¿½a ajuda para criar um projeto exclusivo (Gatilho de Exclusividade).</li>
                 </ul>
               </div>
 
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-red-500" /> Objeção de Preço (Achou caro)
+                  <Wallet className="h-4 w-4 text-red-500" /> Objeï¿½ï¿½o de Preï¿½o (Achou caro)
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li><strong>O que fazer:</strong> Nunca peça desculpas pelo preço.</li>
-                  <li>Ressalte que tatuagem é para a vida toda e o barato sai caro.</li>
-                  <li>Ofereça facilitar o pagamento (Parcelamento no cartão).</li>
-                  <li>Se ainda assim não fechar, agradeça e deixe as portas abertas.</li>
+                  <li><strong>O que fazer:</strong> Nunca peï¿½a desculpas pelo preï¿½o.</li>
+                  <li>Ressalte que tatuagem ï¿½ para a vida toda e o barato sai caro.</li>
+                  <li>Ofereï¿½a facilitar o pagamento (Parcelamento no cartï¿½o).</li>
+                  <li>Se ainda assim nï¿½o fechar, agradeï¿½a e deixe as portas abertas.</li>
                 </ul>
               </div>
 
@@ -65,9 +65,9 @@ export default function PlaybookAccordion() {
                   <Send className="h-4 w-4 text-slate-500" /> Follow-up (Cliente parou de responder)
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li><strong>24 horas:</strong> "Oi! Conseguiu pensar no orçamento que te passei?"</li>
-                  <li><strong>72 horas:</strong> "Oi! A agenda desse mês está fechando, quer garantir a sua vaga?"</li>
-                  <li>Se não responder mais, altere o status para <strong>Perdido</strong> no Funil.</li>
+                  <li><strong>24 horas:</strong> "Oi! Conseguiu pensar no orï¿½amento que te passei?"</li>
+                  <li><strong>72 horas:</strong> "Oi! A agenda desse mï¿½s estï¿½ fechando, quer garantir a sua vaga?"</li>
+                  <li>Se nï¿½o responder mais, altere o status para <strong>Perdido</strong> no Funil.</li>
                 </ul>
               </div>
             </div>
@@ -91,7 +91,7 @@ export default function PlaybookAccordion() {
                   <CheckSquare className="h-4 w-4 text-primary" /> Recebimento do Sinal
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>A data <strong>só é reservada</strong> após o pagamento do sinal (geralmente PIX).</li>
+                  <li>A data <strong>sï¿½ ï¿½ reservada</strong> apï¿½s o pagamento do sinal (geralmente PIX).</li>
                   <li>Ao receber, mande o comprovante para a pasta financeira e celebre com o cliente.</li>
                 </ul>
               </div>
@@ -100,78 +100,78 @@ export default function PlaybookAccordion() {
                   <CalendarCheck className="h-4 w-4 text-primary" /> Ficha e Agendamento
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>Agende a sessão no sistema Noxus.</li>
-                  <li>Envie o Link da <strong>Ficha de Anamnese</strong> no WhatsApp e peça para preencher.</li>
-                  <li>Acompanhe se a ficha foi preenchida antes da sessão.</li>
+                  <li>Agende a sessï¿½o no sistema Noxus.</li>
+                  <li>Envie o Link da <strong>Ficha de Anamnese</strong> no WhatsApp e peï¿½a para preencher.</li>
+                  <li>Acompanhe se a ficha foi preenchida antes da sessï¿½o.</li>
                 </ul>
               </div>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        {/* PASTA 3: DIA DA SESSÃO */}
+        {/* PASTA 3: DIA DA SESSï¿½O */}
         <AccordionItem value="item-3" className="border rounded-xl px-4 bg-muted/20">
           <AccordionTrigger className="hover:no-underline py-4">
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-500/10 p-2 rounded-lg">
-                <HeartPulse className="h-5 w-5 text-emerald-500" />
+              <div className="bg-primary/10 p-2 rounded-lg">
+                <HeartPulse className="h-5 w-5 text-primary" />
               </div>
-              <span className="font-bold text-base">3. Dia da Sessão</span>
+              <span className="font-bold text-base">3. Dia da Sessï¿½o</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-5">
             <div className="space-y-4 pl-12 pr-4">
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-primary" /> Decalque e Confirmação
+                  <CheckSquare className="h-4 w-4 text-primary" /> Decalque e Confirmaï¿½ï¿½o
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>Revise a Ficha de Anamnese com o cliente para ter certeza que não há alergias ou problemas.</li>
-                  <li>Aplique o decalque e <strong>peça a confirmação do cliente olhando no espelho</strong> antes de começar.</li>
+                  <li>Revise a Ficha de Anamnese com o cliente para ter certeza que nï¿½o hï¿½ alergias ou problemas.</li>
+                  <li>Aplique o decalque e <strong>peï¿½a a confirmaï¿½ï¿½o do cliente olhando no espelho</strong> antes de comeï¿½ar.</li>
                 </ul>
               </div>
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" /> Produção de Conteúdo
+                  <Phone className="h-4 w-4 text-primary" /> Produï¿½ï¿½o de Conteï¿½do
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>Grave vídeos "Before/After" (Antes do decalque e depois de pronta).</li>
-                  <li>Tire boas fotos do resultado final com iluminação (Softbox).</li>
+                  <li>Grave vï¿½deos "Before/After" (Antes do decalque e depois de pronta).</li>
+                  <li>Tire boas fotos do resultado final com iluminaï¿½ï¿½o (Softbox).</li>
                 </ul>
               </div>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        {/* PASTA 4: PÓS E FEEDBACK */}
+        {/* PASTA 4: Pï¿½S E FEEDBACK */}
         <AccordionItem value="item-4" className="border rounded-xl px-4 bg-muted/20">
           <AccordionTrigger className="hover:no-underline py-4">
             <div className="flex items-center gap-3">
               <div className="bg-purple-500/10 p-2 rounded-lg">
                 <CheckCircle2 className="h-5 w-5 text-purple-500" />
               </div>
-              <span className="font-bold text-base">4. Pós-venda e Fidelização</span>
+              <span className="font-bold text-base">4. Pï¿½s-venda e Fidelizaï¿½ï¿½o</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-5">
             <div className="space-y-4 pl-12 pr-4">
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <Send className="h-4 w-4 text-primary" /> Acompanhamento de Cicatrização
+                  <Send className="h-4 w-4 text-primary" /> Acompanhamento de Cicatrizaï¿½ï¿½o
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li><strong>24 horas:</strong> Mande mensagem perguntando: "Tudo bem por aí? Conseguiu limpar direitinho?"</li>
-                  <li><strong>15 dias:</strong> Peça uma foto de como a tatuagem cicatrizou. Analise se precisa de retoque.</li>
+                  <li><strong>24 horas:</strong> Mande mensagem perguntando: "Tudo bem por aï¿½? Conseguiu limpar direitinho?"</li>
+                  <li><strong>15 dias:</strong> Peï¿½a uma foto de como a tatuagem cicatrizou. Analise se precisa de retoque.</li>
                 </ul>
               </div>
               <div className="bg-background border rounded-lg p-4">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-primary" /> Feedback e Próximos Passos
+                  <CheckSquare className="h-4 w-4 text-primary" /> Feedback e Prï¿½ximos Passos
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-2 ml-6 list-disc">
-                  <li>Envie o link do Google Meu Negócio e peça uma avaliação 5 estrelas.</li>
-                  <li>Ofereça um bônus/desconto para a próxima tatuagem se ele trouxer uma indicação.</li>
-                  <li>No CRM, mova para <strong>Concluído</strong>.</li>
+                  <li>Envie o link do Google Meu Negï¿½cio e peï¿½a uma avaliaï¿½ï¿½o 5 estrelas.</li>
+                  <li>Ofereï¿½a um bï¿½nus/desconto para a prï¿½xima tatuagem se ele trouxer uma indicaï¿½ï¿½o.</li>
+                  <li>No CRM, mova para <strong>Concluï¿½do</strong>.</li>
                 </ul>
               </div>
             </div>

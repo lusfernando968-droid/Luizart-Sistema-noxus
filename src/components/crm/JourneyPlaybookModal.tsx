@@ -12,10 +12,11 @@ interface JourneyPlaybookModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: any | null;
+  journeyId?: string;
   onSuccess: () => void;
 }
 
-export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: JourneyPlaybookModalProps) {
+export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, onSuccess }: JourneyPlaybookModalProps) {
   const [submitting, setSubmitting] = useState(false);
   // Formulário - Etapa 1: Orçamento
   const [tattooLocation, setTattooLocation] = useState("");
@@ -52,12 +53,22 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
         setClientAppointments(appts || []);
         
         // Fetch current journey
-        const { data: journeys } = await supabase
+        let query = supabase
           .from("journeys")
           .select("*")
           .eq("client_id", client.id)
           .order("created_at", { ascending: false })
           .limit(1);
+          
+        if (journeyId) {
+          query = supabase
+            .from("journeys")
+            .select("*")
+            .eq("id", journeyId)
+            .limit(1);
+        }
+        
+        const { data: journeys } = await query;
           
         if (journeys && journeys.length > 0) {
           setActiveJourney(journeys[0]);
@@ -70,7 +81,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
       };
       fetchData();
     }
-  }, [open, client?.id]);
+  }, [open, client?.id, journeyId]);
 
   if (!client) return null;
   
@@ -193,13 +204,19 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
 
       if (clientError) throw clientError;
 
-      // 2. Atualizar a jornada do cliente
-      const { error: journeyError } = await supabase
-        .from("journeys")
-        .update({ status: targetStatus })
-        .eq("client_id", client.id);
-
-      if (journeyError) console.log("Aviso ao atualizar jornada:", journeyError);
+      // 2. Atualizar a jornada do cliente ou criar uma nova se não existir
+      if (activeJourney) {
+        const { error: journeyError } = await supabase
+          .from("journeys")
+          .update({ status: targetStatus })
+          .eq("id", activeJourney.id);
+        if (journeyError) console.log("Aviso ao atualizar jornada:", journeyError);
+      } else {
+        const { error: journeyError } = await supabase
+          .from("journeys")
+          .insert([{ client_id: client.id, status: targetStatus }]);
+        if (journeyError) console.log("Aviso ao criar jornada:", journeyError);
+      }
 
       toast.success(`Etapa concluída! Cliente movido para ${targetStatus}.`);
       onSuccess();
@@ -440,13 +457,14 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               </Label>
               <Input
                 type="number"
+                min="0"
                 placeholder="Ex: 10"
                 value={estimatedHours}
                 onChange={(e) => {
                   const val = e.target.value;
                   setEstimatedHours(val);
                   if (val && !isNaN(Number(val))) {
-                    const hours = parseFloat(val);
+                    const hours = Math.max(0, parseFloat(val));
                     const calculatedSessions = Math.ceil(hours / 2.5);
                     setSessionCount(calculatedSessions.toString());
                   } else {
@@ -462,9 +480,17 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
               </Label>
               <Input
                 type="number"
+                min="0"
                 placeholder="Ex: 2"
                 value={sessionCount}
-                onChange={(e) => setSessionCount(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "") {
+                    setSessionCount("");
+                  } else {
+                    setSessionCount(Math.max(0, Number(val)).toString());
+                  }
+                }}
                 className="h-9 text-xs"
               />
             </div>
@@ -575,7 +601,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                    appt.status === 'Confirmado' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                    appt.status === 'Confirmado' ? 'bg-primary/10 text-primary border-primary/20' :
                     appt.status === 'Cancelado' ? 'bg-red-500/10 text-red-600 border-red-500/20' :
                     'bg-primary/10 text-primary border-primary/20'
                   }`}>
@@ -671,7 +697,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                    appt.status === 'Confirmado' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                    appt.status === 'Confirmado' ? 'bg-primary/10 text-primary border-primary/20' :
                     appt.status === 'Cancelado' ? 'bg-red-500/10 text-red-600 border-red-500/20' :
                     'bg-primary/10 text-primary border-primary/20'
                   }`}>
@@ -800,8 +826,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, onSuccess }: 
       {/* CONCLUÍDO */}
       {client.status === "Concluído" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200 text-center">
-          <div className="bg-green-500/10 border-transparent p-6 rounded-xl mb-4 flex flex-col items-center justify-center space-y-3">
-            <CheckCircle2 className="w-12 h-12 text-green-500" />
+          <div className="bg-primary/10 border-transparent p-6 rounded-xl mb-4 flex flex-col items-center justify-center space-y-3">
+            <CheckCircle2 className="w-12 h-12 text-primary" />
             <div>
               <p className="text-lg font-bold text-foreground">Jornada Concluída</p>
               <p className="text-xs text-muted-foreground mt-1">

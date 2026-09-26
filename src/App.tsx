@@ -19,6 +19,15 @@ import { Layout } from "@/components/Layout";
 
 // Authenticated layout wrapper
 const AuthLayout = () => {
+  const userStr = localStorage.getItem("noxus_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isAssistant = user?.role === 'ASSISTANT' || user?.name?.includes('Gabriel');
+  const path = window.location.pathname;
+
+  if (isAssistant && (path === '/dashboard' || path === '/cursos' || path === '/mentorias' || path === '/equipe')) {
+    return <Navigate to="/agenda" replace />;
+  }
+
   return (
     <Layout>
       <Outlet />

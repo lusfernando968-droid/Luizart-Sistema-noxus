@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
@@ -28,6 +28,7 @@ interface Client {
   referred_by_id?: string;
   notes?: string;
   sessions?: number;  totalInvoiced?: number;
+  is_student?: boolean;
 
   lastVisit?: string;
 }
@@ -65,6 +66,7 @@ const Clients = () => {
   const [clientAnamnesis, setClientAnamnesis] = useState<any>(null);
   const [loadingAnamnesis, setLoadingAnamnesis] = useState(false);
   const [playbookModalOpen, setPlaybookModalOpen] = useState(false);
+  const [playbookJourneyId, setPlaybookJourneyId] = useState<string | undefined>(undefined);
   const [playbookClient, setPlaybookClient] = useState<any | null>(null);
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -106,7 +108,7 @@ const Clients = () => {
       const { data: clientsData, error: clientsError } = await supabase.from('clientes').select('*, appointments(id, date, value), referrer:clientes!referred_by_id(name)');
       if (clientsError) throw clientsError;
 
-      const { data: journeysData, error: journeysError } = await supabase.from('journeys').select('*, client:clientes(name, avatar_url, phone, appointments(date))');
+      const { data: journeysData, error: journeysError } = await supabase.from('journeys').select('*, client:clientes(name, avatar_url, phone, is_student, appointments(date))');
       if (journeysError) console.log("Aviso journeys:", journeysError);
 
       const formatted = (clientsData || []).map((c: any) => ({
@@ -124,7 +126,8 @@ const Clients = () => {
         notes: c.notes || "",
         avatar_url: c.avatar_url,
         referred_by_id: c.referred_by_id,
-        referrer_name: c.referrer?.name
+        referrer_name: c.referrer?.name,
+        is_student: c.is_student || false
       }));
 
       setClients(formatted);
@@ -249,9 +252,8 @@ const Clients = () => {
       const { data: newClient, error } = await supabase.from('clientes').insert([{
         name: newClientData.name,
         phone: newClientData.phone,
-        instagram: newClientData.instagram,
         birth_date: newClientData.birthDate || null,
-        status: newClientData.status || "Orçamento",
+        status: "Orçamento",
         notes: newClientData.notes || "",
         avatar_url: newClientData.avatar_url,
         referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null)
@@ -259,13 +261,7 @@ const Clients = () => {
 
       if (error) throw error;
 
-      // Criar a primeira jornada no Kanban
-      await supabase.from('journeys').insert([{
-        client_id: newClient.id,
-        status: newClientData.status || 'Orçamento'
-      }]);
-
-      toast.success("Cliente e Jornada criados com sucesso!");
+      toast.success("Cliente criado com sucesso!");
       await fetchClients();
       setIsAddingClient(false);
       setNewClientData({ name: "", phone: "", instagram: "", birthDate: "", status: "Orçamento", notes: "", avatar_url: "", referred_by_id: "" });
@@ -441,6 +437,7 @@ const Clients = () => {
                               )}
                             </div>
                             <span className="font-bold">{client.name}</span>
+                            {client.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500" title="Aluno" />}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{client.phone}</TableCell>
@@ -448,6 +445,9 @@ const Clients = () => {
                            <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
                              {client.status}
                            </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.totalInvoiced)}
                         </TableCell>
                         <TableCell className="font-medium text-center">{client.sessions}</TableCell>
                         <TableCell className="text-muted-foreground">{client.lastVisit}</TableCell>
@@ -465,12 +465,12 @@ const Clients = () => {
         </TabsContent>
 
         <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
-            <div className="bg-background rounded-xl">
+          <DialogContent className="w-[95vw] sm:w-[95vw] sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
+            <div className="bg-background rounded-xl overflow-x-hidden w-full">
               {selectedClient && (
                 <div className="space-y-6 p-4 sm:p-6">
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-xl flex items-center justify-center shrink-0">
                           {selectedClient.avatar_url ? (
@@ -479,47 +479,97 @@ const Clients = () => {
                             selectedClient.name.charAt(0)
                           )}
                         </div>
-                        <div>
-                          <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
-                          <p className="text-xs text-muted-foreground">{selectedClient.phone} • {selectedClient.instagram}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-2xl font-bold leading-tight truncate">{selectedClient.name}</h2>
+                            {selectedClient.is_student && (
+                              <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                <BookOpen className="w-3 h-3" />
+                                Aluno
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground font-medium truncate mt-1">
+                            {selectedClient.phone} {selectedClient.instagram ? ` • ${selectedClient.instagram}` : ''}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 pt-1 shrink-0">
                         
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => {
+                          onClick={async () => {
+                            const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
+                            if (clientJourneys.length === 0) {
+                              try {
+                                await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]);
+                                toast.success("Jornada adicionada ao Kanban!");
+                                await fetchClients(); // Refresh data so the modal sees the new journey
+                              } catch (e) {
+                                console.error(e);
+                                toast.error("Erro ao iniciar jornada.");
+                              }
+                            }
+                            setPlaybookJourneyId(undefined);
                             setPlaybookClient(selectedClient);
                             setPlaybookModalOpen(true);
                           }}
-                          className="h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 shadow-md"
+                          className="h-8 px-3 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                         >
-                          ▶ Iniciar Jornada (Playbook)
+                          {journeys.filter(j => j.client_id === selectedClient.id).length > 0 ? "▶ Continuar Jornada (Playbook)" : "▶ Iniciar Jornada (Playbook)"}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={openEditModal} className="h-9 text-xs">
-                          <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={async () => {
+                            try {
+                              const newStatus = !selectedClient.is_student;
+                              const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', selectedClient.id);
+                              if (error) throw error;
+                              toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
+                              setSelectedClient({ ...selectedClient, is_student: newStatus });
+                              await fetchClients();
+                            } catch (e) {
+                              console.error(e);
+                              toast.error("Erro ao atualizar status de aluno.");
+                            }
+                          }} 
+                          className={`h-8 text-xs ${selectedClient.is_student ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                          <BookOpen className="h-3.5 w-3.5 mr-1.5" /> {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={handleDeleteClient} className="h-9 text-xs">
-                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                        <Button variant="outline" size="sm" onClick={openEditModal} className="h-8 text-xs text-muted-foreground hover:text-foreground">
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleDeleteClient} className="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Excluir
                         </Button>
                       </div>
                     </div>
 
-                    {/* Resumo de Sessões */}
-                    <div className="grid grid-cols-3 gap-3 pt-2">
-                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Sessões</span>
-                        <span className="text-lg font-bold text-foreground">{selectedClient.sessions}</span>
-                      </div>
-                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Última Visita</span>
-                        <span className="text-lg font-bold text-foreground">{selectedClient.lastVisit}</span>
-                      </div>
-                      <div className="bg-accent/20 p-3 rounded-xl border text-center">
-                        <span className="text-xs text-muted-foreground font-semibold block uppercase">Estágio CRM</span>
-                        <span className="text-sm font-bold text-primary">{selectedClient.status}</span>
+                    <div className="pt-4 border-t border-border/60">
+                      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">CRM:</span>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">{selectedClient.status}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Sessões:</span>
+                          <span>{selectedClient.sessions}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Última Visita:</span>
+                          <span>{selectedClient.lastVisit || 'N/A'}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">Faturamento:</span>
+                          <span className="font-bold text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedClient.totalInvoiced || 0)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -528,13 +578,36 @@ const Clients = () => {
                     {/* Aba de Jornadas / Projetos do Cliente */}
                     <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                       <div className="flex items-center justify-between border-b pb-3">
-                        <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
-                          <List className="h-4 w-4 text-primary" />
-                          Jornadas & Projetos
-                        </h3>
-                        <span className="text-xs text-muted-foreground font-medium">
-                          {journeys.filter(j => j.client_id === selectedClient.id).length} registros
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                            <List className="h-4 w-4 text-primary" />
+                            Jornadas & Projetos
+                          </h3>
+                          <span className="text-xs text-muted-foreground font-medium hidden sm:inline-block">
+                            {journeys.filter(j => j.client_id === selectedClient.id).length} registros
+                          </span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-[11px] gap-1 px-2"
+                          onClick={async () => {
+                            try {
+                              const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
+                              if (error) throw error;
+                              toast.success("Nova jornada criada!");
+                              await fetchClients();
+                              setPlaybookJourneyId(data.id);
+                              setPlaybookClient(selectedClient);
+                              setPlaybookModalOpen(true);
+                            } catch (e) {
+                              console.error(e);
+                              toast.error("Erro ao criar jornada.");
+                            }
+                          }}
+                        >
+                          <Plus className="w-3 h-3" /> Nova Jornada
+                        </Button>
                       </div>
 
                       <div className="space-y-3">
@@ -544,21 +617,27 @@ const Clients = () => {
                               key={journey.id} 
                               className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer group"
                               onClick={() => {
-                                setSelectedJourneyDetails(journey);
-                                setDetailsModalOpen(true);
+                                if (journey.status !== 'Concluído') {
+                                  setPlaybookJourneyId(journey.id);
+                                  setPlaybookClient(selectedClient);
+                                  setPlaybookModalOpen(true);
+                                } else {
+                                  setSelectedJourneyDetails(journey);
+                                  setDetailsModalOpen(true);
+                                }
                               }}
                             >
                               <div>
                                 <p className="font-bold text-sm text-foreground flex items-center gap-2 group-hover:text-primary transition-colors">
-                                  {journey.status === 'Concluído' ? <CheckCircle className="w-3.5 h-3.5 text-success" /> : <List className="w-3.5 h-3.5 text-primary" />}
+                                  {journey.status === 'Concluído' ? <CheckCircle className="w-3.5 h-3.5 text-primary" /> : <List className="w-3.5 h-3.5 text-primary" />}
                                   {journey.status === 'Concluído' ? 'Projeto Concluído (Antigo)' : 'Projeto em Andamento (Atual)'}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Iniciado em: {new Date(journey.created_at).toLocaleDateString()}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-success/10 text-success border-success/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                              <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                                   {journey.status}
                                 </span>
                                 <Button size="sm" variant="ghost" className="h-7 text-[10px] bg-background/50 hover:bg-background border" onClick={(e) => {
@@ -571,6 +650,7 @@ const Clients = () => {
                                 {journey.status !== 'Concluído' && (
                                   <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => {
                                     e.stopPropagation();
+                                    setPlaybookJourneyId(journey.id);
                                     setPlaybookClient(selectedClient);
                                     setPlaybookModalOpen(true);
                                   }}>
@@ -626,7 +706,7 @@ const Clients = () => {
                                     Total: R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </span>
                                   <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
-                                    session.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                                    session.status === 'Concluído' ? 'bg-primary/10 text-primary border border-primary/20' :
                                     session.status === 'Confirmado' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' :
                                     session.status === 'Cancelado' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
                                     'bg-primary/10 text-primary border border-primary/20'
@@ -638,10 +718,10 @@ const Clients = () => {
 
                               {/* Detalhamento do Sinal e Saldo com Links do Drive */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/40">
-                                <div className="bg-card/70 p-2 rounded-lg border flex items-center justify-between">
+                                <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
                                   <div>
                                     <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Sinal de Agendamento</span>
-                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                    <span className="font-bold text-primary">
                                       R$ {depositVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                     </span>
                                   </div>
@@ -661,7 +741,7 @@ const Clients = () => {
                                   )}
                                 </div>
 
-                                <div className="bg-card/70 p-2 rounded-lg border flex items-center justify-between">
+                                <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
                                   <div>
                                     <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Saldo Restante</span>
                                     <span className="font-bold text-foreground">
@@ -772,7 +852,7 @@ const Clients = () => {
                                 )}
                               </div>
                               <div className="overflow-hidden">
-                                <h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">{journey.client?.name || 'Cliente'}</h4>
+                                <div className="flex items-center gap-1"><h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">{journey.client?.name || "Cliente"}</h4>{journey.client?.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Aluno" />}</div>
                                 <p className="text-[10px] text-muted-foreground">{journey.client?.phone || ""}</p>
                               </div>
                             </div>
@@ -794,8 +874,8 @@ const Clients = () => {
                                 onClick={(e) => e.stopPropagation()}
                                 className={`flex items-center gap-1 px-2 py-1 rounded font-bold transition-colors text-[10px] ${
                                   stage.id === "Garimpo" || stage.id === "Sem Resposta"
-                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
-                                    : "text-muted-foreground hover:text-green-600"
+                                    ? "bg-primary/10 text-primary hover:bg-primary/20"
+                                    : "text-muted-foreground hover:text-primary"
                                 }`}
                               >
                                 {stage.id === "Garimpo" || stage.id === "Sem Resposta" ? "📲 Resgatar" : "Whats"}
@@ -868,41 +948,13 @@ const Clients = () => {
                 onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">WhatsApp</Label>
-                <Input
-                  placeholder="(11) 99999-9999"
-                  value={newClientData.phone}
-                  onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Instagram</Label>
-                <Input
-                  placeholder="@usuario"
-                  value={newClientData.instagram}
-                  onChange={(e) => setNewClientData({ ...newClientData, instagram: e.target.value })}
-                />
-              </div>
-            </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Estágio Inicial</Label>
-              <Select
-                value={newClientData.status}
-                onValueChange={(val) => setNewClientData({ ...newClientData, status: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {JOURNEY_STAGES.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-semibold">WhatsApp</Label>
+              <Input
+                placeholder="(11) 99999-9999"
+                value={newClientData.phone}
+                onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -955,6 +1007,7 @@ const Clients = () => {
         open={playbookModalOpen}
         onOpenChange={setPlaybookModalOpen}
         client={playbookClient}
+        journeyId={playbookJourneyId}
         onSuccess={fetchClients}
       />
 

@@ -23,8 +23,10 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import { toast } from "sonner";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabasePublic } from "@/lib/supabase";
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -174,7 +176,7 @@ const Agenda = () => {
       case "Pendente":
       case "Agendado": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
       case "Confirmado": return { backgroundColor: "#9333ea", borderColor: "#9333ea" };
-      case "Concluído": return { backgroundColor: "hsl(var(--success))", borderColor: "hsl(var(--success))" };
+      case "Concluído": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
       case "Cancelado": return { backgroundColor: "hsl(var(--destructive))", borderColor: "hsl(var(--destructive))" };
       default: return { backgroundColor: "hsl(var(--muted))", borderColor: "hsl(var(--muted))" };
     }
@@ -210,7 +212,7 @@ const Agenda = () => {
       case "Confirmado": return "bg-purple-500/10 text-purple-500";
       case "Pendente":
       case "Agendado": return "bg-primary/10 text-primary";
-      case "Concluído": return "bg-success/10 text-success";
+      case "Concluído": return "bg-primary/10 text-primary";
       case "Cancelado": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-muted-foreground";
     }
@@ -295,44 +297,60 @@ const Agenda = () => {
         deposit_date: formData.deposit_date || null,
       };
 
+      let savedApptId = editingAppointment?.id;
+      let apptData = null;
+
       if (editingAppointment) {
-        const { error } = await supabase.from('appointments').update(payload).eq('id', editingAppointment.id);
+        const { data, error } = await supabase.from('appointments').update(payload).eq('id', editingAppointment.id).select().single();
         if (error) { console.error("Supabase update error:", JSON.stringify(error)); throw error; }
+        apptData = data;
       } else {
-        const { error } = await supabase.from('appointments').insert([payload]);
+        const { data, error } = await supabase.from('appointments').insert([payload]).select().single();
         if (error) { console.error("Supabase insert error:", JSON.stringify(error)); throw error; }
+        apptData = data;
+        savedApptId = data.id;
       }
 
-      // Se houver sinal > 0 e for um novo agendamento ou se preencheu o sinal agora, cria entrada no financeiro
-      if (formData.deposit > 0 && formData.deposit_link) {
+      // Se houver sinal > 0 e for um novo agendamento (ou se o sinal acabou de ser preenchido)
+      if (formData.deposit > 0 && formData.deposit_link && !editingAppointment) {
         try {
-          const token = localStorage.getItem("noxus_token");
-          if (token) {
-            await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                description: `Sinal de Agendamento - ${clientName}`,
-                value: formData.deposit,
-                date: formData.deposit_date || formData.date,
-                type: "entrada",
-                status: "Pago",
-                driveLink: formData.deposit_link,
-                isDeductible: false
-              })
-            });
-          }
+          await supabasePublic.from('nx_financial_transactions').insert([{
+            description: `Sinal de Agendamento - ${clientName}`,
+            value: formData.deposit,
+            date: formData.deposit_date || formData.date,
+            type: "entrada",
+            status: "Pago",
+            driveLink: formData.deposit_link,
+            isDeductible: false,
+            appointment_id: savedApptId
+          }]);
         } catch (e) {
-          console.log("Aviso: Falha ao lançar sinal no financeiro automático", e);
+          console.log("Aviso: Falha ao lançar sinal no financeiro", e);
         }
       }
 
       await fetchAppointments();
       setModalOpen(false);
       toast.success("Agendamento salvo com sucesso!");
+
+      // Se o status mudou para 'Concluído', abra o modal de checkout para dar baixa financeira
+      if (formData.status === 'Concluído' && editingAppointment?.status !== 'Concluído' && apptData) {
+        setTimeout(() => {
+          setSelectedCheckout({
+            ...apptData,
+            client_name: clientName,
+            startTime: formData.startTime,
+            endTime: formData.endTime
+          } as any);
+          setCheckoutData({
+            status: 'Recebido',
+            value: Math.max(0, (formData.value || 0) - (formData.deposit || 0)),
+            paymentMethod: 'Pix',
+            driveLink: ''
+          });
+          setCheckoutModalOpen(true);
+        }, 300);
+      }
     } catch (error: any) {
         console.error('Error saving appointment:', error);
         toast.error(`Erro ao salvar: ${error?.message || JSON.stringify(error)}`);
@@ -405,30 +423,22 @@ const Agenda = () => {
     if (!selectedCheckout) return;
     try {
       // 1. Atualizar o agendamento
-      const { error: apptError } = await supabase.from('appointments').update({ status: checkoutData.status }).eq('id', selectedCheckout.id);
+      const apptStatus = checkoutData.status === 'Recebido' || checkoutData.status === 'Apenas Consulta' ? 'Concluído' : 'Cancelado';
+      const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
 
-      // 2. Se for "Recebido", lançar no financeiro com o link do comprovante final
+      // 2. Se for "Recebido", lançar no financeiro
       if (checkoutData.status === 'Recebido') {
-        const token = localStorage.getItem("noxus_token");
-        if (token) {
-          await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
-              type: "entrada",
-              value: checkoutData.value,
-              date: new Date().toISOString().split("T")[0],
-              status: "Pago",
-              driveLink: checkoutData.driveLink,
-              payment_method: checkoutData.paymentMethod
-            })
-          });
-        }
+        const { error: finError } = await supabasePublic.from('nx_financial_transactions').insert([{
+          description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
+          type: "entrada",
+          value: checkoutData.value,
+          date: new Date().toISOString().split("T")[0],
+          status: "Pago",
+          drive_link: checkoutData.driveLink,
+          appointment_id: selectedCheckout.id
+        }]);
+        if (finError) console.error("Error inserting financial transaction:", finError);
       }
 
       toast.success("Sessão baixada com sucesso!");
@@ -512,6 +522,37 @@ const Agenda = () => {
           Novo Agendamento
         </Button>
       </div>
+
+      <div className="bg-card rounded-xl border p-4 shadow-sm mb-4">
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary" /> Compromissos de Hoje
+        </h3>
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {appointments.filter(a => a.date === new Date().toISOString().split("T")[0]).length === 0 ? (
+            <span className="text-xs text-muted-foreground">Nenhum compromisso para hoje.</span>
+          ) : (
+            appointments
+              .filter(a => a.date === new Date().toISOString().split("T")[0])
+              .sort((a, b) => a.startTime.localeCompare(b.startTime))
+              .map(a => (
+                <div 
+                  key={a.id} 
+                  className="min-w-[200px] flex-shrink-0 bg-accent/10 border border-border p-3 rounded-lg flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors"
+                  onClick={() => handleEventClick({ event: { id: a.id } } as any)}
+                >
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold text-sm truncate pr-2">{a.client_name}</span>
+                    <Badge variant={a.status === 'Confirmado' ? 'default' : a.status === 'Concluído' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
+                      {a.status}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{a.startTime} - {a.endTime}</span>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+
 
       {isMobile ? (
         <div className="space-y-4">
@@ -772,19 +813,17 @@ const Agenda = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Valor Total da Sessão (R$)</Label>
-                <Input
-                  type="number"
+                <Label>Valor Total da Sessão</Label>
+                <CurrencyInput
                   value={formData.value}
-                  onChange={(e) => setFormData(prev => ({ ...prev, value: Number(e.target.value) }))}
+                  onChange={(val) => setFormData(prev => ({ ...prev, value: val }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Valor do Sinal (R$)</Label>
-                <Input
-                  type="number"
+                <Label>Valor do Sinal</Label>
+                <CurrencyInput
                   value={formData.deposit}
-                  onChange={(e) => setFormData(prev => ({ ...prev, deposit: Number(e.target.value) }))}
+                  onChange={(val) => setFormData(prev => ({ ...prev, deposit: val }))}
                 />
               </div>
             </div>
@@ -865,7 +904,7 @@ const Agenda = () => {
               <span className="font-semibold text-foreground">Cliente: {selectedCheckout?.client_name}</span>
               <span className="text-muted-foreground">Horário: {selectedCheckout?.startTime} - {selectedCheckout?.endTime}</span>
               {selectedCheckout?.deposit ? (
-                <span className="text-xs text-emerald-600 font-semibold">Sinal Já Abatido: R$ {selectedCheckout.deposit.toLocaleString("pt-BR")}</span>
+                <span className="text-xs text-primary font-semibold">Sinal Já Abatido: R$ {selectedCheckout.deposit.toLocaleString("pt-BR")}</span>
               ) : null}
             </div>
 
@@ -889,11 +928,10 @@ const Agenda = () => {
             {checkoutData.status === 'Recebido' && (
               <>
                 <div className="space-y-2">
-                  <Label>Valor Restante Recebido (R$)</Label>
-                  <Input
-                    type="number"
+                  <Label>Valor Restante Recebido</Label>
+                  <CurrencyInput
                     value={checkoutData.value}
-                    onChange={(e) => setCheckoutData(prev => ({ ...prev, value: Number(e.target.value) }))}
+                    onChange={(val) => setCheckoutData(prev => ({ ...prev, value: val }))}
                   />
                 </div>
                 <div className="space-y-2">

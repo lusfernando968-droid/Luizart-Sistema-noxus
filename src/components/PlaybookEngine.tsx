@@ -381,7 +381,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
             <div className="pt-5 mt-2 border-t border-border/40">
               <Button 
                 onClick={() => onUpdateStatus(journey.id, 'Concluído')} 
-                className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-full h-11 bg-primary hover:bg-emerald-700 text-white"
                 disabled={!data.followUp7Days || !data.followUp30Days}
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -407,7 +407,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
           </div>
 
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-primary" />
             <h3 className="font-bold text-foreground text-lg tracking-tight">Dossiê do Projeto</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-6">Resumo visual da jornada finalizada.</p>
@@ -447,15 +447,15 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Sinal Financeiro (PIX)</span>
-                  {data.obPix ? <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">—</span>}
+                  {data.obPix ? <span className="text-primary text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">—</span>}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Ficha de Anamnese</span>
-                  {data.obForm ? <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">—</span>}
+                  {data.obForm ? <span className="text-primary text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">—</span>}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Pós-Tattoo (7 a 30 dias)</span>
-                  {(data.followUp7Days && data.followUp30Days) ? <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">Pendente</span>}
+                  {(data.followUp7Days && data.followUp30Days) ? <span className="text-primary text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> OK</span> : <span className="text-muted-foreground/50 text-xs">Pendente</span>}
                 </div>
                 
                 <div className="pt-2 mt-2 border-t border-border/40">

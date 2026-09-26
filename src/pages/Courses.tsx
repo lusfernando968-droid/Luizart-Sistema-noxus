@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users, Settings, Globe, Hammer, CheckCircle2, ChevronRight, Video, Calendar as CalendarIcon, Clock, DollarSign } from "lucide-react";
+import { Plus, Users, Settings, UserMinus, Globe, Hammer, CheckCircle2, ChevronRight, Video, Calendar as CalendarIcon, Clock, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Courses = () => {
   const [activeTab, setActiveTab] = useState("presencial");
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isRegisterStudentModalOpen, setIsRegisterStudentModalOpen] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +30,7 @@ const Courses = () => {
 
   const fetchClients = async () => {
     try {
-      const { data, error } = await supabase.from('clientes').select('id, name').order('name');
+      const { data, error } = await supabase.from('clientes').select('id, name, is_student, avatar_url, phone').order('name');
       if (error) throw error;
       setClients(data || []);
     } catch (error) {
@@ -90,8 +92,61 @@ const Courses = () => {
         <div>
           <h1 className="page-title">Cursos Luizart</h1>
           <p className="page-subtitle">Gestão de aulas presenciais 1 a 1, playbook e plataforma online.</p>
-        </div>
-      </div>
+        
+
+      {/* Modal Registrar Aluno */}
+      <Dialog open={isRegisterStudentModalOpen} onOpenChange={setIsRegisterStudentModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Registrar Aluno Presencial</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Buscar Cliente no CRM</Label>
+              <Input 
+                placeholder="Nome do cliente..." 
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+              />
+            </div>
+            <div className="max-h-[250px] overflow-y-auto space-y-2 border rounded-md p-2">
+              {clients
+                .filter(c => !c.is_student)
+                .filter(c => c.name.toLowerCase().includes(studentSearch.toLowerCase()))
+                .map(client => (
+                  <div 
+                    key={client.id} 
+                    className="flex items-center justify-between p-2 hover:bg-accent rounded-md cursor-pointer"
+                    onClick={async () => {
+                      try {
+                        const { error } = await supabase.from('clientes').update({ is_student: true }).eq('id', client.id);
+                        if (error) throw error;
+                        toast.success("Aluno registrado com sucesso!");
+                        setIsRegisterStudentModalOpen(false);
+                        fetchClients();
+                      } catch (e) {
+                        console.error(e);
+                        toast.error("Erro ao registrar aluno.");
+                      }
+                    }}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{client.name}</p>
+                      <p className="text-xs text-muted-foreground">{client.phone}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs">Registrar</Button>
+                  </div>
+              ))}
+              {clients.filter(c => !c.is_student).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Todos os clientes já são alunos ou não há clientes.</p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  </div>
 
       <Tabs defaultValue="presencial" className="w-full" onValueChange={setActiveTab}>
         <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
@@ -134,17 +189,59 @@ const Courses = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-card rounded-2xl border shadow-sm p-6 text-center space-y-4 flex flex-col items-center justify-center min-h-[250px] border-dashed border-2 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors">
+              {clients.filter(c => c.is_student).map(student => (
+                <div key={student.id} className="bg-card rounded-2xl border shadow-sm p-6 text-center flex flex-col items-center justify-center min-h-[250px] relative group hover:border-primary/50 transition-colors">
+                  <div className="absolute top-4 right-4">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={async () => {
+                        try {
+                          await supabase.from('clientes').update({ is_student: false }).eq('id', student.id);
+                          toast.success("Aluno removido.");
+                          fetchClients();
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }}
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="h-16 w-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3 overflow-hidden">
+                    {student.avatar_url ? (
+                      <img src={student.avatar_url} alt={student.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl font-bold">{student.name.charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-foreground line-clamp-1">{student.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{student.phone}</p>
+                  
+                  <div className="mt-6 w-full flex gap-2">
+                    <Button variant="outline" className="flex-1 text-xs h-8" onClick={() => {
+                      setClientId(student.id);
+                      setIsScheduleModalOpen(true);
+                    }}>
+                      Agendar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              <div onClick={() => setIsRegisterStudentModalOpen(true)}
+              className="bg-card rounded-2xl border shadow-sm p-6 text-center space-y-4 flex flex-col items-center justify-center min-h-[250px] border-dashed border-2 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                   <Users className="h-6 w-6" />
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground">Novo Aluno Presencial</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Agende a primeira aula prática de traço.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Selecione um cliente para ser aluno.</p>
                 </div>
               </div>
             </div>
-</TabsContent>
+          </TabsContent>
 
           <TabsContent value="producao" className="m-0 space-y-6">
              <div className="bg-card rounded-2xl border shadow-sm p-8 text-left space-y-6">
@@ -226,7 +323,7 @@ const Courses = () => {
                   <SelectValue placeholder="Selecione o aluno" />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.map(c => (
+                  {clients.filter(c => c.is_student).map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>

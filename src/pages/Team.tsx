@@ -73,11 +73,11 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   ADMIN:      { label: "Proprietário / Admin",    color: "text-primary",    bg: "bg-primary/10 border-primary/30" },
   TATUADOR:   { label: "Tatuador(a)",             color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
   ASSISTENTE: { label: "Assistente",              color: "text-blue-400",   bg: "bg-blue-500/10 border-blue-500/20" },
-  RECEPCAO:   { label: "Recepção / Atendimento",  color: "text-emerald-400",bg: "bg-emerald-500/10 border-emerald-500/20" },
+  RECEPCAO:   { label: "Recepção / Atendimento",  color: "text-primary",bg: "bg-primary/10 border-primary/20" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  "Concluído":  { label: "Concluído",  color: "text-success" },
+  "Concluído":  { label: "Concluído",  color: "text-primary" },
   "Agendado":   { label: "Agendado",   color: "text-warning" },
   "Confirmado": { label: "Confirmado", color: "text-primary" },
   "Cancelado":  { label: "Cancelado",  color: "text-destructive" },
@@ -290,7 +290,7 @@ export default function Team() {
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {getRoleBadge(selectedMember.role)}
                   {selectedMember.isActive ? (
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-success/10 text-success border border-success/30 font-medium">
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30 font-medium">
                       <CheckCircle2 className="h-3 w-3" /> Ativo
                     </span>
                   ) : (
@@ -319,7 +319,7 @@ export default function Team() {
                   {updatingId === selectedMember.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Switch checked={selectedMember.isActive} onCheckedChange={() => toggleMemberStatus(selectedMember.id, selectedMember.isActive)} className="data-[state=checked]:bg-emerald-500" />
+                    <Switch checked={selectedMember.isActive} onCheckedChange={() => toggleMemberStatus(selectedMember.id, selectedMember.isActive)} className="data-[state=checked]:bg-primary" />
                   )}
                 </div>
                 <Button variant="destructive" size="sm" onClick={() => handleDeleteMember(selectedMember.id)}>
@@ -342,9 +342,9 @@ export default function Team() {
               {[
                 { label: "Clientes Cadastrados", value: s.clientsCreated, icon: <UsersIcon className="h-5 w-5" />, color: "text-primary bg-primary/10" },
                 { label: "Agendamentos Criados", value: s.totalAppointments, icon: <Calendar className="h-5 w-5" />, color: "text-purple-400 bg-purple-500/10" },
-                { label: "Sessões Concluídas", value: s.completedAppointments, icon: <CheckCircle2 className="h-5 w-5" />, color: "text-success bg-success/10" },
+                { label: "Sessões Concluídas", value: s.completedAppointments, icon: <CheckCircle2 className="h-5 w-5" />, color: "text-primary bg-primary/10" },
                 { label: "Sinais Coletados", value: `R$ ${s.totalDepositsCollected.toLocaleString("pt-BR")}`, icon: <DollarSign className="h-5 w-5" />, color: "text-warning bg-warning/10" },
-                { label: "Faturamento Gerado", value: `R$ ${s.totalRevenue.toLocaleString("pt-BR")}`, icon: <TrendingUp className="h-5 w-5" />, color: "text-success bg-success/10" },
+                { label: "Faturamento Gerado", value: `R$ ${s.totalRevenue.toLocaleString("pt-BR")}`, icon: <TrendingUp className="h-5 w-5" />, color: "text-primary bg-primary/10" },
               ].map(kpi => (
                 <div key={kpi.label} className="bg-card rounded-2xl border shadow-sm p-4 space-y-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${kpi.color}`}>{kpi.icon}</div>
@@ -623,7 +623,7 @@ export default function Team() {
               {/* Status + toggle na base */}
               <div className="px-5 pb-4 pt-1 flex items-center justify-between border-t border-border/30">
                 {member.isActive ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-success font-medium">
+                  <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Acesso Ativo
                   </span>
                 ) : (
@@ -640,7 +640,7 @@ export default function Team() {
                       <Switch
                         checked={member.isActive}
                         onCheckedChange={() => toggleMemberStatus(member.id, member.isActive)}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                       {member.role !== "ADMIN" && (
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"

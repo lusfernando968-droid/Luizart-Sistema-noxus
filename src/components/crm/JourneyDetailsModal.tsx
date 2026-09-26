@@ -29,7 +29,7 @@ export function JourneyDetailsModal({ open, onOpenChange, journey, client, anamn
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Voltar</Button>
           </DialogTitle>
           <div className="flex items-center gap-2 mt-2">
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
               {journey.status}
             </span>
             <span className="text-xs text-muted-foreground">
@@ -113,7 +113,7 @@ export function JourneyDetailsModal({ open, onOpenChange, journey, client, anamn
                         {anamnesis.medical_history?.keloids && <span className="text-[11px] px-2 py-1 bg-yellow-500/10 text-yellow-600 rounded-md font-medium border border-yellow-500/20">Propensão a Queloide</span>}
                         
                         {!anamnesis.medical_history?.diabetes && !anamnesis.medical_history?.hepatitis && !anamnesis.medical_history?.pregnancy && !anamnesis.medical_history?.bleeding_disorders && !anamnesis.medical_history?.keloids && (
-                          <span className="text-[11px] px-2 py-1 bg-green-500/10 text-green-600 rounded-md font-medium border border-green-500/20">Nenhuma condição reportada</span>
+                          <span className="text-[11px] px-2 py-1 bg-primary/10 text-primary rounded-md font-medium border border-primary/20">Nenhuma condição reportada</span>
                         )}
                       </div>
                     </div>
@@ -129,12 +129,12 @@ export function JourneyDetailsModal({ open, onOpenChange, journey, client, anamn
                     </div>
 
                     {anamnesis.has_contract_signed && (
-                      <div className="col-span-1 sm:col-span-2 mt-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                        <p className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                      <div className="col-span-1 sm:col-span-2 mt-2 p-3 bg-primary/10 border border-primary/20 rounded-xl">
+                        <p className="text-xs font-bold text-primary flex items-center gap-1.5">
                           <CheckCircle className="w-3.5 h-3.5" />
                           Termo de Responsabilidade Assinado
                         </p>
-                        <p className="text-[10px] text-emerald-600/80 mt-1">
+                        <p className="text-[10px] text-primary/80 mt-1">
                           Assinado em {new Date(anamnesis.signed_at).toLocaleString()} (IP: {anamnesis.client_ip})
                         </p>
                       </div>

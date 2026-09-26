@@ -188,7 +188,7 @@ Obrigado por escolher a nossa arte!`;
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={handleCopyWhatsApp} className="gap-1.5 text-xs">
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
             Copiar p/ WhatsApp
           </Button>
           <Button onClick={handlePrint} className="gap-1.5 text-xs bg-primary text-primary-foreground">

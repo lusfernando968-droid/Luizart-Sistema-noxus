@@ -319,7 +319,7 @@ export function MobileHeader() {
           <div className="flex-1 flex flex-col min-h-0">
             {/* Status online */}
             <div className="px-5 py-3 bg-primary/5 border-b border-border/30 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
               <span className="text-xs text-muted-foreground font-medium">Suporte online</span>
             </div>
 

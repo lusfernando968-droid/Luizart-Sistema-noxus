@@ -4,6 +4,9 @@ import { Plus, ArrowUpRight, ArrowDownRight, DollarSign, ChevronLeft, ChevronRig
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase, supabasePublic } from "@/lib/supabase";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -62,29 +65,25 @@ const Financial = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-
-      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Error fetching transactions");
+      const { data, error } = await supabasePublic.from('nx_financial_transactions').select('*').order('date', { ascending: false });
       
-      const data = await res.json();
-      const formatted = (Array.isArray(data) ? data : []).map((t: any) => ({
+      if (error) throw error;
+      
+      const formatted = (data || []).map((t: any) => ({
         id: t.id,
         description: t.description,
-        value: Number(t.value),
-        date: t.date?.includes('-') ? t.date.substring(0, 10).split('-').reverse().join('/') : t.date,
+        value: Number(t.value) || 0,
+        date: typeof t.date === 'string' && t.date.includes('-') ? t.date.substring(0, 10).split('-').reverse().join('/') : String(t.date || ''),
         type: t.type as "entrada" | "saida",
-        status: t.status || "Pago",
-        driveLink: t.drive_link || t.driveLink || "",
-        isDeductible: Boolean(t.is_deductible || t.isDeductible)
+        status: t.status,
+        driveLink: t.driveLink || t.drive_link,
+        isDeductible: t.isDeductible
       }));
-
+      
       setTransactions(formatted);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching transactions:', error);
+      toast.error(`Erro: ${error.message || JSON.stringify(error)}`);
     } finally {
       setLoading(false);
     }
@@ -117,16 +116,8 @@ const Financial = () => {
         is_deductible: formData.isDeductible
       };
 
-      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/financial", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error("Error saving");
+      const { error } = await supabasePublic.from('nx_financial_transactions').insert([payload]);
+      if (error) throw error;
 
       toast.success("Transação salva com sucesso!");
       setModalOpen(false);
@@ -147,18 +138,11 @@ const Financial = () => {
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    if (!confirm("Deseja realmente excluir esta transação?")) return;
     try {
-      const token = localStorage.getItem("noxus_token");
-      if (!token) return;
-
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/financial/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (!res.ok) throw new Error("Erro ao excluir transação");
-
-      toast.success("Transação excluída com sucesso!");
+      const { error } = await supabasePublic.from('nx_financial_transactions').delete().eq('id', id);
+      if (error) throw error;
+      toast.success("Transação excluída!");
       fetchTransactions();
     } catch (error) {
       console.error(error);
@@ -254,8 +238,8 @@ const Financial = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-success/10 p-2.5">
-              <ArrowUpRight className="h-5 w-5 text-success" />
+            <div className="rounded-lg bg-primary/10 p-2.5">
+              <ArrowUpRight className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Entradas no Mês</p>
@@ -283,7 +267,7 @@ const Financial = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium">Lucro Líquido</p>
-              <p className={`text-xl font-bold ${saldo >= 0 ? "text-success" : "text-destructive"}`}>
+              <p className={`text-xl font-bold ${saldo >= 0 ? "text-primary" : "text-destructive"}`}>
                 R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -344,7 +328,7 @@ const Financial = () => {
                       <div className="flex items-center gap-2">
                         <span>{t.description}</span>
                         {t.isDeductible && (
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary dark:text-primary border-primary/20">
                             Livro Caixa (Dedutível)
                           </Badge>
                         )}
@@ -352,7 +336,7 @@ const Financial = () => {
                     </td>
                     <td className="p-4 text-sm text-muted-foreground">{t.date}</td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.type === "entrada" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.type === "entrada" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
                         }`}>
                         {t.type === "entrada" ? "Entrada" : "Saída"}
                       </span>
@@ -373,7 +357,7 @@ const Financial = () => {
                         <span className="text-xs text-muted-foreground font-mono">-</span>
                       )}
                     </td>
-                    <td className={`p-4 text-sm text-right font-bold ${t.type === "entrada" ? "text-success" : "text-destructive"
+                    <td className={`p-4 text-sm text-right font-bold ${t.type === "entrada" ? "text-primary" : "text-destructive"
                       }`}>
                       {t.type === "entrada" ? "+" : "-"} R$ {t.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </td>
@@ -430,12 +414,10 @@ const Financial = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="flex items-center gap-1.5 text-xs"><Banknote className="w-3.5 h-3.5 text-muted-foreground" /> Valor (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.value || ""}
-                  onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                <Label className="flex items-center gap-1.5 text-xs"><Banknote className="w-3.5 h-3.5 text-muted-foreground" /> Valor</Label>
+                <CurrencyInput
+                  value={formData.value || 0}
+                  onChange={(val) => setFormData({ ...formData, value: val })}
                   className="mt-1"
                 />
               </div>
@@ -501,7 +483,7 @@ const Financial = () => {
 
             {/* Checkbox de Livro Caixa Dedutível (Apenas para Saídas) */}
             {formData.type === "saida" && (
-              <div className="flex items-start space-x-2 pt-2 bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/20">
+              <div className="flex items-start space-x-2 pt-2 bg-primary/5 p-3 rounded-lg border border-primary/20">
                 <Checkbox
                   id="isDeductible"
                   checked={formData.isDeductible}
@@ -509,7 +491,7 @@ const Financial = () => {
                   className="mt-0.5"
                 />
                 <div className="grid gap-1 leading-none">
-                  <label htmlFor="isDeductible" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 cursor-pointer">
+                  <label htmlFor="isDeductible" className="text-xs font-semibold text-primary dark:text-primary cursor-pointer">
                     Despesa Dedutível do Imposto de Renda (Livro Caixa)
                   </label>
                   <p className="text-[11px] text-muted-foreground">

@@ -32,7 +32,7 @@ export function FiscalShieldCard({
   const economiaEstimada = Math.max(0, impostoEstimadoCPF - impostoEstimadoMEI);
 
   // Define cor e status baseado na porcentagem do MEI
-  let statusColor = "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
+  let statusColor = "text-primary bg-primary/10 border-primary/20";
   let statusText = "Seguro (Dentro do Teto)";
   let alertMessage = "Seu faturamento está dentro do limite anual do MEI. Você está pagando o menor imposto possível!";
 
@@ -119,10 +119,10 @@ export function FiscalShieldCard({
         </div>
 
         {/* Card de Economia de Impostos */}
-        <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-xl flex flex-col justify-between">
+        <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex flex-col justify-between">
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-primary dark:text-primary uppercase tracking-wider">
                 Economia Estimada no MEI
               </span>
               <TooltipProvider>
@@ -136,7 +136,7 @@ export function FiscalShieldCard({
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            <p className="text-2xl font-black text-primary dark:text-primary">
               R$ {economiaEstimada.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </p>
             <p className="text-[11px] text-muted-foreground">
@@ -144,7 +144,7 @@ export function FiscalShieldCard({
             </p>
           </div>
 
-          <div className="pt-3 border-t border-emerald-500/10 flex items-center justify-between text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+          <div className="pt-3 border-t border-primary/10 flex items-center justify-between text-xs text-emerald-700 dark:text-emerald-300 font-medium">
             <span>DAS MEI Fixos: R$ 78,00/mês</span>
             <ShieldCheck className="w-4 h-4" />
           </div>

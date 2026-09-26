@@ -52,7 +52,13 @@ export function AppSidebar() {
     fetchUser();
   }, []);
 
-  const navItems = [
+  const isAssistant = user?.role === 'ASSISTANT' || user?.name?.includes('Gabriel');
+
+  const navItems = isAssistant ? [
+    { title: "Agenda", path: "/agenda", icon: Calendar },
+    { title: "Clientes", path: "/clientes", icon: Users },
+    { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+  ] : [
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
@@ -61,9 +67,8 @@ export function AppSidebar() {
     { title: "Mentorias", path: "/mentorias", icon: Target },
   ];
 
-  // Adiciona a aba Equipe (Sempre visível por enquanto ou se for admin)
   const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
-  if (user?.role === 'ADMIN' || isDemoMode || true) { // Removed restriction for now so user can see it
+  if (!isAssistant && (user?.role === 'ADMIN' || isDemoMode || true)) {
     navItems.push({ title: "Equipe", path: "/equipe", icon: UserCheck });
   }
 

@@ -13,3 +13,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     schema: 'luizart', // Define o schema padrão como luizart
   },
 });
+
+export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey);

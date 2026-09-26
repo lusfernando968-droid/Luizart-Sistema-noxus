@@ -48,14 +48,26 @@ export function BottomNav() {
   const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
   const demoRole = localStorage.getItem("noxus_demo_role");
 
-  const navItems = [
+  const isAssistant = role === 'ASSISTANT' || (isDemoMode && demoRole === 'ASSISTANT');
+  
+  // Extra check with localStorage just in case fetch fails
+  const localUserStr = localStorage.getItem("noxus_user");
+  const isAssistantLocal = localUserStr && (JSON.parse(localUserStr).role === 'ASSISTANT' || JSON.parse(localUserStr).name?.includes('Gabriel'));
+
+  const assistantMode = isAssistant || isAssistantLocal;
+
+  const navItems = assistantMode ? [
+    { title: "Agenda", path: "/agenda", icon: Calendar },
+    { title: "Clientes", path: "/clientes", icon: Users },
+    { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+  ] : [
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ];
 
-  if (role === 'ADMIN' || isSuperAdmin) {
+  if (!assistantMode && (role === 'ADMIN' || isSuperAdmin)) {
     navItems.push({ title: "Equipe", path: "/equipe", icon: Shield });
   }
 

@@ -147,7 +147,7 @@ export default function AnamnesisForm() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
                 <div className="bg-card border p-8 rounded-2xl max-w-md w-full text-center space-y-4 shadow-xl">
-                    <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto">
+                    <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
                         <CheckCircle2 className="w-10 h-10" />
                     </div>
                     <h2 className="text-2xl font-bold mb-2">Formulário Concluído!</h2>
@@ -157,7 +157,7 @@ export default function AnamnesisForm() {
                     
                     <div className="bg-accent/10 border border-accent/20 p-4 rounded-xl mb-6 text-sm text-left">
                         <p className="font-semibold mb-1 flex items-center gap-1.5 text-foreground">
-                            <ShieldCheck className="w-4 h-4 text-green-500" /> Segurança Jurídica:
+                            <ShieldCheck className="w-4 h-4 text-primary" /> Segurança Jurídica:
                         </p>
                         <p className="text-muted-foreground text-xs">Sua assinatura digital, data, hora e IP do dispositivo foram autenticados no termo.</p>
                     </div>
@@ -166,7 +166,7 @@ export default function AnamnesisForm() {
                         href={`https://wa.me/${studioPhone}?text=${whatsappMsg}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-center w-full h-12 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors mb-4"
+                        className="flex items-center justify-center w-full h-12 bg-primary hover:bg-primary text-white font-bold rounded-lg transition-colors mb-4"
                     >
                         Confirmar via WhatsApp
                     </a>

@@ -88,9 +88,9 @@ export function TaxReportModal({
               <p className="text-[11px] text-muted-foreground mt-1">Total de receitas informadas</p>
             </div>
 
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
+            <div className="bg-primary/10 border border-primary/20 p-3 rounded-xl">
               <span className="text-xs text-emerald-700 dark:text-emerald-300 uppercase font-semibold block">Deduções Livro Caixa</span>
-              <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">R$ {totalDespesasDedutiveis.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              <span className="text-xl font-bold text-primary dark:text-primary">R$ {totalDespesasDedutiveis.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
               <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-1">Despesas dedutíveis comprovadas</p>
             </div>
 
@@ -103,7 +103,7 @@ export function TaxReportModal({
 
           {/* Banner de Instrução para Contador */}
           <div className="bg-muted p-3.5 rounded-xl border text-xs flex items-start gap-2.5">
-            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+            <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-semibold text-foreground">Instrução para a Declaração de Imposto de Renda / Contador:</p>
               <p className="text-muted-foreground leading-relaxed">
@@ -134,18 +134,18 @@ export function TaxReportModal({
                         <div className="flex items-center gap-1.5">
                           <span>{t.description}</span>
                           {t.isDeductible && (
-                            <Badge variant="secondary" className="text-[10px] py-0 px-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <Badge variant="secondary" className="text-[10px] py-0 px-1 bg-primary/10 text-primary dark:text-primary">
                               Dedutível
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={t.type === "entrada" ? "text-emerald-500 border-emerald-500/20" : "text-rose-500 border-rose-500/20"}>
+                        <Badge variant="outline" className={t.type === "entrada" ? "text-primary border-primary/20" : "text-rose-500 border-rose-500/20"}>
                           {t.type === "entrada" ? "Entrada" : "Saída"}
                         </Badge>
                       </TableCell>
-                      <TableCell className={`text-right font-bold ${t.type === "entrada" ? "text-emerald-600" : "text-rose-600"}`}>
+                      <TableCell className={`text-right font-bold ${t.type === "entrada" ? "text-primary" : "text-rose-600"}`}>
                         {t.type === "entrada" ? "+" : "-"} R$ {t.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="text-center">

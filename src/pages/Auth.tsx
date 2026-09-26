@@ -18,7 +18,13 @@ const Auth = () => {
         const checkExistingSession = () => {
             const token = localStorage.getItem("noxus_token");
             if (token) {
-                navigate("/dashboard", { replace: true });
+                const userStr = localStorage.getItem("noxus_user");
+                const user = userStr ? JSON.parse(userStr) : null;
+                if (user && (user.role === 'ASSISTANT' || user.name?.includes('Gabriel'))) {
+                  navigate("/agenda", { replace: true });
+                } else {
+                  navigate("/dashboard", { replace: true });
+                }
             }
         };
         checkExistingSession();
@@ -57,7 +63,11 @@ const Auth = () => {
                 description: `Acesso liberado para ${user.name || user.accessCode}`,
             });
             
-            navigate("/dashboard");
+            if (user.role === 'ASSISTANT' || user.name?.includes('Gabriel')) {
+              navigate("/agenda");
+            } else {
+              navigate("/dashboard");
+            }
         } catch (error: any) {
             toast({
                 variant: "destructive",
