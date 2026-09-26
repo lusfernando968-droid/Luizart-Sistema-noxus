@@ -51,19 +51,19 @@ export function AgendaRegistry({ appointments, clients }: any) {
   }, [filteredAppointments]);
 
   const chartData = [
-    { name: "Concluído", valor: metrics.concluidos, color: "#10b981" },
-    { name: "Agendado", valor: metrics.agendados, color: "#3b82f6" },
-    { name: "Remarcar", valor: metrics.remarcados, color: "#f97316" },
-    { name: "Cancelado", valor: metrics.cancelados, color: "#ef4444" },
+    { name: "Concluído", valor: metrics.concluidos },
+    { name: "Agendado", valor: metrics.agendados },
+    { name: "Remarcar", valor: metrics.remarcados },
+    { name: "Cancelado", valor: metrics.cancelados },
   ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "Concluído": return <Badge className="bg-emerald-500 hover:bg-emerald-600">Concluído</Badge>;
-      case "Cancelado": return <Badge variant="destructive">Cancelado</Badge>;
-      case "Para Remarcar": return <Badge className="bg-orange-500 hover:bg-orange-600">Para Remarcar</Badge>;
-      case "Agendado": return <Badge className="bg-blue-500 hover:bg-blue-600">Agendado</Badge>;
-      case "Confirmado": return <Badge className="bg-purple-500 hover:bg-purple-600">Confirmado</Badge>;
+      case "Concluído": return <Badge variant="outline" className="text-emerald-600 border-emerald-500/20 bg-emerald-500/10">Concluído</Badge>;
+      case "Cancelado": return <Badge variant="outline" className="text-red-600 border-red-500/20 bg-red-500/10">Cancelado</Badge>;
+      case "Para Remarcar": return <Badge variant="outline" className="text-orange-600 border-orange-500/20 bg-orange-500/10">Para Remarcar</Badge>;
+      case "Agendado": return <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10">Agendado</Badge>;
+      case "Confirmado": return <Badge variant="outline" className="text-purple-600 border-purple-500/20 bg-purple-500/10">Confirmado</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
@@ -106,7 +106,7 @@ export function AgendaRegistry({ appointments, clients }: any) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-sm border-l-4 border-l-primary">
+        <Card className="shadow-sm">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Total no Período</p>
@@ -117,35 +117,35 @@ export function AgendaRegistry({ appointments, clients }: any) {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-emerald-500">
+        <Card className="shadow-sm">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Taxa de Conclusão</p>
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
-            <h3 className="text-2xl font-bold text-emerald-600">{metrics.taxaConclusao}%</h3>
+            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaConclusao}%</h3>
             <p className="text-[10px] text-muted-foreground">({metrics.concluidos} sessões finalizadas)</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-orange-500">
+        <Card className="shadow-sm">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Taxa de Remarcação</p>
               <RefreshCw className="w-4 h-4 text-orange-500" />
             </div>
-            <h3 className="text-2xl font-bold text-orange-600">{metrics.taxaRemarcacao}%</h3>
+            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaRemarcacao}%</h3>
             <p className="text-[10px] text-muted-foreground">({metrics.remarcados} clientes para remarcar)</p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-red-500">
+        <Card className="shadow-sm">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Taxa de Cancelamento</p>
               <XCircle className="w-4 h-4 text-red-500" />
             </div>
-            <h3 className="text-2xl font-bold text-red-600">{metrics.taxaCancelamento}%</h3>
+            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaCancelamento}%</h3>
             <p className="text-[10px] text-muted-foreground">({metrics.cancelados} sessões perdidas)</p>
           </CardContent>
         </Card>
@@ -153,7 +153,7 @@ export function AgendaRegistry({ appointments, clients }: any) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 shadow-sm flex flex-col border">
-          <CardHeader className="pb-2 border-b bg-muted/20">
+          <CardHeader className="pb-2 border-b bg-muted/10">
             <CardTitle className="text-sm font-bold text-foreground">Distribuição de Status</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex items-center justify-center min-h-[250px] pt-6">
@@ -162,18 +162,14 @@ export function AgendaRegistry({ appointments, clients }: any) {
                  <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} />
                  <YAxis fontSize={10} tickLine={false} axisLine={false} />
                  <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                 <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                   {chartData.map((entry, index) => (
-                     <Cell key={`cell-${index}`} fill={entry.color} />
-                   ))}
-                 </Bar>
+                 <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={40} fill="hsl(var(--primary))" />
                </BarChart>
              </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card className="lg:col-span-2 shadow-sm overflow-hidden flex flex-col border">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 bg-muted/20 border-b">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 bg-muted/10 border-b">
             <CardTitle className="text-sm font-bold text-foreground">Tabela de Registros</CardTitle>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
