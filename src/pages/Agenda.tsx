@@ -16,11 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrainCircuit } from "lucide-react";
 import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
 import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
+import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -540,6 +541,9 @@ const Agenda = () => {
           <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
             <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
           </TabsTrigger>
+          <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="calendario" className="m-0 space-y-4">
@@ -709,6 +713,10 @@ const Agenda = () => {
             setModalOpen(true);
           }} 
         />
+      </TabsContent>
+
+      <TabsContent value="registro" className="m-0">
+        <AgendaRegistry appointments={appointments} clients={clients} />
       </TabsContent>
       </Tabs>
 
