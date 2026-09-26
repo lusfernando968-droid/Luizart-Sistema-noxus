@@ -384,32 +384,39 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
             </div>
 
             {decision === "repassar" && (
-              <div className="bg-card border border-border p-3 rounded-lg space-y-3 mt-2 shadow-sm animate-in fade-in">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                    👤 Indicar para qual Parceiro/Aluno?
+              <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl space-y-4 mt-3 shadow-sm animate-in slide-in-from-top-2 duration-300">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold flex items-center gap-2 text-primary/90">
+                    <User className="w-4 h-4" /> 
+                    Para qual parceiro enviar?
                   </Label>
-                  <Select value={studentName} onValueChange={setStudentName}>
-                    <SelectTrigger className="h-9 text-xs bg-background">
-                      <SelectValue placeholder="Selecione o tatuador parceiro..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {/* TODO: No futuro, puxar essa lista do banco de dados (Tabela Parceiros) */}
-                      <SelectItem value="Carlos Eduardo (Realismo)">Carlos Eduardo (Realismo)</SelectItem>
-                      <SelectItem value="Ana Beatriz (Fineline)">Ana Beatriz (Fineline)</SelectItem>
-                      <SelectItem value="Rafael Souza (Old School)">Rafael Souza (Old School)</SelectItem>
-                      <SelectItem value="Juliana Costa (Aquarela)">Juliana Costa (Aquarela)</SelectItem>
-                      <SelectItem value="Outro Parceiro/Aluno (Digitar)">Outro Parceiro/Aluno (Digitar...)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Este cliente será finalizado no seu funil e a jornada será transferida para o responsável abaixo.
+                  </p>
+                  
+                  <div className="pt-2">
+                    <Select value={studentName} onValueChange={setStudentName}>
+                      <SelectTrigger className="h-11 text-sm bg-card border-border shadow-sm rounded-lg">
+                        <SelectValue placeholder="Selecione o tatuador parceiro..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* TODO: No futuro, puxar essa lista do banco de dados (Tabela Parceiros) */}
+                        <SelectItem value="Carlos Eduardo (Realismo)">Carlos Eduardo (Realismo)</SelectItem>
+                        <SelectItem value="Ana Beatriz (Fineline)">Ana Beatriz (Fineline)</SelectItem>
+                        <SelectItem value="Rafael Souza (Old School)">Rafael Souza (Old School)</SelectItem>
+                        <SelectItem value="Juliana Costa (Aquarela)">Juliana Costa (Aquarela)</SelectItem>
+                        <SelectItem value="Outro Parceiro/Aluno (Digitar)">Outro Parceiro/Aluno (Digitar...)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {studentName === "Outro Parceiro/Aluno (Digitar)" && (
-                  <div className="space-y-1.5 animate-in fade-in">
+                  <div className="space-y-2 animate-in fade-in pt-2 border-t border-primary/10">
                     <Label className="text-xs font-semibold text-foreground">Nome do Novo Parceiro</Label>
                     <Input
-                      placeholder="Digite o nome do parceiro..."
-                      className="h-10 text-sm bg-background"
+                      placeholder="Ex: Marcos (Aquarela)..."
+                      className="h-11 text-sm bg-card border-border shadow-sm rounded-lg"
                       value={customStudentName}
                       onChange={(e) => setCustomStudentName(e.target.value)}
                     />
