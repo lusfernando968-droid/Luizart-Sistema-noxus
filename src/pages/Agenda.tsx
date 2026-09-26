@@ -527,12 +527,12 @@ const Agenda = () => {
       </div>
 
       <Tabs defaultValue="calendario" className="space-y-6">
-        <TabsList className="bg-muted p-1 h-auto grid grid-cols-2 max-w-sm">
-          <TabsTrigger value="calendario" className="rounded-sm py-2 font-bold">
-            <Calendar className="w-4 h-4 mr-2" /> Meu Calendário
+        <TabsList className="bg-muted p-1 inline-flex w-max mb-2">
+          <TabsTrigger value="calendario" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <Calendar className="w-3.5 h-3.5" /> Meu Calendário
           </TabsTrigger>
-          <TabsTrigger value="inteligencia" className="rounded-sm py-2 font-bold">
-            <BrainCircuit className="w-4 h-4 mr-2" /> Assistente CRM
+          <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
           </TabsTrigger>
         </TabsList>
         
