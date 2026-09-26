@@ -39,6 +39,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
 
   const [projectType, setProjectType] = useState<"unica" | "multipla" | "">("");
   const [activeJourney, setActiveJourney] = useState<any>(null);
+  const [partners, setPartners] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && client?.id) {
@@ -77,6 +78,9 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
           }
         }
         
+        const { data: partnersData } = await supabase.from('partners').select('*').order('name');
+        if (partnersData) setPartners(partnersData);
+
         setLoadingAppts(false);
       };
       fetchData();
@@ -400,11 +404,11 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
                         <SelectValue placeholder="Selecione o tatuador parceiro..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {/* TODO: No futuro, puxar essa lista do banco de dados (Tabela Parceiros) */}
-                        <SelectItem value="Carlos Eduardo (Realismo)">Carlos Eduardo (Realismo)</SelectItem>
-                        <SelectItem value="Ana Beatriz (Fineline)">Ana Beatriz (Fineline)</SelectItem>
-                        <SelectItem value="Rafael Souza (Old School)">Rafael Souza (Old School)</SelectItem>
-                        <SelectItem value="Juliana Costa (Aquarela)">Juliana Costa (Aquarela)</SelectItem>
+                        {partners.map(p => (
+                          <SelectItem key={p.id} value={`${p.name} (${p.style})`}>
+                            {p.name} ({p.style})
+                          </SelectItem>
+                        ))}
                         <SelectItem value="Outro Parceiro/Aluno (Digitar)">Outro Parceiro/Aluno (Digitar...)</SelectItem>
                       </SelectContent>
                     </Select>

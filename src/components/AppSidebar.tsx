@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   LayoutDashboard,
+  Settings as SettingsIcon,
   Calendar,
   Users,
   DollarSign,
@@ -174,6 +175,13 @@ export function AppSidebar() {
               >
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Meu Perfil</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => navigate("/configuracoes")}
+                className="p-3 cursor-pointer focus:bg-primary/10 focus:text-primary rounded-lg mx-1"
+              >
+                <SettingsIcon className="mr-2 h-4 w-4" />
+                <span>Configuração do Sistema</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={handleLogout}

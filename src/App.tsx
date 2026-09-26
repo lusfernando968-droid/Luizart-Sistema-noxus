@@ -15,6 +15,7 @@ import AnamnesisForm from "./pages/AnamnesisForm";
 import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import Mentorship from "./pages/Mentorship";
+import Settings from "./pages/Settings";
 import { Layout } from "@/components/Layout";
 
 // Authenticated layout wrapper
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/perfil" element={<Profile />} />
               <Route path="/cursos" element={<Courses />} />
               <Route path="/mentorias" element={<Mentorship />} />
+              <Route path="/configuracoes" element={<Settings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
