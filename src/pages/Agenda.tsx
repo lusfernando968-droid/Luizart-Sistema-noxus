@@ -825,6 +825,7 @@ const Agenda = () => {
                     <SelectItem value="Confirmado">Confirmado</SelectItem>
                     <SelectItem value="Concluído">Concluído</SelectItem>
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    <SelectItem value="Para Remarcar">Para Remarcar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
