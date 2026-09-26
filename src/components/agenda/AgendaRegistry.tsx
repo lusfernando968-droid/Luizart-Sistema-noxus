@@ -51,10 +51,10 @@ export function AgendaRegistry({ appointments, clients }: any) {
   }, [filteredAppointments]);
 
   const chartData = [
-    { name: "Concluído", valor: metrics.concluidos },
-    { name: "Agendado", valor: metrics.agendados },
-    { name: "Remarcar", valor: metrics.remarcados },
-    { name: "Cancelado", valor: metrics.cancelados },
+    { name: "Concluído", valor: metrics.concluidos, color: "#10b981" },
+    { name: "Agendado", valor: metrics.agendados, color: "#3b82f6" },
+    { name: "Remarcar", valor: metrics.remarcados, color: "#f97316" },
+    { name: "Cancelado", valor: metrics.cancelados, color: "#ef4444" },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -162,7 +162,11 @@ export function AgendaRegistry({ appointments, clients }: any) {
                  <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} />
                  <YAxis fontSize={10} tickLine={false} axisLine={false} />
                  <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                 <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={40} fill="hsl(var(--primary))" />
+                 <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                   {chartData.map((entry, index) => (
+                     <Cell key={`cell-${index}`} fill={entry.color || 'hsl(var(--primary))'} />
+                   ))}
+                 </Bar>
                </BarChart>
              </ResponsiveContainer>
           </CardContent>
