@@ -84,6 +84,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
   }, [open, client?.id, journeyId]);
 
   if (!client) return null;
+
+  const currentStatus = activeJourney ? activeJourney.status : client.status;
   
   const handleSendWhatsApp = (textToCopy: string) => {
     if (!client.phone) {
@@ -98,7 +100,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
 
   const handleApplyPlaybook = async () => {
 
-    if (client.status === "Sessão Agendada") {
+    if (currentStatus === "Sessão Agendada") {
       setSubmitting(true);
       const nextStatus = projectType === "unica" ? "Pós-Tatuagem" : "Projeto em Andamento";
       const playbookLog = `[Playbook CRM - Sessão Realizada]\nAvançado para: ${nextStatus === 'Projeto em Andamento' ? 'Múltiplas Sessões' : nextStatus}\nData: ${new Date().toLocaleDateString()}\n------------------------`;
@@ -124,7 +126,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
       return;
     }
 
-    if (client.status === "Onboarding") {
+    if (currentStatus === "Onboarding") {
       if (!projectType) {
         toast.error("Selecione o tipo de projeto (Sessão Única ou Múltiplas Sessões).");
         return;
@@ -175,7 +177,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
     try {
       setSubmitting(true);
 
-      let targetStatus = client.status;
+      let targetStatus = currentStatus;
       let decisionText = "";
 
       if (decision === "executar") {
@@ -253,7 +255,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
         </DialogHeader>
 
         
-          {client.status === "Orçamento" && (
+          {currentStatus === "Orçamento" && (
 <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
               <p className="text-sm font-semibold text-foreground">Etapa 1: Orçamento (Triagem)</p>
@@ -428,7 +430,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
         )}
 
       {/* ONBOARDING RENDER */}
-      {client.status === "Onboarding" && (
+      {currentStatus === "Onboarding" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
             <p className="text-sm font-semibold text-foreground">Etapa 2: Onboarding</p>
@@ -552,7 +554,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
 
 
       {/* SESSÃO AGENDADA RENDER */}
-      {client.status === "Sessão Agendada" && (
+      {currentStatus === "Sessão Agendada" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
             <p className="text-sm font-semibold text-foreground">Etapa 3: Sessão Agendada</p>
@@ -666,7 +668,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
       )}
 
       {/* PROJETO EM ANDAMENTO (MÚLTIPLAS SESSÕES) */}
-      {client.status === "Projeto em Andamento" && (
+      {currentStatus === "Projeto em Andamento" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
             <p className="text-sm font-semibold text-foreground">Etapa 4: Múltiplas Sessões</p>
@@ -741,7 +743,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
       )}
 
       {/* PÓS-TATUAGEM */}
-      {client.status === "Pós-Tatuagem" && (
+      {currentStatus === "Pós-Tatuagem" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-muted/30 border-transparent p-3 rounded-xl mb-4">
             <p className="text-sm font-semibold text-foreground">Etapa 5: Pós-Tatuagem</p>
@@ -824,7 +826,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
       )}
 
       {/* CONCLUÍDO */}
-      {client.status === "Concluído" && (
+      {currentStatus === "Concluído" && (
         <div className="space-y-4 py-2 animate-in fade-in zoom-in-95 duration-200 text-center">
           <div className="bg-primary/10 border-transparent p-6 rounded-xl mb-4 flex flex-col items-center justify-center space-y-3">
             <CheckCircle2 className="w-12 h-12 text-primary" />

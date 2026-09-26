@@ -533,23 +533,33 @@ const Clients = () => {
                           size="sm"
                           onClick={async () => {
                             const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
-                            if (clientJourneys.length === 0) {
+                            const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                            
+                            if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
                               try {
-                                await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]);
-                                toast.success("Jornada adicionada ao Kanban!");
-                                await fetchClients(); // Refresh data so the modal sees the new journey
+                                const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
+                                if (error) throw error;
+                                await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
+                                toast.success("Nova jornada iniciada!");
+                                await fetchClients();
+                                const updatedClient = { ...selectedClient, status: 'Orçamento' };
+                                setPlaybookJourneyId(data.id);
+                                setPlaybookClient(updatedClient);
+                                setSelectedClient(updatedClient);
+                                setPlaybookModalOpen(true);
                               } catch (e) {
                                 console.error(e);
                                 toast.error("Erro ao iniciar jornada.");
                               }
+                            } else {
+                              setPlaybookJourneyId(latestJourney.id);
+                              setPlaybookClient(selectedClient);
+                              setPlaybookModalOpen(true);
                             }
-                            setPlaybookJourneyId(undefined);
-                            setPlaybookClient(selectedClient);
-                            setPlaybookModalOpen(true);
                           }}
                           className="h-8 px-3 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                         >
-                          {journeys.filter(j => j.client_id === selectedClient.id).length > 0 ? "▶ Continuar Jornada (Playbook)" : "▶ Iniciar Jornada (Playbook)"}
+                          {journeys.filter(j => j.client_id === selectedClient.id).some(j => j.status !== 'Concluído') ? "▶ Continuar Jornada (Playbook)" : "▶ Iniciar Nova Jornada"}
                         </Button>
                         <Button 
                           variant="outline" 
@@ -874,6 +884,7 @@ const Clients = () => {
                           onDragEnd={() => setDraggedOverStage(null)}
                           onClick={() => {
                             const foundClient = clients.find(c => c.id === journey.client_id) || { id: journey.client_id, name: journey.client?.name || "Cliente", phone: journey.client?.phone || "" };
+                            setPlaybookJourneyId(journey.id);
                             setPlaybookClient(foundClient);
                             setPlaybookModalOpen(true);
                           }}
