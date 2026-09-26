@@ -626,10 +626,16 @@ const Clients = () => {
                             try {
                               const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
                               if (error) throw error;
+                              
+                              await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
+                              
                               toast.success("Nova jornada criada!");
                               await fetchClients();
+                              
+                              const updatedClient = { ...selectedClient, status: 'Orçamento' };
                               setPlaybookJourneyId(data.id);
-                              setPlaybookClient(selectedClient);
+                              setPlaybookClient(updatedClient);
+                              setSelectedClient(updatedClient);
                               setPlaybookModalOpen(true);
                             } catch (e) {
                               console.error(e);
