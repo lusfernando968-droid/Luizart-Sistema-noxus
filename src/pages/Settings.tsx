@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Settings as SettingsIcon, UserPlus, Users, Trash2 } from "lucide-react";
 import {
@@ -189,12 +190,20 @@ const Settings = () => {
             </div>
             <div className="space-y-2">
               <Label>Estilo de Trabalho</Label>
-              <Input 
-                placeholder="Ex: Realismo, Fineline..." 
-                value={newPartnerStyle} 
-                onChange={(e) => setNewPartnerStyle(e.target.value)}
-                className="h-11"
-              />
+              <Select value={newPartnerStyle} onValueChange={setNewPartnerStyle}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Selecione o estilo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Realismo">Realismo</SelectItem>
+                  <SelectItem value="Blackwork">Blackwork</SelectItem>
+                  <SelectItem value="Fineline">Fineline</SelectItem>
+                  <SelectItem value="Old School / Tradicional">Old School / Tradicional</SelectItem>
+                  <SelectItem value="Oriental">Oriental</SelectItem>
+                  <SelectItem value="Aquarela">Aquarela</SelectItem>
+                  <SelectItem value="Outro Estilo (Especial/Diferente)">Outro Estilo (Especial/Diferente)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
