@@ -15,11 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrainCircuit } from "lucide-react";
 import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
+import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -181,6 +182,7 @@ const Agenda = () => {
       case "Confirmado": return { backgroundColor: "#9333ea", borderColor: "#9333ea" };
       case "Concluído": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
       case "Cancelado": return { backgroundColor: "hsl(var(--destructive))", borderColor: "hsl(var(--destructive))" };
+      case "Para Remarcar": return { backgroundColor: "#f97316", borderColor: "#f97316" };
       default: return { backgroundColor: "hsl(var(--muted))", borderColor: "hsl(var(--muted))" };
     }
   };
@@ -217,6 +219,7 @@ const Agenda = () => {
       case "Agendado": return "bg-primary/10 text-primary";
       case "Concluído": return "bg-primary/10 text-primary";
       case "Cancelado": return "bg-destructive/10 text-destructive";
+      case "Para Remarcar": return "bg-orange-500/10 text-orange-500";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -534,6 +537,9 @@ const Agenda = () => {
           <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
             <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
           </TabsTrigger>
+          <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="calendario" className="m-0 space-y-4">
@@ -691,6 +697,18 @@ const Agenda = () => {
 
       <TabsContent value="inteligencia" className="m-0">
         <AgendaIntelligence appointments={appointments} clients={clients} />
+      </TabsContent>
+
+      <TabsContent value="remarcar" className="m-0">
+        <AgendaReschedule 
+          appointments={appointments} 
+          clients={clients} 
+          onEdit={(appt, formDataObj) => {
+            setEditingAppointment(appt);
+            setFormData(formDataObj);
+            setModalOpen(true);
+          }} 
+        />
       </TabsContent>
       </Tabs>
 
