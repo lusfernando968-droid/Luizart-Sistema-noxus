@@ -12,6 +12,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BrainCircuit } from "lucide-react";
+import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -523,10 +526,21 @@ const Agenda = () => {
         </Button>
       </div>
 
-      <div className="bg-card rounded-xl border p-4 shadow-sm mb-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" /> Compromissos de Hoje
-        </h3>
+      <Tabs defaultValue="calendario" className="space-y-6">
+        <TabsList className="bg-muted p-1 h-auto grid grid-cols-2 max-w-sm">
+          <TabsTrigger value="calendario" className="rounded-sm py-2 font-bold">
+            <Calendar className="w-4 h-4 mr-2" /> Meu Calendário
+          </TabsTrigger>
+          <TabsTrigger value="inteligencia" className="rounded-sm py-2 font-bold">
+            <BrainCircuit className="w-4 h-4 mr-2" /> Assistente CRM
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="calendario" className="m-0 space-y-4">
+          <div className="bg-card rounded-xl border p-4 shadow-sm mb-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" /> Compromissos de Hoje
+            </h3>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {appointments.filter(a => a.date === new Date().toISOString().split("T")[0]).length === 0 ? (
             <span className="text-xs text-muted-foreground">Nenhum compromisso para hoje.</span>
@@ -673,6 +687,12 @@ const Agenda = () => {
           />
         </div>
       )}
+      </TabsContent>
+
+      <TabsContent value="inteligencia" className="m-0">
+        <AgendaIntelligence appointments={appointments} clients={clients} />
+      </TabsContent>
+      </Tabs>
 
       {/* Modal de Cadastro/Edição de Agendamento */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
