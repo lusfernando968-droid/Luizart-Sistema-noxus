@@ -55,6 +55,18 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
     }
   };
 
+  const handleMarkAsCompleted = async (id: string) => {
+    try {
+      const { error } = await supabase.from('appointments').update({ status: 'Concluído' }).eq('id', id);
+      if (error) throw error;
+      toast.success("Sessão finalizada com sucesso!");
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao dar baixa na sessão.");
+    }
+  };
+
   const renderTable = (list: any[], emptyMessage: string, isRescheduleList: boolean) => {
     if (list.length === 0) {
       return (
@@ -118,6 +130,18 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                         </Button>
                       )}
 
+                      {!isRescheduleList && (
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+                          title="Dar Baixa (Concluído)"
+                          onClick={() => handleMarkAsCompleted(appt.id)}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                      )}
+
                       <Button 
                         variant="outline" 
                         size="icon" 
@@ -130,7 +154,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                             date: appt.date || new Date().toISOString().split("T")[0],
                             startTime: appt.startTime || "09:00",
                             endTime: appt.endTime || "10:00",
-                            status: "Agendado",
+                            status: isRescheduleList ? "Agendado" : appt.status,
                             value: appt.value || 0,
                             deposit: appt.deposit || 0,
                             deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
