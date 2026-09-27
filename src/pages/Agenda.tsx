@@ -547,18 +547,9 @@ const Agenda = () => {
       </div>
 
       <Tabs defaultValue="calendario" className="space-y-6">
-        <TabsList className="bg-muted p-1 inline-flex w-max mb-2">
+        <TabsList className="bg-muted p-1 inline-flex w-max mb-2 hidden">
           <TabsTrigger value="calendario" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
             <Calendar className="w-3.5 h-3.5" /> Meu Calendário
-          </TabsTrigger>
-          <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
-            <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
-          </TabsTrigger>
-          <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
-            <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
-          </TabsTrigger>
-          <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
-            <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
           </TabsTrigger>
         </TabsList>
         
@@ -713,28 +704,6 @@ const Agenda = () => {
           />
         </div>
       )}
-      </TabsContent>
-
-      <TabsContent value="inteligencia" className="m-0">
-        <AgendaIntelligence appointments={appointments} clients={clients} />
-      </TabsContent>
-
-      <TabsContent value="remarcar" className="m-0">
-        <AgendaReschedule 
-          appointments={appointments} 
-          clients={clients} 
-          onEdit={(appt, formDataObj) => {
-            setEditingAppointment(appt);
-            setFormData(formDataObj);
-            setModalOpen(true);
-          }} 
-          onRefresh={fetchAppointments}
-          onCheckout={openCheckout}
-        />
-      </TabsContent>
-
-      <TabsContent value="registro" className="m-0">
-        <AgendaRegistry appointments={appointments} clients={clients} />
       </TabsContent>
       </Tabs>
 

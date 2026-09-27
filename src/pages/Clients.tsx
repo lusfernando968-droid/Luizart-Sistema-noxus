@@ -9,11 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
 import PlaybookAccordion from "@/components/PlaybookAccordion";
+import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
+import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
+import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
 import { supabase } from "@/lib/supabase";
 import html2pdf from "html2pdf.js";
 
@@ -57,6 +60,7 @@ const Clients = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [journeys, setJourneys] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedOverStage, setDraggedOverStage] = useState<string | null>(null);
 
@@ -143,8 +147,11 @@ const Clients = () => {
         const updated = formatted.find((c: any) => c.id === selectedClient.id);
         if (updated) setSelectedClient(updated);
       }
+
+      const { data: apptData } = await supabase.from('appointments').select('*, client:clientes(name, phone, avatar_url, is_student)');
+      setAppointments(apptData || []);
     } catch (error) {
-      console.error('Error fetching clients:', error);
+      console.error('Error fetching data:', error);
       toast.error("Erro ao carregar dados do CRM");
     } finally {
       setLoading(false);
@@ -402,6 +409,16 @@ const Clients = () => {
             </TabsTrigger>
             <TabsTrigger value="processo" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <FileText className="w-3.5 h-3.5" /> Processo Comercial
+            </TabsTrigger>
+            
+            <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
+            </TabsTrigger>
+            <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
+            </TabsTrigger>
+            <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1036,6 +1053,27 @@ const Clients = () => {
         {/* ABA 4: PROCESSO COMERCIAL */}
         <TabsContent value="processo" className="m-0">
           <PlaybookAccordion />
+        </TabsContent>
+
+        <TabsContent value="inteligencia" className="m-0">
+          <AgendaIntelligence appointments={appointments} clients={clients} />
+        </TabsContent>
+
+        <TabsContent value="remarcar" className="m-0">
+          <AgendaReschedule 
+            appointments={appointments} 
+            clients={clients} 
+            onEdit={(appt, formDataObj) => {
+              // Aqui a edição vai para a tela de agenda ou lida direto (simplificado para o CRM)
+              toast.info("Edição de agendamento transferida para o calendário.");
+            }} 
+            onRefresh={fetchClients}
+            onCheckout={() => {}}
+          />
+        </TabsContent>
+
+        <TabsContent value="registro" className="m-0">
+          <AgendaRegistry appointments={appointments} clients={clients} />
         </TabsContent>
       </Tabs>
 
