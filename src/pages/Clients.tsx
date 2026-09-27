@@ -501,8 +501,8 @@ const Clients = () => {
               {selectedClient && (
                 <div className="space-y-6 p-4 sm:p-6">
                   <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pr-6 sm:pr-8 md:pr-0">
+                      <div className="flex items-center gap-4 min-w-0">
                         <div className="h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-xl flex items-center justify-center shrink-0">
                           {selectedClient.avatar_url ? (
                             <img src={selectedClient.avatar_url} alt={selectedClient.name} className="h-full w-full rounded-full object-cover" />
@@ -511,7 +511,7 @@ const Clients = () => {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-2xl font-bold leading-tight truncate">{selectedClient.name}</h2>
                             {selectedClient.is_student && (
                               <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
@@ -526,7 +526,7 @@ const Clients = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 pt-1 shrink-0">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1 md:justify-end shrink-0 md:max-w-[50%]">
                         
                         <Button
                           variant="default"
