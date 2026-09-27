@@ -547,16 +547,11 @@ const Clients = () => {
                                     const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
                                     if (error) throw error;
                                     await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
-                                    toast.success("Nova jornada iniciada!");
+                                    toast.success("Nova jornada criada! Ela já está disponível no histórico.");
                                     await fetchClients();
-                                    const updatedClient = { ...selectedClient, status: 'Orçamento' };
-                                    setPlaybookJourneyId(data.id);
-                                    setPlaybookClient(updatedClient);
-                                    setSelectedClient(updatedClient);
-                                    setPlaybookModalOpen(true);
                                   } catch (e) {
                                     console.error(e);
-                                    toast.error("Erro ao iniciar jornada.");
+                                    toast.error("Erro ao criar jornada.");
                                   }
                                 } else {
                                   setPlaybookJourneyId(latestJourney.id);
@@ -650,14 +645,8 @@ const Clients = () => {
                               
                               await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
                               
-                              toast.success("Nova jornada criada!");
+                              toast.success("Nova jornada criada! Ela já está disponível no histórico.");
                               await fetchClients();
-                              
-                              const updatedClient = { ...selectedClient, status: 'Orçamento' };
-                              setPlaybookJourneyId(data.id);
-                              setPlaybookClient(updatedClient);
-                              setSelectedClient(updatedClient);
-                              setPlaybookModalOpen(true);
                             } catch (e) {
                               console.error(e);
                               toast.error("Erro ao criar jornada.");
