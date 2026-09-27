@@ -404,12 +404,6 @@ const Clients = () => {
             <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
             </TabsTrigger>
-            <TabsTrigger value="funil" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <Filter className="w-3.5 h-3.5" /> Funil
-            </TabsTrigger>
-            <TabsTrigger value="processo" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <FileText className="w-3.5 h-3.5" /> Processo Comercial
-            </TabsTrigger>
             
             <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
@@ -1019,41 +1013,6 @@ const Clients = () => {
           </div>
         </TabsContent>
 
-        {/* ABA 3: FUNIL DE CONVERSÃO */}
-        <TabsContent value="funil" className="m-0">
-          <div className="bg-card rounded-2xl border p-6 lg:p-10 shadow-sm overflow-hidden flex flex-col items-center min-h-[450px]">
-            <div className="text-center mb-8 max-w-xl">
-              <h2 className="text-xl font-bold mb-2">Funil de Conversão CRM</h2>
-              <p className="text-sm text-muted-foreground">
-                Análise de conversão acumulada do estúdio. Acompanhe a progressão de orçamentos até o fechamento.
-              </p>
-            </div>
-            
-            <div className="w-full max-w-2xl flex flex-col items-center gap-2">
-              {JOURNEY_STAGES.map((stage, index) => {
-                const count = filtered.filter(c => c.status === stage.id).length;
-                const widthPercent = Math.max(35, 100 - index * 8);
-
-                return (
-                  <div key={stage.id} style={{ width: `${widthPercent}%` }} className="bg-accent/40 border p-3 rounded-xl flex justify-between items-center transition-all hover:border-primary">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-card border">
-                        {stage.icon}
-                      </div>
-                      <span className="font-bold text-xs text-foreground">{stage.title}</span>
-                    </div>
-                    <span className="font-black text-sm text-primary">{count} clientes</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ABA 4: PROCESSO COMERCIAL */}
-        <TabsContent value="processo" className="m-0">
-          <PlaybookAccordion />
-        </TabsContent>
 
         <TabsContent value="inteligencia" className="m-0">
           <AgendaIntelligence appointments={appointments} clients={clients} />
