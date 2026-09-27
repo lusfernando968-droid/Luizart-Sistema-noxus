@@ -85,7 +85,7 @@ const Index = () => {
       const thisMonth = today.slice(0, 7);
       
       const { data: appts } = await supabase.from('appointments').select('*, client:clientes(name, phone)');
-      const { data: fins } = await supabasePublic.from('nx_financial_transactions').select('*');
+      const { data: fins } = await supabase.from('financial_transactions').select('*');
       const { data: clients } = await supabase.from('clientes').select('*');
       const { data: anamnesis } = await supabase.from('anamnesis').select('*');
 
@@ -183,7 +183,7 @@ const Index = () => {
 
       // 2. Insert into financial if Recebido
       if (checkoutData.status === 'Recebido') {
-        const { error: finError } = await supabasePublic.from('nx_financial_transactions').insert([{
+        const { error: finError } = await supabase.from('financial_transactions').insert([{
           description: `Sessão de Tattoo - ${selectedCheckout.name}`,
           type: "entrada",
           value: checkoutData.value,

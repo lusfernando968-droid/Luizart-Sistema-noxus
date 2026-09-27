@@ -65,7 +65,7 @@ const Financial = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabasePublic.from('nx_financial_transactions').select('*').order('date', { ascending: false });
+      const { data, error } = await supabase.from('financial_transactions').select('*').order('date', { ascending: false });
       
       if (error) throw error;
       
@@ -77,7 +77,7 @@ const Financial = () => {
         type: t.type as "entrada" | "saida",
         status: t.status,
         driveLink: t.driveLink || t.drive_link,
-        isDeductible: t.isDeductible
+        isDeductible: t.isDeductible || t.is_deductible
       }));
       
       setTransactions(formatted);
@@ -111,12 +111,16 @@ const Financial = () => {
       }
 
       const payload = {
-        ...formData,
+        description: formData.description,
+        value: formData.value,
+        date: formData.date,
+        type: formData.type,
+        status: formData.status,
         drive_link: formData.driveLink,
         is_deductible: formData.isDeductible
       };
 
-      const { error } = await supabasePublic.from('nx_financial_transactions').insert([payload]);
+      const { error } = await supabase.from('financial_transactions').insert([payload]);
       if (error) throw error;
 
       toast.success("Transação salva com sucesso!");
@@ -140,7 +144,7 @@ const Financial = () => {
   const handleDeleteTransaction = async (id: string) => {
     if (!confirm("Deseja realmente excluir esta transação?")) return;
     try {
-      const { error } = await supabasePublic.from('nx_financial_transactions').delete().eq('id', id);
+      const { error } = await supabase.from('financial_transactions').delete().eq('id', id);
       if (error) throw error;
       toast.success("Transação excluída!");
       fetchTransactions();

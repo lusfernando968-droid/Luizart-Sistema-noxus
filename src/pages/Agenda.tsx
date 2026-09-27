@@ -320,17 +320,16 @@ const Agenda = () => {
         savedApptId = data.id;
       }
 
-      // Se houver sinal > 0 e for um novo agendamento (ou se o sinal acabou de ser preenchido)
       if (formData.deposit > 0 && formData.deposit_link && !editingAppointment) {
         try {
-          await supabasePublic.from('nx_financial_transactions').insert([{
+          await supabase.from('financial_transactions').insert([{
             description: `Sinal de Agendamento - ${clientName}`,
             value: formData.deposit,
             date: formData.deposit_date || formData.date,
             type: "entrada",
             status: "Pago",
-            driveLink: formData.deposit_link,
-            isDeductible: false,
+            drive_link: formData.deposit_link,
+            is_deductible: false,
             appointment_id: savedApptId
           }]);
         } catch (e) {
@@ -438,7 +437,7 @@ const Agenda = () => {
 
       // 2. Se for "Recebido", lançar no financeiro
       if (checkoutData.status === 'Recebido') {
-        const { error: finError } = await supabasePublic.from('nx_financial_transactions').insert([{
+        const { error: finError } = await supabase.from('financial_transactions').insert([{
           description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
           type: "entrada",
           value: checkoutData.value,
