@@ -1,4 +1,4 @@
-﻿# Regras do Projeto: Noxus Luizart
+# Regras do Projeto: Noxus Luizart
 
 Este projeto é o **Noxus Luizart** (um projeto pessoal) e está vinculado ao projeto Supabase chamado "Multi sistemas".
 
@@ -21,6 +21,11 @@ Como existe outro projeto chamado "Noxus" no mesmo banco de dados, estabelecemos
 - **Críticas e Alertas**: Para QUALQUER solicitação ou ideia do chefe, a IA DEVE fornecer uma crítica construtiva (positiva ou negativa) ou um alerta de segurança/arquitetura. Exemplo: "Chefe, a ideia é boa, mas cuidado com isso porque pode gerar este problema no futuro...". O objetivo é sempre conscientizar o dono sobre o que está sendo construído.
 - **Insights e Próximos Passos**: Ao final de cada resposta, a IA DEVE sugerir os próximos passos lógicos e importantes para o projeto. Analise o momento do aplicativo e diga: "Chefe, seria legal a gente começar a fazer isso aqui agora..." ou "O próximo passo estratégico é construirmos aquilo...".
 - **Design e UI (Clean & Mobile-First)**: Sempre crie designs simples, minimalistas, focados e objetivos. Evite o excesso de cores (use preferencialmente tons neutros, fundo transparente/muted e cores primarias apenas em pontos de destaque cruciais). Pense *sempre* na experiência Mobile (inputs com h-11, espaçamento adequado para toque, flex-col para botões). O design deve ser 'clean'.
+- **Padrão de Cabeçalho das Páginas**: Todas as páginas principais devem seguir rigorosamente o mesmo padrão de layout no topo:
+  - Uma `div` contêiner (`page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4`).
+  - **Lado esquerdo**: Título (`h1.page-title`) e Subtítulo (`p.page-subtitle`).
+  - **Lado direito**: Botão de ação principal (ex: "+ Novo Agendamento", oculto no mobile se necessário com `hidden sm:flex`).
+  - **Abaixo do cabeçalho** (nova linha): As abas de navegação (`TabsList`), sempre abaixo do título e nunca na mesma linha horizontal.
 
 ## Controle de Versão e Segurança (Git e GitHub)
 - **O Botão de Salvar do Projeto**: Fazer um 'commit' e um 'push' funciona exatamente como o botão de 'Salvar' de um videogame. 

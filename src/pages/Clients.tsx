@@ -362,34 +362,34 @@ const Clients = () => {
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        {/* Header do CRM com as Abas Superiores */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Header do CRM */}
+        <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="page-title">Clientes & Funil CRM</h1>
             <p className="page-subtitle">Gerencie sua carteira de clientes, funil de vendas e jornada de garimpo</p>
           </div>
+          <Button onClick={() => setIsAddingClient(true)} className="hidden sm:flex gap-2 bg-primary text-primary-foreground font-bold shadow-md">
+            <Plus className="h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
 
-          <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-3">
-            <TabsList className="bg-accent/40 p-1 rounded-xl border flex w-max h-auto">
-              <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
-                <Users className="w-3.5 h-3.5" /> Lista de Clientes
-              </TabsTrigger>
-              <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
-                <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
-              </TabsTrigger>
-              <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
-                <Filter className="w-3.5 h-3.5" /> Funil
-              </TabsTrigger>
-              <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
-                <FileText className="w-3.5 h-3.5" /> Processo Comercial
-              </TabsTrigger>
-            </TabsList>
-
-            <Button onClick={() => setIsAddingClient(true)} className="gap-2 bg-primary text-primary-foreground font-bold shadow-md">
-              <Plus className="h-4 w-4" />
-              Novo Cliente
-            </Button>
-          </div>
+        {/* Abas Superiores */}
+        <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-3">
+          <TabsList className="bg-accent/40 p-1 rounded-xl border flex w-max h-auto mb-2">
+            <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+              <Users className="w-3.5 h-3.5" /> Lista de Clientes
+            </TabsTrigger>
+            <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+              <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
+            </TabsTrigger>
+            <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+              <Filter className="w-3.5 h-3.5" /> Funil
+            </TabsTrigger>
+            <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+              <FileText className="w-3.5 h-3.5" /> Processo Comercial
+            </TabsTrigger>
+          </TabsList>
         </div>
 
         {/* ABA 1: LISTA DE CLIENTES */}
