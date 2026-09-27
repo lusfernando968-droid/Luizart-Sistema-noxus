@@ -231,7 +231,7 @@ const Financial = () => {
       </div>
 
       {/* Card de Blindagem & Inteligência Fiscal (Termômetro MEI) */}
-      <Accordion type="single" collapsible defaultValue="fiscal-shield" className="w-full bg-card rounded-xl border px-4 shadow-sm">
+      <Accordion type="single" collapsible className="w-full bg-card rounded-xl border px-4 shadow-sm">
         <AccordionItem value="fiscal-shield" className="border-none">
           <AccordionTrigger className="hover:no-underline py-4">
             <div className="flex items-center gap-2">
