@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
@@ -562,33 +563,42 @@ const Clients = () => {
                         >
                           <Play className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          title={selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
-                          onClick={async () => {
-                            try {
-                              const newStatus = !selectedClient.is_student;
-                              const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', selectedClient.id);
-                              if (error) throw error;
-                              toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
-                              setSelectedClient({ ...selectedClient, is_student: newStatus });
-                              await fetchClients();
-                            } catch (e) {
-                              console.error(e);
-                              toast.error("Erro ao atualizar status de aluno.");
-                            }
-                          }} 
-                          className={`h-8 w-8 ${selectedClient.is_student ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20' : 'text-muted-foreground hover:text-foreground'}`}
-                        >
-                          <BookOpen className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" title="Editar" onClick={openEditModal} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Excluir" onClick={handleDeleteClient} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                try {
+                                  const newStatus = !selectedClient.is_student;
+                                  const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', selectedClient.id);
+                                  if (error) throw error;
+                                  toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
+                                  setSelectedClient({ ...selectedClient, is_student: newStatus });
+                                  await fetchClients();
+                                } catch (e) {
+                                  console.error(e);
+                                  toast.error("Erro ao atualizar status de aluno.");
+                                }
+                              }}
+                            >
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={openEditModal}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar Cliente
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleDeleteClient} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir Cliente
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
 
