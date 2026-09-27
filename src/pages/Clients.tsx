@@ -376,17 +376,17 @@ const Clients = () => {
 
         {/* Abas Superiores */}
         <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-3">
-          <TabsList className="bg-accent/40 p-1 rounded-xl border flex w-max h-auto mb-2">
-            <TabsTrigger value="lista" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+          <TabsList className="bg-muted p-1 inline-flex w-max mb-2">
+            <TabsTrigger value="lista" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <Users className="w-3.5 h-3.5" /> Lista de Clientes
             </TabsTrigger>
-            <TabsTrigger value="jornada" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+            <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
             </TabsTrigger>
-            <TabsTrigger value="funil" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+            <TabsTrigger value="funil" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <Filter className="w-3.5 h-3.5" /> Funil
             </TabsTrigger>
-            <TabsTrigger value="processo" className="gap-1.5 text-xs font-semibold whitespace-nowrap">
+            <TabsTrigger value="processo" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <FileText className="w-3.5 h-3.5" /> Processo Comercial
             </TabsTrigger>
           </TabsList>
