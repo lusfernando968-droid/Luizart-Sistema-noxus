@@ -547,9 +547,12 @@ const Agenda = () => {
       </div>
 
       <Tabs defaultValue="calendario" className="space-y-6">
-        <TabsList className="bg-muted p-1 inline-flex w-max mb-2 hidden">
+        <TabsList className="bg-muted p-1 inline-flex w-max mb-2">
           <TabsTrigger value="calendario" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
             <Calendar className="w-3.5 h-3.5" /> Meu Calendário
+          </TabsTrigger>
+          <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
           </TabsTrigger>
         </TabsList>
         
@@ -704,6 +707,10 @@ const Agenda = () => {
           />
         </div>
       )}
+      </TabsContent>
+
+      <TabsContent value="registro" className="m-0">
+        <AgendaRegistry appointments={appointments} clients={clients} />
       </TabsContent>
       </Tabs>
 

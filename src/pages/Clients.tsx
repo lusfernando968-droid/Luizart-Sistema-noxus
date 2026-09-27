@@ -411,9 +411,6 @@ const Clients = () => {
             <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
             </TabsTrigger>
-            <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -1029,10 +1026,6 @@ const Clients = () => {
             onRefresh={fetchClients}
             onCheckout={() => {}}
           />
-        </TabsContent>
-
-        <TabsContent value="registro" className="m-0">
-          <AgendaRegistry appointments={appointments} clients={clients} />
         </TabsContent>
       </Tabs>
 
