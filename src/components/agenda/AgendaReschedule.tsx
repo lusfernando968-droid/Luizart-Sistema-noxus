@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: any) {
+export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onCheckout }: any) {
   const [search, setSearch] = useState("");
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -55,15 +55,9 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
     }
   };
 
-  const handleMarkAsCompleted = async (id: string) => {
-    try {
-      const { error } = await supabase.from('appointments').update({ status: 'Concluído' }).eq('id', id);
-      if (error) throw error;
-      toast.success("Sessão finalizada com sucesso!");
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro ao dar baixa na sessão.");
+  const handleMarkAsCompleted = (appt: any, e: any) => {
+    if (onCheckout) {
+      onCheckout(appt, e);
     }
   };
 
@@ -135,8 +129,8 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                           variant="outline" 
                           size="icon" 
                           className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                          title="Dar Baixa (Concluído)"
-                          onClick={() => handleMarkAsCompleted(appt.id)}
+                          title="Dar Baixa Financeira (Checkout)"
+                          onClick={(e) => handleMarkAsCompleted(appt, e)}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </Button>

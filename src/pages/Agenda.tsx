@@ -713,6 +713,7 @@ const Agenda = () => {
             setModalOpen(true);
           }} 
           onRefresh={fetchAppointments}
+          onCheckout={openCheckout}
         />
       </TabsContent>
 
