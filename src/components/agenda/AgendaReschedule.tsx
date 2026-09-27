@@ -65,9 +65,9 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
     }
 
     return (
-      <div className="rounded-xl border overflow-hidden mt-4">
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden mt-2">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader className="bg-accent/20">
             <TableRow>
               <TableHead>Cliente</TableHead>
               <TableHead>Última Data</TableHead>
@@ -84,7 +84,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
               const wppMessagePending = `Olá ${appt.client_name || ''}! Vi que a sua sessão do dia ${formatDate(appt.date)} ficou pendente no sistema. Deu tudo certo?`;
 
               return (
-                <TableRow key={appt.id}>
+                <TableRow key={appt.id} className="hover:bg-accent/40">
                   <TableCell className="font-bold text-sm">{appt.client_name || "Cliente"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{formatDate(appt.date)}</TableCell>
                   <TableCell>
@@ -97,33 +97,32 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                       {hasPhone && (
                         <Button 
                           variant="outline" 
-                          size="sm" 
-                          className="h-8 text-[10px] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white border-transparent px-2"
+                          size="icon" 
+                          className="h-8 w-8 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white border-transparent"
                           onClick={() => openWhatsApp(client.phone, isRescheduleList ? wppMessageReschedule : wppMessagePending)}
-                          title="Chamar Cliente"
+                          title="Chamar Cliente no WhatsApp"
                         >
-                          <MessageCircle className="w-3.5 h-3.5" />
+                          <MessageCircle className="w-4 h-4" />
                         </Button>
                       )}
                       
                       {isRescheduleList && (
                         <Button 
                           variant="outline" 
-                          size="sm" 
-                          className="h-8 text-[10px] px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
-                          title="Sessão Reagendada"
+                          size="icon" 
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                          title="Marcar como Reagendado"
                           onClick={() => handleMarkAsRescheduled(appt.id)}
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          Reagendado
+                          <CheckCircle2 className="w-4 h-4" />
                         </Button>
                       )}
 
                       <Button 
                         variant="outline" 
-                        size="sm" 
-                        className="h-8 text-[10px] px-2"
-                        title={isRescheduleList ? "Novo Horário" : "Editar"}
+                        size="icon" 
+                        className="h-8 w-8"
+                        title={isRescheduleList ? "Agendar Novo Horário" : "Editar Sessão"}
                         onClick={() => {
                           onEdit(appt, {
                             client_id: appt.client_id || "",
@@ -131,7 +130,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                             date: appt.date || new Date().toISOString().split("T")[0],
                             startTime: appt.startTime || "09:00",
                             endTime: appt.endTime || "10:00",
-                            status: "Agendado", // Automatically switch to "Agendado" to encourage picking a time
+                            status: "Agendado",
                             value: appt.value || 0,
                             deposit: appt.deposit || 0,
                             deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
@@ -139,8 +138,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh }: a
                           });
                         }}
                       >
-                        <Clock className="w-3.5 h-3.5 mr-1" />
-                        {isRescheduleList ? "Novo Horário" : "Editar"}
+                        <Clock className="w-4 h-4" />
                       </Button>
                     </div>
                   </TableCell>
