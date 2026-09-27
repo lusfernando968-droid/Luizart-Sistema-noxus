@@ -916,7 +916,6 @@ const Agenda = () => {
               ) : <div />}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
                 {editingAppointment && formData.status !== 'Concluído' && (
                   <Button 
                     variant="outline"
@@ -928,7 +927,7 @@ const Agenda = () => {
                   </Button>
                 )}
                 <Button onClick={() => handleSave()}>
-                  {editingAppointment ? "Atualizar Agendamento" : "Salvar Agendamento"}
+                  {editingAppointment ? "Atualizar" : "Salvar"}
                 </Button>
               </div>
             </div>
