@@ -50,6 +50,8 @@ const Clients = () => {
   const [activeTab, setActiveTab] = useState<string>("lista");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterSessions, setFilterSessions] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
@@ -354,10 +356,13 @@ const Clients = () => {
     }
   };
 
-  const filtered = clients.filter((c) =>
-    (c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)) &&
-    (filterStatus === "all" || c.status === filterStatus)
-  );
+  const filtered = clients.filter((c) => {
+    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
+    const matchStatus = filterStatus === "all" || c.status === filterStatus;
+    const matchType = filterType === "all" || (filterType === "student" ? c.is_student : !c.is_student);
+    const matchSessions = filterSessions === "all" || (filterSessions === "zero" ? !c.sessions || c.sessions === 0 : (c.sessions || 0) > 0);
+    return matchSearch && matchStatus && matchType && matchSessions;
+  });
 
   return (
     <>
@@ -417,8 +422,8 @@ const Clients = () => {
             </div>
             
             {showFilters && (
-               <div className="px-4 py-3 border-b bg-accent/10 flex items-center gap-4 animate-in slide-in-from-top-2">
-                  <div className="space-y-1.5 w-full max-w-xs">
+               <div className="px-4 py-3 border-b bg-accent/10 flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2">
+                  <div className="space-y-1.5 w-full max-w-[200px]">
                      <Label className="text-xs text-muted-foreground font-semibold">Filtrar por Estágio</Label>
                      <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-full h-9 bg-card text-sm">
@@ -429,6 +434,34 @@ const Clients = () => {
                            {JOURNEY_STAGES.map(stage => (
                              <SelectItem key={stage.id} value={stage.id}>{stage.title}</SelectItem>
                            ))}
+                        </SelectContent>
+                     </Select>
+                  </div>
+
+                  <div className="space-y-1.5 w-full max-w-[200px]">
+                     <Label className="text-xs text-muted-foreground font-semibold">Tipo de Cliente</Label>
+                     <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-full h-9 bg-card text-sm">
+                           <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="all">Todos (Tattoos e Alunos)</SelectItem>
+                           <SelectItem value="tattoo">Apenas Tatuagem</SelectItem>
+                           <SelectItem value="student">Apenas Alunos</SelectItem>
+                        </SelectContent>
+                     </Select>
+                  </div>
+
+                  <div className="space-y-1.5 w-full max-w-[200px]">
+                     <Label className="text-xs text-muted-foreground font-semibold">Sessões Realizadas</Label>
+                     <Select value={filterSessions} onValueChange={setFilterSessions}>
+                        <SelectTrigger className="w-full h-9 bg-card text-sm">
+                           <SelectValue placeholder="Todas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="all">Todas as Contagens</SelectItem>
+                           <SelectItem value="zero">Sem Sessões (Garimpo)</SelectItem>
+                           <SelectItem value="plus">1 ou mais Sessões</SelectItem>
                         </SelectContent>
                      </Select>
                   </div>
