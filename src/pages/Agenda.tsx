@@ -712,6 +712,7 @@ const Agenda = () => {
             setFormData(formDataObj);
             setModalOpen(true);
           }} 
+          onRefresh={fetchAppointments}
         />
       </TabsContent>
 
