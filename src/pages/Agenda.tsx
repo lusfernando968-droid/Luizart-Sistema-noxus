@@ -283,7 +283,7 @@ const Agenda = () => {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (overrideStatus?: string) => {
     try {
       if (!formData.client_id) {
         toast.error("Por favor, selecione um cliente.");
@@ -292,13 +292,14 @@ const Agenda = () => {
 
       const clientObj = clients.find(c => c.id === formData.client_id);
       const clientName = clientObj?.name || "Cliente";
+      const finalStatus = typeof overrideStatus === 'string' ? overrideStatus : formData.status;
 
       const payload: any = {
         client_id: formData.client_id,
         date: formData.date,
         start_time: formData.startTime,
         end_time: formData.endTime,
-        status: formData.status,
+        status: finalStatus,
         value: formData.value,
         deposit: formData.deposit,
         deposit_date: formData.deposit_date || null,
@@ -341,7 +342,7 @@ const Agenda = () => {
       toast.success("Agendamento salvo com sucesso!");
 
       // Se o status mudou para 'Concluído', abra o modal de checkout para dar baixa financeira
-      if (formData.status === 'Concluído' && editingAppointment?.status !== 'Concluído' && apptData) {
+      if (finalStatus === 'Concluído' && editingAppointment?.status !== 'Concluído' && apptData) {
         setTimeout(() => {
           setSelectedCheckout({
             ...apptData,
@@ -916,7 +917,15 @@ const Agenda = () => {
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSave}>
+                {editingAppointment && formData.status !== 'Concluído' && (
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white" 
+                    onClick={() => handleSave('Concluído')}
+                  >
+                    Dar Baixa
+                  </Button>
+                )}
+                <Button onClick={() => handleSave()}>
                   {editingAppointment ? "Atualizar Agendamento" : "Salvar Agendamento"}
                 </Button>
               </div>
