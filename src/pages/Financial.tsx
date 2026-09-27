@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FiscalShieldCard } from "@/components/financial/FiscalShieldCard";
 import { ReceiptGeneratorModal } from "@/components/financial/ReceiptGeneratorModal";
 import { TaxReportModal } from "@/components/financial/TaxReportModal";
@@ -230,13 +231,27 @@ const Financial = () => {
       </div>
 
       {/* Card de Blindagem & Inteligência Fiscal (Termômetro MEI) */}
-      <FiscalShieldCard
-        annualRevenue={annualRevenue}
-        meiLimit={81000}
-        userRegime={userRegime}
-        onOpenTaxReport={() => setTaxReportOpen(true)}
-        onOpenRegimeModal={() => setRegimeModalOpen(true)}
-      />
+      <Accordion type="single" collapsible defaultValue="fiscal-shield" className="w-full bg-card rounded-xl border px-4 shadow-sm">
+        <AccordionItem value="fiscal-shield" className="border-none">
+          <AccordionTrigger className="hover:no-underline py-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-base">Painel de Proteção Fiscal</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="pt-2 pb-2">
+              <FiscalShieldCard
+                annualRevenue={annualRevenue}
+                meiLimit={81000}
+                userRegime={userRegime}
+                onOpenTaxReport={() => setTaxReportOpen(true)}
+                onOpenRegimeModal={() => setRegimeModalOpen(true)}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Summary Cards Mensais */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
