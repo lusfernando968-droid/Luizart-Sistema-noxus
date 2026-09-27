@@ -910,8 +910,8 @@ const Agenda = () => {
 
             <div className="flex justify-between items-center pt-4">
               {editingAppointment ? (
-                <Button variant="destructive" size="icon" onClick={() => setDeleteAlertOpen(true)}>
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDeleteAlertOpen(true)}>
+                  <Trash2 className="h-5 w-5" />
                 </Button>
               ) : <div />}
 
@@ -919,10 +919,12 @@ const Agenda = () => {
                 <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
                 {editingAppointment && formData.status !== 'Concluído' && (
                   <Button 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white" 
+                    variant="outline"
+                    size="icon"
+                    title="Dar Baixa"
                     onClick={() => handleSave('Concluído')}
                   >
-                    Dar Baixa
+                    <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
                 <Button onClick={() => handleSave()}>
