@@ -15,6 +15,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { FiscalShieldCard } from "@/components/financial/FiscalShieldCard";
 import { ReceiptGeneratorModal } from "@/components/financial/ReceiptGeneratorModal";
 import { TaxReportModal } from "@/components/financial/TaxReportModal";
+import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
+import { FileSpreadsheet, LineChart } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -29,6 +31,9 @@ interface Transaction {
 
 const Financial = () => {
   const [tab, setTab] = useState<"all" | "entrada" | "saida">("all");
+  const [activeTab, setActiveTab] = useState("fluxo");
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,8 +95,20 @@ const Financial = () => {
     }
   };
 
+  const fetchCRMData = async () => {
+    try {
+      const { data: clientsData } = await supabase.from('clientes').select('*');
+      setClients(clientsData || []);
+      const { data: apptData } = await supabase.from('appointments').select('*, client:clientes(name, phone, avatar_url)');
+      setAppointments(apptData || []);
+    } catch (error) {
+      console.error("Erro CRM:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTransactions();
+    fetchCRMData();
   }, []);
 
   const handleSaveTransaction = async () => {
@@ -230,7 +247,18 @@ const Financial = () => {
         </Button>
       </div>
 
-      {/* Card de Blindagem & Inteligência Fiscal (Termômetro MEI) */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-muted p-1 inline-flex w-max">
+          <TabsTrigger value="fluxo" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <LineChart className="w-3.5 h-3.5" /> Fluxo de Caixa
+          </TabsTrigger>
+          <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="fluxo" className="m-0 space-y-6">
+          {/* Card de Blindagem & Inteligência Fiscal (Termômetro MEI) */}
       <Accordion type="single" collapsible className="w-full bg-card rounded-xl border px-4 shadow-sm">
         <AccordionItem value="fiscal-shield" className="border-none">
           <AccordionTrigger className="hover:no-underline py-4">
@@ -411,8 +439,13 @@ const Financial = () => {
           ) : (
             <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma transação encontrada neste período.</div>
           )}
-        </div>
       </div>
+      </TabsContent>
+
+      <TabsContent value="registro" className="m-0">
+        <AgendaRegistry appointments={appointments} clients={clients} />
+      </TabsContent>
+      </Tabs>
 
       {/* Transaction Modal (Com suporte a Link do Google Drive e Livro Caixa) */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
