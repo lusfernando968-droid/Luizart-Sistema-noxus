@@ -320,20 +320,35 @@ const Agenda = () => {
         savedApptId = data.id;
       }
 
-      if (formData.deposit > 0 && formData.deposit_link && !editingAppointment) {
+      if (formData.deposit > 0) {
         try {
-          await supabase.from('financial_transactions').insert([{
-            description: `Sinal de Agendamento - ${clientName}`,
-            value: formData.deposit,
-            date: formData.deposit_date || formData.date,
-            type: "entrada",
-            status: "Pago",
-            drive_link: formData.deposit_link,
-            is_deductible: false,
-            appointment_id: savedApptId
-          }]);
+          const { data: existingSinal } = await supabase
+            .from('financial_transactions')
+            .select('id')
+            .eq('appointment_id', savedApptId)
+            .ilike('description', 'Sinal%')
+            .maybeSingle();
+
+          if (!existingSinal) {
+            await supabase.from('financial_transactions').insert([{
+              description: `Sinal de Agendamento - ${clientName}`,
+              value: formData.deposit,
+              date: formData.deposit_date || formData.date,
+              type: "entrada",
+              status: "Pago",
+              drive_link: formData.deposit_link,
+              is_deductible: false,
+              appointment_id: savedApptId
+            }]);
+          } else {
+            await supabase.from('financial_transactions').update({
+              value: formData.deposit,
+              date: formData.deposit_date || formData.date,
+              drive_link: formData.deposit_link
+            }).eq('id', existingSinal.id);
+          }
         } catch (e) {
-          console.log("Aviso: Falha ao lançar sinal no financeiro", e);
+          console.log("Aviso: Falha ao lançar/atualizar sinal no financeiro", e);
         }
       }
 
