@@ -529,47 +529,46 @@ const Clients = () => {
 
                       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1 md:justify-end shrink-0 md:max-w-[50%]">
                         
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={async () => {
-                            const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
-                            const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-                            
-                            if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
-                              try {
-                                const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
-                                if (error) throw error;
-                                await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
-                                toast.success("Nova jornada iniciada!");
-                                await fetchClients();
-                                const updatedClient = { ...selectedClient, status: 'Orçamento' };
-                                setPlaybookJourneyId(data.id);
-                                setPlaybookClient(updatedClient);
-                                setSelectedClient(updatedClient);
-                                setPlaybookModalOpen(true);
-                              } catch (e) {
-                                console.error(e);
-                                toast.error("Erro ao iniciar jornada.");
-                              }
-                            } else {
-                              setPlaybookJourneyId(latestJourney.id);
-                              setPlaybookClient(selectedClient);
-                              setPlaybookModalOpen(true);
-                            }
-                          }}
-                          className="h-8 w-8 bg-primary hover:bg-primary/90 text-primary-foreground"
-                          title={journeys.filter(j => j.client_id === selectedClient.id).some(j => j.status !== 'Concluído') ? "Continuar Jornada (Playbook)" : "Iniciar Nova Jornada"}
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem 
+                              className="text-primary font-medium focus:bg-primary/10 focus:text-primary"
+                              onClick={async () => {
+                                const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
+                                const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                                
+                                if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
+                                  try {
+                                    const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
+                                    if (error) throw error;
+                                    await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
+                                    toast.success("Nova jornada iniciada!");
+                                    await fetchClients();
+                                    const updatedClient = { ...selectedClient, status: 'Orçamento' };
+                                    setPlaybookJourneyId(data.id);
+                                    setPlaybookClient(updatedClient);
+                                    setSelectedClient(updatedClient);
+                                    setPlaybookModalOpen(true);
+                                  } catch (e) {
+                                    console.error(e);
+                                    toast.error("Erro ao iniciar jornada.");
+                                  }
+                                } else {
+                                  setPlaybookJourneyId(latestJourney.id);
+                                  setPlaybookClient(selectedClient);
+                                  setPlaybookModalOpen(true);
+                                }
+                              }}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              {journeys.filter(j => j.client_id === selectedClient.id).some(j => j.status !== 'Concluído') ? "Continuar Jornada" : "Iniciar Nova Jornada"}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={async () => {
                                 try {
