@@ -52,6 +52,7 @@ const Clients = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterSessions, setFilterSessions] = useState<string>("all");
+  const [filterRevenue, setFilterRevenue] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
@@ -361,7 +362,15 @@ const Clients = () => {
     const matchStatus = filterStatus === "all" || c.status === filterStatus;
     const matchType = filterType === "all" || (filterType === "student" ? c.is_student : !c.is_student);
     const matchSessions = filterSessions === "all" || (filterSessions === "zero" ? !c.sessions || c.sessions === 0 : (c.sessions || 0) > 0);
-    return matchSearch && matchStatus && matchType && matchSessions;
+    
+    const invoiced = c.totalInvoiced || 0;
+    const matchRevenue = filterRevenue === "all" || 
+      (filterRevenue === "zero" && invoiced === 0) ||
+      (filterRevenue === "low" && invoiced > 0 && invoiced <= 500) ||
+      (filterRevenue === "medium" && invoiced > 500 && invoiced <= 2000) ||
+      (filterRevenue === "high" && invoiced > 2000);
+
+    return matchSearch && matchStatus && matchType && matchSessions && matchRevenue;
   });
 
   return (
@@ -462,6 +471,22 @@ const Clients = () => {
                            <SelectItem value="all">Todas as Contagens</SelectItem>
                            <SelectItem value="zero">Sem Sessões (Garimpo)</SelectItem>
                            <SelectItem value="plus">1 ou mais Sessões</SelectItem>
+                        </SelectContent>
+                     </Select>
+                  </div>
+
+                  <div className="space-y-1.5 w-full max-w-[200px]">
+                     <Label className="text-xs text-muted-foreground font-semibold">Faturamento</Label>
+                     <Select value={filterRevenue} onValueChange={setFilterRevenue}>
+                        <SelectTrigger className="w-full h-9 bg-card text-sm">
+                           <SelectValue placeholder="Qualquer Valor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="all">Qualquer Valor</SelectItem>
+                           <SelectItem value="zero">R$ 0,00</SelectItem>
+                           <SelectItem value="low">Até R$ 500,00</SelectItem>
+                           <SelectItem value="medium">R$ 500,00 a R$ 2.000,00</SelectItem>
+                           <SelectItem value="high">Acima de R$ 2.000,00</SelectItem>
                         </SelectContent>
                      </Select>
                   </div>
