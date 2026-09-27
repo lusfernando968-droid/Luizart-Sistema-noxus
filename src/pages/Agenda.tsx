@@ -181,7 +181,8 @@ const Agenda = () => {
       case "Pendente":
       case "Agendado": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
       case "Confirmado": return { backgroundColor: "#9333ea", borderColor: "#9333ea" };
-      case "Concluído": return { backgroundColor: "hsl(var(--primary))", borderColor: "hsl(var(--primary))" };
+      case "Concluído": return { backgroundColor: "#10b981", borderColor: "#10b981" };
+      case "Reagendado": return { backgroundColor: "#3b82f6", borderColor: "#3b82f6" };
       case "Cancelado": return { backgroundColor: "hsl(var(--destructive))", borderColor: "hsl(var(--destructive))" };
       case "Para Remarcar": return { backgroundColor: "#f97316", borderColor: "#f97316" };
       default: return { backgroundColor: "hsl(var(--muted))", borderColor: "hsl(var(--muted))" };
