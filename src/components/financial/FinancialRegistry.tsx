@@ -12,12 +12,23 @@ export function FinancialRegistry({ transactions }: any) {
   const [typeFilter, setTypeFilter] = useState("Todos");
   const [monthFilter, setMonthFilter] = useState("Todos");
 
+  const parseBrazilianDate = (dateString: string) => {
+    if (!dateString) return new Date();
+    if (dateString.includes('/')) {
+      const [day, month, year] = dateString.split('/');
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+    return new Date(dateString);
+  };
+
   // Format month list for the filter
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     transactions.forEach((t: any) => {
       if (t.date) {
-        months.add(t.date.substring(0, 7)); // YYYY-MM
+        const dateObj = parseBrazilianDate(t.date);
+        const yyyyMM = format(dateObj, 'yyyy-MM');
+        months.add(yyyyMM);
       }
     });
     return Array.from(months).sort().reverse();
@@ -26,9 +37,13 @@ export function FinancialRegistry({ transactions }: any) {
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t: any) => {
       if (typeFilter !== "Todos" && t.type !== typeFilter) return false;
-      if (monthFilter !== "Todos" && t.date && !t.date.startsWith(monthFilter)) return false;
+      if (monthFilter !== "Todos" && t.date) {
+        const dateObj = parseBrazilianDate(t.date);
+        const yyyyMM = format(dateObj, 'yyyy-MM');
+        if (yyyyMM !== monthFilter) return false;
+      }
       return true;
-    }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }).sort((a: any, b: any) => parseBrazilianDate(b.date).getTime() - parseBrazilianDate(a.date).getTime());
   }, [transactions, typeFilter, monthFilter]);
 
   const metrics = useMemo(() => {
@@ -198,7 +213,7 @@ export function FinancialRegistry({ transactions }: any) {
                 {filteredTransactions.map((t: any) => (
                   <TableRow key={t.id} className="hover:bg-accent/30 transition-colors">
                     <TableCell className="text-xs font-medium whitespace-nowrap">
-                      {t.date ? format(new Date(t.date), "dd/MM/yyyy") : "-"}
+                      {t.date ? format(parseBrazilianDate(t.date), "dd/MM/yyyy") : "-"}
                     </TableCell>
                     <TableCell className="text-xs">
                       {t.description}
