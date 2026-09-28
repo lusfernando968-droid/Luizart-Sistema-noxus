@@ -439,6 +439,7 @@ const Financial = () => {
           ) : (
             <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma transação encontrada neste período.</div>
           )}
+        </div>
       </div>
       </TabsContent>
 
