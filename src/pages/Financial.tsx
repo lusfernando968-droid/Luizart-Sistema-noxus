@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { FiscalShieldCard } from "@/components/financial/FiscalShieldCard";
 import { ReceiptGeneratorModal } from "@/components/financial/ReceiptGeneratorModal";
 import { TaxReportModal } from "@/components/financial/TaxReportModal";
-import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
+import { FinancialRegistry } from "@/components/financial/FinancialRegistry";
 import { FileSpreadsheet, LineChart } from "lucide-react";
 
 interface Transaction {
@@ -32,8 +32,6 @@ interface Transaction {
 const Financial = () => {
   const [tab, setTab] = useState<"all" | "entrada" | "saida">("all");
   const [activeTab, setActiveTab] = useState("fluxo");
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,20 +93,8 @@ const Financial = () => {
     }
   };
 
-  const fetchCRMData = async () => {
-    try {
-      const { data: clientsData } = await supabase.from('clientes').select('*');
-      setClients(clientsData || []);
-      const { data: apptData } = await supabase.from('appointments').select('*, client:clientes(name, phone, avatar_url)');
-      setAppointments(apptData || []);
-    } catch (error) {
-      console.error("Erro CRM:", error);
-    }
-  };
-
   useEffect(() => {
     fetchTransactions();
-    fetchCRMData();
   }, []);
 
   const handleSaveTransaction = async () => {
@@ -444,7 +430,7 @@ const Financial = () => {
       </TabsContent>
 
       <TabsContent value="registro" className="m-0">
-        <AgendaRegistry appointments={appointments} clients={clients} />
+        <FinancialRegistry transactions={transactions} />
       </TabsContent>
       </Tabs>
 
