@@ -110,9 +110,11 @@ const Index = () => {
       const scheduledBlocks = (appts || []).filter(a => a.status !== 'Cancelado');
       
       scheduledBlocks.forEach(a => {
-        if (a.startTime && a.endTime) {
-          const [startH, startM] = a.startTime.split(':').map(Number);
-          const [endH, endM] = a.endTime.split(':').map(Number);
+        const sTime = a.start_time || a.startTime;
+        const eTime = a.end_time || a.endTime;
+        if (sTime && eTime) {
+          const [startH, startM] = sTime.split(':').map(Number);
+          const [endH, endM] = eTime.split(':').map(Number);
           if (!isNaN(startH) && !isNaN(endH)) {
              let duration = (endH * 60 + (endM || 0)) - (startH * 60 + (startM || 0));
              if (duration < 0) duration += 24 * 60;
@@ -150,7 +152,7 @@ const Index = () => {
       setTodayClients(todayAppts.map(a => ({
         id: a.id,
         name: a.client?.name || "Cliente",
-        time: `${a.startTime || ""} - ${a.endTime || ""}`,
+        time: `${a.start_time || a.startTime || ""} - ${a.end_time || a.endTime || ""}`,
         status: a.status,
         value: a.value
       })));
@@ -158,7 +160,7 @@ const Index = () => {
       setTomorrowAppointments(tomorrowAppts.map(a => ({
         id: a.id,
         name: a.client?.name || "Cliente",
-        time: `${a.startTime || ""} - ${a.endTime || ""}`,
+        time: `${a.start_time || a.startTime || ""} - ${a.end_time || a.endTime || ""}`,
       })));
 
       setRecentPayments((fins || [])
