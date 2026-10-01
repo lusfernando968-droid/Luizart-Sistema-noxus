@@ -55,7 +55,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
     setSaving(false);
   };
 
-  const openWhatsApp = (text: string) => {
+  const handleSendWhatsApp = (text: string) => {
     if (!clientPhone) {
       toast.error("Cliente sem telefone cadastrado.");
       return;
@@ -82,7 +82,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label className="text-xs text-muted-foreground">Local da Tatuagem</Label>
                 <div className="flex gap-2">
                   <Input value={localLocation} onChange={e => setLocalLocation(e.target.value)} placeholder="Ex: Antebraço" className="h-10 text-sm" />
-                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => openWhatsApp(`Olá ${clientName}, qual seria o local do corpo para essa arte?`)}>
+                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => handleSendWhatsApp(`Olá ${clientName}, qual seria o local do corpo para essa arte?`)}>
                     <Send className="h-4 w-4 text-foreground/70" />
                   </Button>
                 </div>
@@ -92,7 +92,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label className="text-xs text-muted-foreground">Tamanho (cm)</Label>
                 <div className="flex gap-2">
                   <Input value={localSize} onChange={e => setLocalSize(e.target.value)} placeholder="Ex: 15cm" className="h-10 text-sm" />
-                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => openWhatsApp(`Qual seria o tamanho aproximado em cm?`)}>
+                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => handleSendWhatsApp(`Qual seria o tamanho aproximado em cm?`)}>
                     <Send className="h-4 w-4 text-foreground/70" />
                   </Button>
                 </div>
@@ -102,7 +102,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label className="text-xs text-muted-foreground">Estilo / Referência</Label>
                 <div className="flex gap-2">
                   <Input value={localStyle} onChange={e => setLocalStyle(e.target.value)} placeholder="Ex: Realismo" className="h-10 text-sm" />
-                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => openWhatsApp(`Você tem alguma imagem de referência ou estilo em mente?`)}>
+                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => handleSendWhatsApp(`Você tem alguma imagem de referência ou estilo em mente?`)}>
                     <Send className="h-4 w-4 text-foreground/70" />
                   </Button>
                 </div>
@@ -273,7 +273,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
             <div className="flex flex-col gap-2 p-3 bg-muted/20 rounded-lg border border-border/50">
               <Label className="text-sm font-semibold">Lembrete: 1 Semana Antes</Label>
               <p className="text-xs text-muted-foreground mb-2">Confirme a presença e reforce a data.</p>
-              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => openWhatsApp(`Olá ${clientName}! Passando para lembrar que nossa sessão de tatuagem está chegando na próxima semana! Tudo certo?`)}>
+              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => handleSendWhatsApp(`Olá ${clientName}! Passando para lembrar que nossa sessão de tatuagem está chegando na próxima semana! Tudo certo?`)}>
                 <Bell className="h-3 w-3 mr-2 text-foreground/70" /> Lembrete (1 Semana)
               </Button>
             </div>
@@ -284,7 +284,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label htmlFor="obTips" className="flex-1 cursor-pointer text-sm font-semibold leading-snug">Lembrete: 1 Dia Antes (Dicas)</Label>
               </div>
               <p className="text-xs text-muted-foreground mb-2 ml-7">Envie as orientações finais de preparo.</p>
-              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => openWhatsApp(`Olá ${clientName}! Nossa sessão é amanhã! 🥳\n\nAqui estão algumas dicas importantes para você se preparar:\n1. Durma bem hoje\n2. Venha bem alimentado(a)\n3. Traga roupas confortáveis e fáceis de expor o local da tattoo\n\nAté amanhã!`)}>
+              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => handleSendWhatsApp(`Olá ${clientName}! Nossa sessão é amanhã! 🥳\n\nAqui estão algumas dicas importantes para você se preparar:\n1. Durma bem hoje\n2. Venha bem alimentado(a)\n3. Traga roupas confortáveis e fáceis de expor o local da tattoo\n\nAté amanhã!`)}>
                 <Send className="h-3 w-3 mr-2 text-foreground/70" /> Enviar Dicas (1 Dia)
               </Button>
             </div>
@@ -356,7 +356,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label htmlFor="followUp7Days" className="flex-1 cursor-pointer text-sm font-semibold leading-snug">Etapa 1: Acompanhamento (3 a 7 Dias)</Label>
               </div>
               <p className="text-xs text-muted-foreground ml-7 mb-1">Pergunte como está a cicatrização e tire dúvidas.</p>
-              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => openWhatsApp(`Fala ${clientName}, tudo bem? Passando pra saber como tá sendo a cicatrização da nossa tattoo nesses primeiros dias! Sentindo alguma dúvida?`)}>
+              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => handleSendWhatsApp(`Fala ${clientName}, tudo bem? Passando pra saber como tá sendo a cicatrização da nossa tattoo nesses primeiros dias! Sentindo alguma dúvida?`)}>
                 <Send className="h-3 w-3 mr-2 text-foreground/70" /> Enviar Mensagem (3-7 dias)
               </Button>
             </div>
@@ -367,7 +367,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 <Label htmlFor="followUp30Days" className="flex-1 cursor-pointer text-sm font-semibold leading-snug">Etapa 2: Conclusão (15 a 30 Dias)</Label>
               </div>
               <p className="text-xs text-muted-foreground ml-7 mb-1">Peça uma foto curada e uma avaliação no Google/Insta.</p>
-              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => openWhatsApp(`E aí ${clientName}, beleza? A tattoo já deve estar 100% cicatrizada agora! Consegue me mandar uma foto dela curada em um lugar com boa luz? 🤩\n\nAh, e se curtiu o trabalho, deixa uma avaliação pra mim, ajuda muito! [LINK_AQUI]`)}>
+              <Button variant="outline" size="sm" className="w-full h-9" onClick={() => handleSendWhatsApp(`E aí ${clientName}, beleza? A tattoo já deve estar 100% cicatrizada agora! Consegue me mandar uma foto dela curada em um lugar com boa luz? 🤩\n\nAh, e se curtiu o trabalho, deixa uma avaliação pra mim, ajuda muito! [LINK_AQUI]`)}>
                 <Send className="h-3 w-3 mr-2 text-foreground/70" /> Pedir Foto + Avaliação
               </Button>
             </div>
