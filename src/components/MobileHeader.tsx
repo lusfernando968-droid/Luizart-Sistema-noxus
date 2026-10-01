@@ -46,16 +46,16 @@ export function MobileHeader() {
   const isAssistant = role === 'ASSISTANT' || user?.name?.includes('Gabriel');
 
   const navItems = isAssistant ? [
-    { title: "Agenda", path: "/agenda", icon: Calendar, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { title: "Clientes", path: "/clientes", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { title: "Financeiro", path: "/financeiro", icon: DollarSign, color: "text-amber-500", bg: "bg-amber-500/10" },
+    { title: "Agenda", path: "/agenda", icon: Calendar },
+    { title: "Clientes", path: "/clientes", icon: Users },
+    { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ] : [
-    { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard, color: "text-primary", bg: "bg-primary/10" },
-    { title: "Agenda", path: "/agenda", icon: Calendar, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { title: "Clientes", path: "/clientes", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { title: "Financeiro", path: "/financeiro", icon: DollarSign, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { title: "Cursos", path: "/cursos", icon: GraduationCap, color: "text-purple-500", bg: "bg-purple-500/10" },
-    { title: "Mentorias", path: "/mentorias", icon: Target, color: "text-rose-500", bg: "bg-rose-500/10" },
+    { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { title: "Agenda", path: "/agenda", icon: Calendar },
+    { title: "Clientes", path: "/clientes", icon: Users },
+    { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+    { title: "Cursos", path: "/cursos", icon: GraduationCap },
+    { title: "Mentorias", path: "/mentorias", icon: Target },
   ];
 
   return (
@@ -109,10 +109,10 @@ export function MobileHeader() {
             <button
               key={item.path}
               onClick={() => { setIsNavOpen(false); navigate(item.path); }}
-              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left"
+              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-accent transition-colors text-left group"
             >
-              <div className={`h-10 w-10 rounded-xl ${item.bg} flex items-center justify-center`}>
-                <item.icon className={`h-5 w-5 ${item.color}`} />
+              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors">
+                <item.icon className="h-5 w-5 text-foreground group-hover:text-background transition-colors" />
               </div>
               <span className="text-sm font-medium text-foreground">{item.title}</span>
             </button>
@@ -130,7 +130,7 @@ export function MobileHeader() {
         {/* Header do sheet */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base">
+              <div className="h-10 w-10 rounded-full bg-accent text-foreground flex items-center justify-center font-bold text-base">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -153,8 +153,8 @@ export function MobileHeader() {
               className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
             >
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary" />
+                <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
+                  <User className="h-4 w-4 text-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">Meu Perfil</p>
@@ -172,8 +172,8 @@ export function MobileHeader() {
                   className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-purple-500" />
+                    <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
+                      <User className="h-4 w-4 text-foreground" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">Gestão de Clientes</p>
@@ -187,8 +187,8 @@ export function MobileHeader() {
                   className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                      <User className="h-4 w-4 text-purple-500" />
+                    <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
+                      <User className="h-4 w-4 text-foreground" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">Dashboard Admin</p>
