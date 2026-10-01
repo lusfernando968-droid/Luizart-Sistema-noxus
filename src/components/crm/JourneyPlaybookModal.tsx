@@ -99,7 +99,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
     const phone = client.phone.replace(/\D/g, "");
     const prefix = phone.length <= 11 ? "55" : "";
     const url = `https://wa.me/${prefix}${phone}?text=${encodeURIComponent(textToCopy)}`;
-    window.open(url, "_blank");
+    openWhatsApp(url);
   };
 
   const handleApplyPlaybook = async () => {

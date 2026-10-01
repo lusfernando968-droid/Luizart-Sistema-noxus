@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MessageSquare, CheckCircle2, Search, XCircle, Share, Send, ArrowRight, ClipboardList, Calendar, Bell, HeartPulse, Brush, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { openWhatsApp } from "@/lib/whatsapp";
 
 interface PlaybookEngineProps {
   journey: any;
@@ -60,7 +61,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
       return;
     }
     const url = `https://wa.me/55${clientPhone}?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    openWhatsApp(url);
   };
 
   if (!journey) return <div className="p-4 text-center text-muted-foreground">Nenhuma jornada ativa.</div>;
@@ -167,7 +168,7 @@ export function PlaybookEngine({ journey, onUpdatePlaybook, onUpdateStatus }: Pl
                 onClick={() => {
                   if(!partner) return toast.error("Selecione um parceiro");
                   onUpdateStatus(journey.id, 'Repassado');
-                  window.open(`https://wa.me/?text=${encodeURIComponent(`Oi ${partner}! Acabei de te indicar para um cliente meu (${clientName}). O estilo é ${localStyle || '...'}. Ele deve te chamar!`)}`, '_blank');
+                  openWhatsApp(`https://wa.me/?text=${encodeURIComponent(`Oi ${partner}! Acabei de te indicar para um cliente meu (${clientName}). O estilo é ${localStyle || '...'}. Ele deve te chamar!`)}`);
                 }} 
                 variant="secondary" 
                 className="w-full h-11"

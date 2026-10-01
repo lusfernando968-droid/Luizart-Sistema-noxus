@@ -3,6 +3,7 @@ import { format, subDays, subYears, addDays, subMonths } from "date-fns";
 import { BrainCircuit, Clock, CalendarHeart, History, CalendarClock, MessageCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 export function AgendaIntelligence({ appointments, clients }: any) {
   const today = new Date();
@@ -29,11 +30,11 @@ export function AgendaIntelligence({ appointments, clients }: any) {
     };
   }, [appointments]);
 
-  const openWhatsApp = (phone: string, message: string) => {
+  const handleWhatsApp = (phone: string, message: string) => {
     if (!phone || phone === "Não informado") return;
     const cleanPhone = phone.replace(/\D/g, '');
     const url = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    openWhatsApp(url);
   };
 
   const renderList = (list: any[], emptyMessage: string, context: 'today' | 'tomorrow' | '7days' | '2months' | '1year') => {
@@ -68,7 +69,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
                  
                  {hasPhone && context !== 'today' && (
                    <button 
-                     onClick={() => openWhatsApp(client.phone, wppMessage)}
+                     onClick={() => handleWhatsApp(client.phone, wppMessage)}
                      className="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white p-1.5 rounded-full transition-colors flex items-center gap-1 px-2"
                      title="Enviar Mensagem CRM"
                    >
