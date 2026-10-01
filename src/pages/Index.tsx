@@ -26,6 +26,9 @@ import { supabase, supabasePublic } from "@/lib/supabase";
 import {
   AreaChart,
   Area,
+  LineChart,
+  Line,
+  Legend,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -176,13 +179,33 @@ const Index = () => {
         }))
       );
 
-      // Simple mock for charts as this wasn't requested directly but needed for UI
-      setRevenueChartData([
-        { name: "Sem 1", value: revenue * 0.2 },
-        { name: "Sem 2", value: revenue * 0.3 },
-        { name: "Sem 3", value: revenue * 0.4 },
-        { name: "Sem 4", value: revenue * 0.1 }
-      ]);
+      const currentYear = new Date().getFullYear();
+      const ptBRMonths = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+      const monthsData = Array.from({ length: 12 }, (_, i) => ({
+        name: ptBRMonths[i],
+        Faturamento: 0,
+        Despesa: 0,
+        Lucro: 0,
+      }));
+
+      (fins || []).forEach((f: any) => {
+        if (!f.date) return;
+        const d = new Date(f.date.includes('/') ? f.date.split('/').reverse().join('-') : f.date);
+        if (d.getFullYear() === currentYear) {
+          const m = d.getMonth();
+          if (f.type === 'entrada') {
+            monthsData[m].Faturamento += Number(f.value) || 0;
+          } else if (f.type === 'saida') {
+            monthsData[m].Despesa += Number(f.value) || 0;
+          }
+        }
+      });
+
+      monthsData.forEach(m => {
+        m.Lucro = m.Faturamento - m.Despesa;
+      });
+
+      setRevenueChartData(monthsData);
       setAppointmentsStatusData([
         { name: "Confirmados", value: pendingAppts.length },
         { name: "Concluídos", value: (appts || []).filter(a => a.status === 'Concluído').length },
@@ -516,56 +539,26 @@ const Index = () => {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {/* Revenue Trend Chart */}
-        <div className="bg-card rounded-xl border shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Desempenho Financeiro (Últimos 7 dias)</h2>
+           <div className="bg-card rounded-xl border shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Visão Anual de Desempenho ({new Date().getFullYear()})</h2>
           <div className="h-[220px] lg:h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
-                <RechartsTooltip
-                  formatter={(value: number, name: string) => {
-                    const label = name === 'income' ? 'Receita' : name === 'expense' ? 'Despesa' : 'Lucro';
-                    return [`R$ ${value}`, label];
-                  }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+              <LineChart data={revenueChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `R$ ${value}`} />
+                <RechartsTooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontSize: '13px', fontWeight: '600' }}
+                  labelStyle={{ fontSize: '12px', color: '#64748b' }}
+                  formatter={(value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                 />
-                <Area type="monotone" dataKey="income" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
-                <Area type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" />
-                <Area type="monotone" dataKey="profit" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" />
-              </AreaChart>
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Line type="monotone" dataKey="Faturamento" stroke="#0f172a" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="Despesa" stroke="#94a3b8" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="Lucro" stroke="#475569" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
             </ResponsiveContainer>
-          </div>
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-xs text-muted-foreground">Receita</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-destructive" />
-              <span className="text-xs text-muted-foreground">Despesa</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-xs text-muted-foreground">Lucro</span>
-            </div>
           </div>
         </div>
 
