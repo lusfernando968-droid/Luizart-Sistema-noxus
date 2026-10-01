@@ -12,7 +12,7 @@ const Auth = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
-    const [accessCode, setAccessCode] = useState("NOXUS-ADMIN");
+    const [accessCode, setAccessCode] = useState("");
 
     useEffect(() => {
         const checkExistingSession = () => {
