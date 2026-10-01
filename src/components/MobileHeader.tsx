@@ -65,9 +65,11 @@ export function MobileHeader() {
       <header className="fixed top-0 left-0 right-0 z-50 lg:hidden h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4">
         {/* Hambúrguer + Logo */}
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsNavOpen(true)} className="p-1 -ml-1 text-sidebar-foreground hover:bg-sidebar-primary/20 rounded-md">
-            <Menu className="h-6 w-6" />
-          </button>
+          {!isAssistant && (
+            <button onClick={() => setIsNavOpen(true)} className="p-1 -ml-1 text-sidebar-foreground hover:bg-sidebar-primary/20 rounded-md">
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
           <img
             src="/logo-app-noxus.png"
             alt="Noxus"
