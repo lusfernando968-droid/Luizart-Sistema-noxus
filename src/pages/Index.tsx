@@ -205,7 +205,7 @@ const Index = () => {
         m.Lucro = m.Faturamento - m.Despesa;
       });
 
-      const thisMonth = today.slice(0, 7);
+
       const monthlyAppts = (appts || []).filter((a: any) => a.date && a.date.startsWith(thisMonth));
       
       setRevenueChartData(monthsData);
