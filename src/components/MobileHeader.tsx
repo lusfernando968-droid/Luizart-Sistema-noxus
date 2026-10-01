@@ -1,39 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { MessageCircle, User, LogOut, X, Send, Loader2, ChevronRight } from "lucide-react";
+import { User, LogOut, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-interface Message {
-  id: string;
-  message: string;
-  is_from_support: boolean;
-  created_at: string;
-  user_id: string;
-}
-
-type SheetView = "menu" | "chat";
 
 export function MobileHeader() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState<SheetView>("menu");
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Chat state
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isOpenRef = useRef(isOpen);
-
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
-
   const [role, setRole] = useState<string | null>(null);
 
   // Load user info
@@ -59,86 +34,9 @@ export function MobileHeader() {
     fetchUser();
   }, []);
 
-  // Polling for support messages
-  const fetchMessages = async (isInitial = false) => {
-    if (isInitial) setLoading(true);
-    const token = localStorage.getItem("noxus_token");
-    if (!token) return;
-
-    try {
-      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/support", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => {
-          if (data.length > prev.length) {
-            const newMsgs = data.slice(prev.length);
-            const hasNewFromSupport = newMsgs.some((m: Message) => m.is_from_support);
-            if (!isOpenRef.current && hasNewFromSupport) {
-              setUnreadCount(c => c + 1);
-            }
-          }
-          return data;
-        });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    if (isInitial) setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMessages(true);
-    const intervalId = setInterval(() => {
-      fetchMessages(false);
-    }, 3000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
-    setSending(true);
-
-    const token = localStorage.getItem("noxus_token");
-    if (!token) { setSending(false); return; }
-
-    try {
-      const res = await fetch((import.meta.env.VITE_API_URL || "") + "/api/support", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ message: newMessage.trim() })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setMessages((prev) => [...prev, data]);
-        setNewMessage("");
-      }
-    } catch (error) {
-      console.error(error);
-    }
-    setSending(false);
-  };
-
-  const openSheet = (v: SheetView) => {
+  const openSheet = () => {
     setIsOpen(true);
-    setView(v);
-    if (v === "chat") {
-      setUnreadCount(0);
-      fetchMessages();
-    }
+    setView("menu");
   };
 
   const handleLogout = async () => {
@@ -169,11 +67,6 @@ export function MobileHeader() {
           className="relative flex items-center justify-center h-9 w-9 rounded-full bg-sidebar-primary/20 text-sidebar-foreground hover:bg-sidebar-primary/40 transition-colors font-semibold text-sm"
         >
           {initials}
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-sidebar">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
         </button>
       </header>
 
@@ -194,14 +87,6 @@ export function MobileHeader() {
       >
         {/* Header do sheet */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
-          {view === "chat" ? (
-            <button
-              onClick={() => setView("menu")}
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ← Voltar
-            </button>
-          ) : (
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base">
                 {initials}
@@ -211,7 +96,6 @@ export function MobileHeader() {
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
-          )}
           <button
             onClick={() => setIsOpen(false)}
             className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
@@ -221,7 +105,6 @@ export function MobileHeader() {
         </div>
 
         {/* Conteúdo — Menu */}
-        {view === "menu" && (
           <nav className="flex-1 p-4 space-y-2">
             <button
               onClick={() => { setIsOpen(false); navigate("/perfil"); }}
@@ -239,28 +122,6 @@ export function MobileHeader() {
               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
             </button>
 
-            <button
-              onClick={() => openSheet("chat")}
-              className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group relative"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <MessageCircle className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Suporte Noxus</p>
-                  <p className="text-xs text-muted-foreground">Fale com nossa equipe</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <span className="h-5 min-w-[20px] px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                    {unreadCount}
-                  </span>
-                )}
-                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </button>
 
             {(role === 'MASTER' || role === 'SUPERADMIN') && (
               <>
@@ -312,80 +173,6 @@ export function MobileHeader() {
               </button>
             </div>
           </nav>
-        )}
-
-        {/* Conteúdo — Chat de Suporte */}
-        {view === "chat" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Status online */}
-            <div className="px-5 py-3 bg-primary/5 border-b border-border/30 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs text-muted-foreground font-medium">Suporte online</span>
-            </div>
-
-            {/* Mensagens */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-3"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-40">
-                  <MessageCircle className="h-10 w-10 mb-2" />
-                  <p className="text-sm font-medium">Nenhuma mensagem ainda.</p>
-                  <p className="text-xs px-6 leading-relaxed">Como podemos te ajudar com o Noxus hoje?</p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex flex-col max-w-[85%] animate-in fade-in",
-                      msg.is_from_support ? "self-start items-start" : "self-end items-end ml-auto"
-                    )}
-                  >
-                    <div className={cn(
-                      "px-4 py-2.5 rounded-2xl text-sm shadow-sm",
-                      msg.is_from_support
-                        ? "bg-muted text-foreground rounded-tl-none border border-border/10"
-                        : "bg-primary text-primary-foreground rounded-tr-none"
-                    )}>
-                      {msg.message}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Input */}
-            <form
-              onSubmit={sendMessage}
-              className="p-4 border-t border-border/50 flex items-center gap-2"
-            >
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Digite sua mensagem..."
-                className="flex-1 bg-muted/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
-              />
-              <Button
-                type="submit"
-                size="icon"
-                className="h-10 w-10 shrink-0 rounded-xl"
-                disabled={!newMessage.trim() || sending}
-              >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </form>
-          </div>
-        )}
       </div>
     </>
   );

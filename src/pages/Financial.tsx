@@ -271,11 +271,11 @@ const Financial = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <ArrowUpRight className="h-5 w-5 text-primary" />
+            <div className="rounded-lg bg-muted p-2.5">
+              <ArrowUpRight className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Entradas no Mês</p>
+              <p className="text-sm text-muted-foreground">Faturamento</p>
               <p className="text-xl font-bold text-foreground">R$ {totalEntradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
@@ -283,11 +283,11 @@ const Financial = () => {
 
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-destructive/10 p-2.5">
-              <ArrowDownRight className="h-5 w-5 text-destructive" />
+            <div className="rounded-lg bg-muted p-2.5">
+              <ArrowDownRight className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Saídas no Mês</p>
+              <p className="text-sm text-muted-foreground">Despesa</p>
               <p className="text-xl font-bold text-foreground">R$ {totalSaidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
@@ -295,12 +295,12 @@ const Financial = () => {
 
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <DollarSign className="h-5 w-5 text-primary" />
+            <div className="rounded-lg bg-muted p-2.5">
+              <DollarSign className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium">Lucro Líquido</p>
-              <p className={`text-xl font-bold ${saldo >= 0 ? "text-primary" : "text-destructive"}`}>
+              <p className="text-sm text-muted-foreground font-medium">Lucro</p>
+              <p className="text-xl font-bold text-foreground">
                 R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             </div>

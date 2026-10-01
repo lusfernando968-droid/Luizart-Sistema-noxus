@@ -5,7 +5,6 @@ import { MobileHeader } from "@/components/MobileHeader";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SupportChat } from "@/components/SupportChat";
 import { Loader2 } from "lucide-react";
 
 interface LayoutProps {
@@ -74,10 +73,6 @@ export function Layout({ children }: LayoutProps) {
       )}>
         <div className="page-container animate-fade-in">
           {children}
-        </div>
-        {/* SupportChat — apenas desktop */}
-        <div className="hidden lg:block">
-          <SupportChat />
         </div>
       </main>
 
