@@ -358,10 +358,10 @@ const Financial = () => {
                 {filtered.map((t) => (
                   <tr key={t.id} className="hover:bg-accent/30 transition-colors">
                     <td className="p-4 text-sm font-medium text-foreground">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                         <span>{t.description}</span>
                         {t.isDeductible && (
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary dark:text-primary border-primary/20">
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary dark:text-primary border-primary/20 w-fit whitespace-nowrap">
                             Livro Caixa (Dedutível)
                           </Badge>
                         )}
