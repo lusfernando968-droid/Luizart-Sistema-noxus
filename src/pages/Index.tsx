@@ -205,11 +205,15 @@ const Index = () => {
         m.Lucro = m.Faturamento - m.Despesa;
       });
 
+      const thisMonth = today.slice(0, 7);
+      const monthlyAppts = (appts || []).filter((a: any) => a.date && a.date.startsWith(thisMonth));
+      
       setRevenueChartData(monthsData);
       setAppointmentsStatusData([
-        { name: "Confirmados", value: pendingAppts.length },
-        { name: "Concluídos", value: (appts || []).filter(a => a.status === 'Concluído').length },
-        { name: "Cancelados", value: (appts || []).filter(a => a.status === 'Cancelado').length }
+        { name: "Confirmados", value: monthlyAppts.filter((a: any) => a.status === 'Confirmado' || a.status === 'Agendado').length, fill: "#9333ea" },
+        { name: "Concluídos", value: monthlyAppts.filter((a: any) => a.status === 'Concluído').length, fill: "#10b981" },
+        { name: "Para Remarcar", value: monthlyAppts.filter((a: any) => a.status === 'Para Remarcar').length, fill: "#f97316" },
+        { name: "Cancelados", value: monthlyAppts.filter((a: any) => a.status === 'Cancelado').length, fill: "#ef4444" } // tailwind red-500
       ]);
 
     } catch (error) {
