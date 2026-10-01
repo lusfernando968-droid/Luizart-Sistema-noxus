@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet, DollarSign, Activity } from "lucide-react";
 
 export function FinancialRegistry({ transactions }: any) {
@@ -67,10 +67,39 @@ export function FinancialRegistry({ transactions }: any) {
   }, [filteredTransactions]);
 
   const chartData = [
-    { name: "Entradas", valor: metrics.totalEntradas, color: "#10b981" },
-    { name: "Saídas", valor: metrics.totalSaidas, color: "#ef4444" },
-    { name: "Saldo", valor: Math.max(0, metrics.saldo), color: "#3b82f6" },
+    { name: "Faturamento", valor: metrics.totalEntradas, color: "#0f172a" },
+    { name: "Despesa", valor: metrics.totalSaidas, color: "#94a3b8" },
+    { name: "Lucro", valor: Math.max(0, metrics.saldo), color: "#475569" },
   ];
+
+  const annualChartData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const monthsData = Array.from({ length: 12 }, (_, i) => ({
+      name: format(new Date(currentYear, i, 1), 'MMM', { locale: ptBR }).toUpperCase(),
+      Faturamento: 0,
+      Despesa: 0,
+      Lucro: 0,
+    }));
+
+    transactions.forEach((t: any) => {
+      if (!t.date) return;
+      const d = parseBrazilianDate(t.date);
+      if (d.getFullYear() === currentYear) {
+        const m = d.getMonth();
+        if (t.type === 'entrada') {
+          monthsData[m].Faturamento += Number(t.value) || 0;
+        } else if (t.type === 'saida') {
+          monthsData[m].Despesa += Number(t.value) || 0;
+        }
+      }
+    });
+
+    monthsData.forEach(m => {
+      m.Lucro = m.Faturamento - m.Despesa;
+    });
+
+    return monthsData;
+  }, [transactions]);
 
   const formatMonthLabel = (yyyyMM: string) => {
     if (yyyyMM === "Todos") return "Todos os Meses";
@@ -127,7 +156,7 @@ export function FinancialRegistry({ transactions }: any) {
         <Card className="col-span-1 md:col-span-3 border-border shadow-sm">
           <CardHeader className="py-4">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-primary" />
+              <DollarSign className="w-4 h-4 text-foreground" />
               Balanço do Período (R$)
             </CardTitle>
           </CardHeader>
@@ -191,6 +220,35 @@ export function FinancialRegistry({ transactions }: any) {
           </Card>
         </div>
       </div>
+
+      <Card className="border-border shadow-sm">
+        <CardHeader className="py-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Activity className="w-4 h-4 text-foreground" /> Visão Anual de Desempenho ({new Date().getFullYear()})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-2 pb-4">
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={annualChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `R$ ${value}`} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontSize: '13px', fontWeight: '600' }}
+                  labelStyle={{ fontSize: '12px', color: '#64748b' }}
+                  formatter={(value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                <Line type="monotone" dataKey="Faturamento" stroke="#0f172a" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="Despesa" stroke="#94a3b8" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="Lucro" stroke="#475569" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-border shadow-sm overflow-hidden">
         <CardHeader className="py-4 bg-muted/30 border-b">
