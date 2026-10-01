@@ -109,7 +109,7 @@ const Auth = () => {
                                         <Input
                                             id="accessCode"
                                             type="text"
-                                            placeholder="Ex: NOXUS-ADMIN, LUIZART-01"
+                                            placeholder=""
                                             value={accessCode}
                                             onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
                                             className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-all rounded-xl py-6 uppercase font-mono text-base tracking-wider"
