@@ -38,7 +38,7 @@ export function FinancialRegistry({ transactions }: any) {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t: any) => {
-      if (typeFilter !== "Todos" && t.type !== typeFilter) return false;
+      if (typeFilter !== "Todos" && typeFilter !== "lucro" && t.type !== typeFilter) return false;
       if (monthFilter !== "Todos" && t.date) {
         const dateObj = parseBrazilianDate(t.date);
         const yyyyMM = format(dateObj, 'yyyy-MM');
@@ -69,9 +69,9 @@ export function FinancialRegistry({ transactions }: any) {
   }, [filteredTransactions]);
 
   const chartData = [
-    { name: "Faturamento", valor: metrics.totalEntradas, color: "#0f172a" },
-    { name: "Despesa", valor: metrics.totalSaidas, color: "#94a3b8" },
-    { name: "Lucro", valor: Math.max(0, metrics.saldo), color: "#475569" },
+    ...(typeFilter === "Todos" || typeFilter === "entrada" ? [{ name: "Faturamento", valor: metrics.totalEntradas, color: "#0f172a" }] : []),
+    ...(typeFilter === "Todos" || typeFilter === "saida" ? [{ name: "Despesa", valor: metrics.totalSaidas, color: "#94a3b8" }] : []),
+    ...(typeFilter === "Todos" || typeFilter === "lucro" ? [{ name: "Lucro", valor: metrics.saldo, color: "#475569" }] : []),
   ];
 
   const annualChartData = useMemo(() => {
@@ -145,9 +145,10 @@ export function FinancialRegistry({ transactions }: any) {
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Todos">Entradas/Saídas</SelectItem>
-                <SelectItem value="entrada">Apenas Entradas</SelectItem>
-                <SelectItem value="saida">Apenas Saídas</SelectItem>
+                <SelectItem value="Todos">Todas as Métricas</SelectItem>
+                <SelectItem value="entrada">Apenas Faturamento</SelectItem>
+                <SelectItem value="saida">Apenas Despesa</SelectItem>
+                <SelectItem value="lucro">Apenas Lucro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -243,9 +244,9 @@ export function FinancialRegistry({ transactions }: any) {
                   formatter={(value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                <Line type="monotone" dataKey="Faturamento" stroke="#0f172a" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="Despesa" stroke="#94a3b8" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="Lucro" stroke="#475569" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                {(typeFilter === "Todos" || typeFilter === "entrada") && <Line type="monotone" dataKey="Faturamento" stroke="#0f172a" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
+                {(typeFilter === "Todos" || typeFilter === "saida") && <Line type="monotone" dataKey="Despesa" stroke="#94a3b8" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
+                {(typeFilter === "Todos" || typeFilter === "lucro") && <Line type="monotone" dataKey="Lucro" stroke="#475569" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />}
               </LineChart>
             </ResponsiveContainer>
           </div>
