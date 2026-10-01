@@ -106,9 +106,10 @@ const Index = () => {
       let totalMinutes = 0;
       let countWithTime = 0;
       
-      const concludedAppts = (appts || []).filter(a => a.status === 'Concluído');
+      // Calculate based on all schedule blocks (excluding cancelled)
+      const scheduledBlocks = (appts || []).filter(a => a.status !== 'Cancelado');
       
-      concludedAppts.forEach(a => {
+      scheduledBlocks.forEach(a => {
         if (a.startTime && a.endTime) {
           const [startH, startM] = a.startTime.split(':').map(Number);
           const [endH, endM] = a.endTime.split(':').map(Number);
@@ -140,7 +141,7 @@ const Index = () => {
         activeClients: (clients || []).length.toString(),
         avgTime: formatTime(avgTotalMinutes),
         totalTime: formatTime(totalMinutes),
-        totalAppointments: (appts || []).length.toString(),
+        totalAppointments: scheduledBlocks.length.toString(),
         pendingReceivables: `R$ ${pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         anamnesisCompleted: (anamnesis || []).length.toString(),
         topDiscoverySource: "Instagram",
