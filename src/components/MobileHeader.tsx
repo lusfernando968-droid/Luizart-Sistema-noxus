@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { User, LogOut, X, ChevronRight, Menu, LayoutDashboard, Calendar, Users, DollarSign, GraduationCap, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 export function MobileHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
@@ -94,29 +95,35 @@ export function MobileHeader() {
       {/* Nav Sheet (Esquerda) */}
       <div
         className={cn(
-          "fixed top-0 left-0 z-[70] h-full w-[80vw] max-w-sm bg-card flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed top-0 left-0 z-[70] h-full w-[80vw] max-w-sm bg-sidebar flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
           isNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
+        <div className="flex h-14 items-center justify-between px-4 border-b border-sidebar-border">
           <img src="/logo-app-noxus.png" alt="Noxus" className="h-6 w-auto object-contain" />
-          <button onClick={() => setIsNavOpen(false)} className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors">
+          <button onClick={() => setIsNavOpen(false)} className="h-8 w-8 rounded-md flex items-center justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => { setIsNavOpen(false); navigate(item.path); }}
-              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-accent transition-colors text-left group"
-            >
-              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors">
-                <item.icon className="h-5 w-5 text-foreground group-hover:text-background transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-foreground">{item.title}</span>
-            </button>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => { setIsNavOpen(false); navigate(item.path); }}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-sidebar-primary text-primary-foreground shadow-md shadow-sidebar-primary/30"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span>{item.title}</span>
+              </button>
+            );
+          })}
         </nav>
       </div>
 
