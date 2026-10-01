@@ -15,6 +15,16 @@ export function MobileHeader() {
 
   // Load user info
   useEffect(() => {
+    // Tenta pegar do localStorage primeiro
+    const userStr = localStorage.getItem("noxus_user");
+    if (userStr) {
+      try {
+        const parsed = JSON.parse(userStr);
+        setUser({ email: parsed.email, name: parsed.name });
+        setRole(parsed.role);
+      } catch (e) {}
+    }
+
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem("noxus_token");
@@ -44,7 +54,10 @@ export function MobileHeader() {
   };
 
   const initials = user?.name?.charAt(0)?.toUpperCase() || "U";
-  const isAssistant = role === 'ASSISTANT' || user?.name?.includes('Gabriel');
+  
+  const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
+  const demoRole = localStorage.getItem("noxus_demo_role");
+  const isAssistant = role === 'ASSISTANT' || user?.name?.includes('Gabriel') || (isDemoMode && demoRole === 'ASSISTANT');
 
   const navItems = isAssistant ? [
     { title: "Agenda", path: "/agenda", icon: Calendar },
