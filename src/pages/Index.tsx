@@ -441,9 +441,9 @@ const Index = () => {
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Clients */}
-        <div className="lg:col-span-2 bg-card rounded-xl border shadow-sm">
+        <div className="bg-card rounded-xl border shadow-sm">
           <div className="p-6 border-b">
             <h2 className="text-lg font-semibold text-foreground">
               Próximos Clientes Hoje
@@ -483,7 +483,11 @@ const Index = () => {
                     >
                       {client.status}
                     </span>
-                    {client.status !== 'Concluído' && client.status !== 'Cancelado' && (
+                    {client.status === 'Concluído' ? (
+                      <span className="text-xs text-muted-foreground flex items-center ml-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-primary" /> Baixa Concluída
+                      </span>
+                    ) : client.status !== 'Cancelado' ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -491,9 +495,9 @@ const Index = () => {
                         onClick={() => openCheckout(client)}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        Dar Baixa
+                        Pendente (Dar Baixa)
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               ))
@@ -518,10 +522,10 @@ const Index = () => {
                 <div key={i} className="p-4 px-6">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-foreground">
-                      {payment.client}
+                      {payment.name}
                     </p>
                     <p className="text-sm font-bold text-foreground">
-                      {payment.value}
+                      {payment.amount}
                     </p>
                   </div>
                   <div className="flex items-center justify-between mt-1">
