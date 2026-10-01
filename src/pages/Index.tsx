@@ -43,6 +43,8 @@ interface DashboardStats {
   monthlyProfit?: string;
   activeClients: string;
   avgTime: string;
+  totalTime: string;
+  totalAppointments: string;
   pendingReceivables: string;
   anamnesisCompleted: string;
   topDiscoverySource: string;
@@ -55,7 +57,9 @@ const Index = () => {
     monthlyExpense: "R$ 0",
     monthlyProfit: "R$ 0",
     activeClients: "0",
-    avgTime: "2h 30m",
+    avgTime: "0h",
+    totalTime: "0h",
+    totalAppointments: "0",
     pendingReceivables: "R$ 0",
     anamnesisCompleted: "0",
     topDiscoverySource: "-",
@@ -99,13 +103,44 @@ const Index = () => {
       const expense = monthlyFins.filter(f => f.type === 'saida').reduce((acc, curr) => acc + Number(curr.value || 0), 0);
       const pending = pendingAppts.reduce((acc, curr) => acc + Number(curr.value || 0), 0);
 
+      let totalMinutes = 0;
+      let countWithTime = 0;
+      
+      const concludedAppts = (appts || []).filter(a => a.status === 'Concluído');
+      
+      concludedAppts.forEach(a => {
+        if (a.startTime && a.endTime) {
+          const [startH, startM] = a.startTime.split(':').map(Number);
+          const [endH, endM] = a.endTime.split(':').map(Number);
+          if (!isNaN(startH) && !isNaN(endH)) {
+             let duration = (endH * 60 + (endM || 0)) - (startH * 60 + (startM || 0));
+             if (duration < 0) duration += 24 * 60;
+             totalMinutes += duration;
+             countWithTime++;
+          }
+        }
+      });
+      
+      const avgTotalMinutes = countWithTime > 0 ? Math.round(totalMinutes / countWithTime) : 0;
+      
+      const formatTime = (mins: number) => {
+        if (mins === 0) return "0h";
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        if (h > 0 && m > 0) return `${h}h ${m}m`;
+        if (h > 0) return `${h}h`;
+        return `${m}m`;
+      };
+
       setStatsData({
         sessionsToday: todayAppts.length.toString(),
         monthlyRevenue: `R$ ${revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         monthlyExpense: `R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         monthlyProfit: `R$ ${(revenue - expense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         activeClients: (clients || []).length.toString(),
-        avgTime: "2h 30m",
+        avgTime: formatTime(avgTotalMinutes),
+        totalTime: formatTime(totalMinutes),
+        totalAppointments: (appts || []).length.toString(),
         pendingReceivables: `R$ ${pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         anamnesisCompleted: (anamnesis || []).length.toString(),
         topDiscoverySource: "Instagram",
@@ -234,9 +269,9 @@ const Index = () => {
       trend: "up" as const,
     },
     {
-      label: "Sessões Hoje",
-      value: statsData.sessionsToday,
-      icon: Calendar,
+      label: "Tempo Médio por Sessão",
+      value: statsData.avgTime,
+      icon: Clock,
       change: "Hoje",
       trend: "up" as const,
     },
@@ -248,17 +283,17 @@ const Index = () => {
       trend: "up" as const,
     },
     {
-      label: "Fichas Concluídas",
-      value: statsData.anamnesisCompleted,
-      icon: FileText,
+      label: "Tempo Total Já Tatuado",
+      value: statsData.totalTime,
+      icon: Clock,
       change: "Total",
       trend: "up" as const,
     },
     {
-      label: "Principal Origem",
-      value: statsData.topDiscoverySource,
-      icon: Users,
-      change: "Maior canal",
+      label: "Qtd de Agendamentos",
+      value: statsData.totalAppointments,
+      icon: Calendar,
+      change: "Total",
       trend: "up" as const,
     },
   ];
