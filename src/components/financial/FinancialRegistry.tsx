@@ -10,7 +10,8 @@ import { ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet, DollarSign, Ac
 
 export function FinancialRegistry({ transactions }: any) {
   const [typeFilter, setTypeFilter] = useState("Todos");
-  const [monthFilter, setMonthFilter] = useState("Todos");
+  const currentYyyyMm = format(new Date(), "yyyy-MM");
+  const [monthFilter, setMonthFilter] = useState(currentYyyyMm);
 
   const parseBrazilianDate = (dateString: string) => {
     if (!dateString) return new Date();
@@ -24,6 +25,7 @@ export function FinancialRegistry({ transactions }: any) {
   // Format month list for the filter
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
+    months.add(currentYyyyMm); // Always include current month
     transactions.forEach((t: any) => {
       if (t.date) {
         const dateObj = parseBrazilianDate(t.date);
@@ -32,7 +34,7 @@ export function FinancialRegistry({ transactions }: any) {
       }
     });
     return Array.from(months).sort().reverse();
-  }, [transactions]);
+  }, [transactions, currentYyyyMm]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t: any) => {
