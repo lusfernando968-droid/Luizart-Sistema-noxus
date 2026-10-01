@@ -154,38 +154,38 @@ export function FinancialRegistry({ transactions }: any) {
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card className="border-border shadow-sm bg-primary/5 border-primary/20">
+          <Card className="border-border shadow-sm bg-card">
             <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs text-primary/80 font-medium flex items-center gap-1.5">
-                <ArrowUpCircle className="w-3.5 h-3.5" /> Total Entradas
+              <CardTitle className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                <ArrowUpCircle className="w-3.5 h-3.5 text-foreground" /> Faturamento
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-primary">R$ {metrics.totalEntradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-xl font-bold text-foreground">R$ {metrics.totalEntradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">{metrics.qtdEntradas} transações</div>
             </CardContent>
           </Card>
 
-          <Card className="border-border shadow-sm bg-destructive/5 border-destructive/20">
+          <Card className="border-border shadow-sm bg-card">
             <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs text-destructive/80 font-medium flex items-center gap-1.5">
-                <ArrowDownCircle className="w-3.5 h-3.5" /> Total Saídas
+              <CardTitle className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                <ArrowDownCircle className="w-3.5 h-3.5 text-foreground" /> Despesa
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-destructive">R$ {metrics.totalSaidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-xl font-bold text-foreground">R$ {metrics.totalSaidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">{metrics.qtdSaidas} transações</div>
             </CardContent>
           </Card>
           
-          <Card className="border-border shadow-sm bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900/30">
+          <Card className="border-border shadow-sm bg-card">
             <CardHeader className="py-3 px-4">
-              <CardTitle className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5" /> Saldo Líquido
+              <CardTitle className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-foreground" /> Lucro
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-blue-600 dark:text-blue-400">R$ {metrics.saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-xl font-bold text-foreground">R$ {metrics.saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">Neste período</div>
             </CardContent>
           </Card>
