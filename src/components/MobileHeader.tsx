@@ -8,7 +8,6 @@ import { toast } from "sonner";
 export function MobileHeader() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [user, setUser] = useState<{ email?: string; name?: string } | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -52,8 +51,6 @@ export function MobileHeader() {
     navigate("/auth", { replace: true });
     toast.success("Sessão encerrada");
   };
-
-  const initials = user?.name?.charAt(0)?.toUpperCase() || "U";
   
   const isDemoMode = localStorage.getItem("noxus_demo_mode") === "true";
   const demoRole = localStorage.getItem("noxus_demo_role");
@@ -70,6 +67,7 @@ export function MobileHeader() {
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
     { title: "Cursos", path: "/cursos", icon: GraduationCap },
     { title: "Mentorias", path: "/mentorias", icon: Target },
+    { title: "Meu Perfil", path: "/perfil", icon: User },
   ];
 
   return (
@@ -90,20 +88,21 @@ export function MobileHeader() {
           />
         </div>
 
-        {/* Botão perfil */}
+        {/* Botão Sair */}
         <button
-          onClick={() => setIsProfileOpen(true)}
-          className="relative flex items-center justify-center h-9 w-9 rounded-full bg-sidebar-primary/20 text-sidebar-foreground hover:bg-sidebar-primary/40 transition-colors font-semibold text-sm"
+          onClick={handleLogout}
+          className="relative flex items-center justify-center h-9 w-9 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          title="Sair"
         >
-          {initials}
+          <LogOut className="h-5 w-5" />
         </button>
       </header>
 
       {/* Overlays */}
-      {(isProfileOpen || isNavOpen) && (
+      {isNavOpen && (
         <div
           className="fixed inset-0 z-[60] bg-black/50 lg:hidden"
-          onClick={() => { setIsProfileOpen(false); setIsNavOpen(false); }}
+          onClick={() => setIsNavOpen(false)}
         />
       )}
 
@@ -140,103 +139,6 @@ export function MobileHeader() {
             );
           })}
         </nav>
-      </div>
-
-      {/* Profile Sheet (Direita) */}
-      <div
-        className={cn(
-          "fixed top-0 right-0 z-[70] h-full w-[85vw] max-w-sm bg-card flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
-          isProfileOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        {/* Header do sheet */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-accent text-foreground flex items-center justify-center font-bold text-base">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-foreground text-sm truncate">{user?.name || "Usuário"}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </div>
-            </div>
-          <button
-            onClick={() => setIsProfileOpen(false)}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Conteúdo — Menu */}
-          <nav className="flex-1 p-4 space-y-2">
-            <button
-              onClick={() => { setIsProfileOpen(false); navigate("/perfil"); }}
-              className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
-                  <User className="h-4 w-4 text-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Meu Perfil</p>
-                  <p className="text-xs text-muted-foreground">Edite seus dados</p>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-
-
-            {(role === 'MASTER' || role === 'SUPERADMIN') && (
-              <>
-                <button
-                  onClick={() => { setIsProfileOpen(false); navigate("/admin-noxus"); }}
-                  className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
-                      <User className="h-4 w-4 text-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Gestão de Clientes</p>
-                      <p className="text-xs text-muted-foreground">Admin Noxus</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                </button>
-                <button
-                  onClick={() => { setIsProfileOpen(false); navigate("/admin-dashboard"); }}
-                  className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl hover:bg-muted/60 transition-colors text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-accent flex items-center justify-center">
-                      <User className="h-4 w-4 text-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Dashboard Admin</p>
-                      <p className="text-xs text-muted-foreground">Métricas Geriais</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              </>
-            )}
-
-            <div className="pt-2 border-t border-border/40 mt-2">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-destructive/5 transition-colors text-left text-destructive"
-              >
-                <div className="h-9 w-9 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <LogOut className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Sair</p>
-                  <p className="text-xs opacity-70">Encerrar sessão</p>
-                </div>
-              </button>
-            </div>
-          </nav>
       </div>
     </>
   );
