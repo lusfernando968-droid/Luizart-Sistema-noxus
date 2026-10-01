@@ -64,13 +64,15 @@ export function Layout({ children }: LayoutProps) {
       {/* Header — apenas mobile */}
       <MobileHeader />
 
-      <main className={cn(
-        "flex-1 w-full max-w-full overflow-x-hidden min-h-screen transition-all duration-300 relative",
-        // Desktop: margem para sidebar
-        collapsed ? "lg:ml-[72px]" : "lg:ml-64",
-        // Mobile: padding inferior para a bottom nav + superior para o header fixo
-        "pb-20 pt-14 lg:pb-0 lg:pt-0"
-      )}>
+      <main 
+        className={cn(
+          "flex-1 w-full max-w-full overflow-x-hidden min-h-screen transition-all duration-300 relative",
+          // Desktop: margem para sidebar
+          collapsed ? "lg:ml-[72px]" : "lg:ml-64",
+          // Mobile: padding inferior para a bottom nav
+          "pb-20 lg:pb-0 main-mobile-pt"
+        )}
+      >
         <div className="page-container animate-fade-in">
           {children}
         </div>

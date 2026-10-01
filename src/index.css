@@ -6,6 +6,7 @@
 
 /* Safe area support para iPhone com notch/home indicator */
 :root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -157,6 +158,15 @@
     @apply p-4 lg:p-8 space-y-4 lg:space-y-6;
     /* Ajuste de topo no mobile para não colidir com nada */
     padding-top: 1rem;
+  }
+
+  .main-mobile-pt {
+    padding-top: calc(3.5rem + var(--safe-area-inset-top, 0px));
+  }
+  @media (min-width: 1024px) {
+    .main-mobile-pt {
+      padding-top: 0 !important;
+    }
   }
 
   .page-header {

@@ -73,7 +73,14 @@ export function MobileHeader() {
   return (
     <>
       {/* Header fixo no topo — apenas mobile */}
-      <header className="fixed top-0 left-0 right-0 z-50 lg:hidden h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4">
+      <header 
+        className="fixed top-0 left-0 right-0 z-50 lg:hidden bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4"
+        style={{ 
+          paddingTop: 'max(var(--safe-area-inset-top), 0.75rem)', 
+          paddingBottom: '0.75rem',
+          minHeight: 'calc(3.5rem + var(--safe-area-inset-top))'
+        }}
+      >
         {/* Hambúrguer + Logo */}
         <div className="flex items-center gap-3">
           {!isAssistant && (
@@ -113,7 +120,14 @@ export function MobileHeader() {
           isNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center justify-between px-5 border-b border-sidebar-border">
+        <div 
+          className="flex items-center justify-between px-5 border-b border-sidebar-border"
+          style={{
+            paddingTop: 'max(var(--safe-area-inset-top), 0.75rem)',
+            paddingBottom: '0.75rem',
+            minHeight: 'calc(3.5rem + var(--safe-area-inset-top))'
+          }}
+        >
           <img src="/logo-app-noxus.png" alt="Noxus" className="h-7 w-auto object-contain" />
           <button onClick={() => setIsNavOpen(false)} className="h-8 w-8 rounded-md flex items-center justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
             <X className="h-5 w-5" />
