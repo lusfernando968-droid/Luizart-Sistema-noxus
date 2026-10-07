@@ -21,8 +21,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator
+} from "@/components/ui/context-menu";
 import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
+import { EventContentArg } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -519,6 +527,53 @@ const Agenda = () => {
     }
   };
 
+  const handleDuplicateContextMenu = (appt: Appointment) => {
+    setEditingAppointment(null);
+    setFormData({
+      client_id: appt.client_id || "",
+      journey_id: appt.journey_id || "",
+      date: appt.date,
+      startTime: appt.startTime,
+      endTime: appt.endTime,
+      status: appt.status,
+      value: appt.value,
+      deposit: appt.deposit,
+      deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
+      deposit_link: appt.deposit_link || ""
+    });
+    setModalOpen(true);
+  };
+
+  const renderEventContent = (eventInfo: EventContentArg) => {
+    const appt = appointments.find(a => a.id === eventInfo.event.id);
+
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger className="w-full h-full block overflow-hidden p-1" asChild={false}>
+          <div className="flex flex-col overflow-hidden text-xs text-white">
+            <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
+            <div className="truncate whitespace-normal leading-tight">{eventInfo.event.title}</div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) handleEventClick({ event: { id: appt.id } }); }}>
+            Editar
+          </ContextMenuItem>
+          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) handleDuplicateContextMenu(appt); }}>
+            Duplicar
+          </ContextMenuItem>
+          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) openCheckout(appt, e as any); }}>
+            Dar baixa
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem className="text-red-500" onClick={(e) => { e.stopPropagation(); if (appt) { setEditingAppointment(appt); setDeleteAlertOpen(true); } }}>
+            Excluir
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  };
+
   return (
     <>
       <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -672,6 +727,7 @@ const Agenda = () => {
               headerToolbar={false}
               dateClick={handleDateClick}
               eventClick={handleEventClick}
+              eventContent={renderEventContent}
               select={handleSelect}
               eventChange={handleEventChange}
               height="calc(100vh - 200px)"
@@ -701,6 +757,7 @@ const Agenda = () => {
             }}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
+            eventContent={renderEventContent}
             select={handleSelect}
             eventChange={handleEventChange}
             height="calc(100vh - 220px)"
