@@ -549,8 +549,8 @@ const Agenda = () => {
 
     return (
       <ContextMenu>
-        <ContextMenuTrigger className="w-full h-full block overflow-hidden p-1" asChild={false}>
-          <div className="flex flex-col overflow-hidden text-xs text-white">
+        <ContextMenuTrigger asChild>
+          <div className="w-full h-full flex flex-col overflow-hidden text-xs text-white p-1 min-h-[20px]">
             <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
             <div className="truncate whitespace-normal leading-tight">{eventInfo.event.title}</div>
           </div>
