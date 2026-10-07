@@ -9,6 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator
+} from "@/components/ui/context-menu";
 import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
@@ -299,17 +306,17 @@ const Clients = () => {
     }
   };
 
-  const openEditModal = () => {
-    if (!selectedClient) return;
+  const openEditModal = (clientToEdit = selectedClient) => {
+    if (!clientToEdit) return;
     setEditClientData({
-      id: selectedClient.id,
-      name: selectedClient.name,
-      phone: selectedClient.phone === "Não informado" ? "" : selectedClient.phone,
-      instagram: selectedClient.instagram === "@" ? "" : selectedClient.instagram,
-      birthDate: selectedClient.birthDate || "",
-      status: selectedClient.status || "Orçamento",
-      avatar_url: selectedClient.avatar_url || "",
-      referred_by_id: selectedClient.referred_by_id || "none"
+      id: clientToEdit.id,
+      name: clientToEdit.name,
+      phone: clientToEdit.phone === "Não informado" ? "" : clientToEdit.phone,
+      instagram: clientToEdit.instagram === "@" ? "" : clientToEdit.instagram,
+      birthDate: clientToEdit.birthDate || "",
+      status: clientToEdit.status || "Orçamento",
+      avatar_url: clientToEdit.avatar_url || "",
+      referred_by_id: clientToEdit.referred_by_id || "none"
     });
     setIsEditingClient(true);
   };
@@ -355,6 +362,23 @@ const Clients = () => {
 
       toast.success("Cliente excluído com sucesso!");
       setSelectedClient(null);
+      await fetchClients();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      toast.error('Erro ao excluir cliente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteClientContextMenu = async (client: Client) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o cliente ${client.name}? Esta ação não pode ser desfeita.`)) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('clientes').delete().eq('id', client.id);
+      if (error) throw error;
+      toast.success("Cliente excluído com sucesso!");
+      if (selectedClient?.id === client.id) setSelectedClient(null);
       await fetchClients();
     } catch (error) {
       console.error('Error deleting client:', error);
@@ -520,36 +544,58 @@ const Clients = () => {
                     </TableRow>
                   ) : filtered.length > 0 ? (
                     filtered.map((client) => (
-                      <TableRow 
-                        key={client.id} 
-                        onClick={() => setSelectedClient(client)}
-                        className="cursor-pointer hover:bg-accent/40"
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
-                              {client.avatar_url ? (
-                                <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
-                              ) : (
-                                client.name.charAt(0).toUpperCase()
-                              )}
-                            </div>
-                            <span className="font-bold">{client.name}</span>
-                            {client.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500" title="Aluno" />}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{client.phone}</TableCell>
-                        <TableCell>
-                           <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
-                             {client.status}
-                           </span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.totalInvoiced)}
-                        </TableCell>
-                        <TableCell className="font-medium text-center">{client.sessions}</TableCell>
-                        <TableCell className="text-muted-foreground">{client.lastVisit}</TableCell>
-                      </TableRow>
+                      <ContextMenu key={client.id}>
+                        <ContextMenuTrigger asChild>
+                          <TableRow 
+                            onClick={() => setSelectedClient(client)}
+                            className="cursor-pointer hover:bg-accent/40"
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
+                                  {client.avatar_url ? (
+                                    <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
+                                  ) : (
+                                    client.name.charAt(0).toUpperCase()
+                                  )}
+                                </div>
+                                <span className="font-bold">{client.name}</span>
+                                {client.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500" title="Aluno" />}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{client.phone}</TableCell>
+                            <TableCell>
+                               <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
+                                 {client.status}
+                               </span>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.totalInvoiced)}
+                            </TableCell>
+                            <TableCell className="font-medium text-center">{client.sessions}</TableCell>
+                            <TableCell className="text-muted-foreground">{client.lastVisit}</TableCell>
+                          </TableRow>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => setSelectedClient(client)}>
+                            <User className="mr-2 h-4 w-4" /> Visualizar Perfil
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => {
+                            const number = client.phone.replace(/\D/g, '');
+                            if (number && number.length >= 10) window.open(`https://wa.me/${number}`, '_blank');
+                            else toast.error("Cliente sem número de telefone válido.");
+                          }}>
+                            <MessageCircle className="mr-2 h-4 w-4" /> Chamar no WhatsApp
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => openEditModal(client)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar Cliente
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem className="text-red-500 focus:text-red-500" onClick={() => deleteClientContextMenu(client)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir Cliente
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   ) : (
                     <TableRow>
