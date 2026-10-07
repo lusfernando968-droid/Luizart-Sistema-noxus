@@ -85,6 +85,16 @@ const Agenda = () => {
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [selectedCheckout, setSelectedCheckout] = useState<Appointment | null>(null);
+  const [contextMenuData, setContextMenuData] = useState<{ x: number, y: number, appt: Appointment } | null>(null);
+
+  useEffect(() => {
+    const handleClick = () => setContextMenuData(null);
+    document.addEventListener('click', handleClick);
+    return () => {
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
+
   const [checkoutData, setCheckoutData] = useState({
     status: 'Recebido',
     value: 0,
@@ -545,32 +555,11 @@ const Agenda = () => {
   };
 
   const renderEventContent = (eventInfo: EventContentArg) => {
-    const appt = appointments.find(a => a.id === eventInfo.event.id);
-
     return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div className="w-full h-full flex flex-col overflow-hidden text-xs text-white p-1 min-h-[20px]">
-            <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
-            <div className="truncate whitespace-normal leading-tight">{eventInfo.event.title}</div>
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) handleEventClick({ event: { id: appt.id } }); }}>
-            Editar
-          </ContextMenuItem>
-          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) handleDuplicateContextMenu(appt); }}>
-            Duplicar
-          </ContextMenuItem>
-          <ContextMenuItem onClick={(e) => { e.stopPropagation(); if (appt) openCheckout(appt, e as any); }}>
-            Dar baixa
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem className="text-red-500" onClick={(e) => { e.stopPropagation(); if (appt) { setEditingAppointment(appt); setDeleteAlertOpen(true); } }}>
-            Excluir
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+      <div className="w-full h-full flex flex-col overflow-hidden text-xs text-white p-1 min-h-[20px]">
+        <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
+        <div className="truncate whitespace-normal leading-tight">{eventInfo.event.title}</div>
+      </div>
     );
   };
 
@@ -728,6 +717,16 @@ const Agenda = () => {
               dateClick={handleDateClick}
               eventClick={handleEventClick}
               eventContent={renderEventContent}
+              eventDidMount={(info) => {
+                info.el.addEventListener('contextmenu', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const appt = appointments.find(a => a.id === info.event.id);
+                  if (appt) {
+                    setContextMenuData({ x: e.clientX, y: e.clientY, appt });
+                  }
+                });
+              }}
               select={handleSelect}
               eventChange={handleEventChange}
               height="calc(100vh - 200px)"
@@ -758,6 +757,16 @@ const Agenda = () => {
             dateClick={handleDateClick}
             eventClick={handleEventClick}
             eventContent={renderEventContent}
+            eventDidMount={(info) => {
+              info.el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const appt = appointments.find(a => a.id === info.event.id);
+                if (appt) {
+                  setContextMenuData({ x: e.clientX, y: e.clientY, appt });
+                }
+              });
+            }}
             select={handleSelect}
             eventChange={handleEventChange}
             height="calc(100vh - 220px)"
@@ -1079,6 +1088,18 @@ const Agenda = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {contextMenuData && (
+        <div 
+          style={{ position: 'fixed', top: contextMenuData.y, left: contextMenuData.x, zIndex: 9999 }}
+          className="bg-popover text-popover-foreground border border-border shadow-md rounded-md py-1 min-w-[8rem] z-[9999]"
+        >
+          <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={() => { handleEventClick({event: {id: contextMenuData.appt.id}}); setContextMenuData(null); }}>Editar</div>
+          <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={() => { handleDuplicateContextMenu(contextMenuData.appt); setContextMenuData(null); }}>Duplicar</div>
+          <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={(e) => { openCheckout(contextMenuData.appt, e as any); setContextMenuData(null); }}>Dar baixa</div>
+          <div className="h-px bg-border my-1" />
+          <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm text-red-500" onClick={() => { setEditingAppointment(contextMenuData.appt); setDeleteAlertOpen(true); setContextMenuData(null); }}>Excluir</div>
+        </div>
+      )}
     </>
   );
 };
