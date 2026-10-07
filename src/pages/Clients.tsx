@@ -388,6 +388,44 @@ const Clients = () => {
     }
   };
 
+  const handleJourneyAction = async (client: Client) => {
+    const clientJourneys = journeys.filter(j => j.client_id === client.id);
+    const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    
+    if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
+      try {
+        const { data, error } = await supabase.from('journeys').insert([{ client_id: client.id, status: 'Orçamento' }]).select().single();
+        if (error) throw error;
+        await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', client.id);
+        toast.success("Nova jornada criada! Ela já está disponível no histórico.");
+        await fetchClients();
+      } catch (e) {
+        console.error(e);
+        toast.error("Erro ao criar jornada.");
+      }
+    } else {
+      setPlaybookJourneyId(latestJourney.id);
+      setPlaybookClient(client);
+      setPlaybookModalOpen(true);
+    }
+  };
+
+  const handleToggleStudent = async (client: Client) => {
+    try {
+      const newStatus = !client.is_student;
+      const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', client.id);
+      if (error) throw error;
+      toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
+      if (selectedClient?.id === client.id) {
+        setSelectedClient({ ...client, is_student: newStatus });
+      }
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar status de aluno.");
+    }
+  };
+
   const filtered = clients.filter((c) => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
     const matchStatus = filterStatus === "all" || c.status === filterStatus;
@@ -579,6 +617,16 @@ const Clients = () => {
                         <ContextMenuContent>
                           <ContextMenuItem onClick={() => setSelectedClient(client)}>
                             <User className="mr-2 h-4 w-4" /> Visualizar Perfil
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleJourneyAction(client)}>
+                            <Play className="mr-2 h-4 w-4 text-primary" /> 
+                            <span className="text-primary font-medium">
+                              {journeys.filter(j => j.client_id === client.id).some(j => j.status !== 'Concluído') ? "Continuar Jornada" : "Iniciar Nova Jornada"}
+                            </span>
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleToggleStudent(client)}>
+                            <BookOpen className="mr-2 h-4 w-4" />
+                            {client.is_student ? "Remover Aluno" : "Tornar Aluno"}
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => {
                             const number = client.phone.replace(/\D/g, '');
