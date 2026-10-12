@@ -843,24 +843,6 @@ const Clients = () => {
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1 md:justify-end shrink-0 md:max-w-[50%]">
-                        {formatInstagramUrl(selectedClient.instagram) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2.5 text-xs gap-1.5"
-                            asChild
-                          >
-                            <a
-                              href={formatInstagramUrl(selectedClient.instagram)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Instagram className="w-3.5 h-3.5" />
-                              Instagram
-                              <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                            </a>
-                          </Button>
-                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
