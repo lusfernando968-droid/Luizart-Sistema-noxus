@@ -3,10 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon, Send, HeartPulse, Search, Star } from "lucide-react";
+import { PlayCircle, MapPin, Ruler, Palette, User, ArrowRight, CheckCircle2, XCircle, Clock, CalendarClock, MessageCircle, Copy, Link as LinkIcon, Send, HeartPulse, Search, Star, Zap, FileText } from "lucide-react";
 
 interface JourneyPlaybookModalProps {
   open: boolean;
@@ -14,10 +16,17 @@ interface JourneyPlaybookModalProps {
   client: any | null;
   journeyId?: string;
   onSuccess: () => void;
+  defaultLean?: boolean;
 }
 
-export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, onSuccess }: JourneyPlaybookModalProps) {
+export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, onSuccess, defaultLean }: JourneyPlaybookModalProps) {
   const [submitting, setSubmitting] = useState(false);
+
+  // Estados da Jornada Enxuta (Bypass)
+  const [isLeanMode, setIsLeanMode] = useState(false);
+  const [leanStatus, setLeanStatus] = useState<"Projeto em Andamento" | "Concluído">("Projeto em Andamento");
+  const [leanSummary, setLeanSummary] = useState("");
+
   // Formulário - Etapa 1: Orçamento
   const [tattooLocation, setTattooLocation] = useState("");
   const [tattooSize, setTattooSize] = useState("");
@@ -72,10 +81,25 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
         const { data: journeys } = await query;
           
         if (journeys && journeys.length > 0) {
-          setActiveJourney(journeys[0]);
-          if (journeys[0].playbook_data?.projectType) {
-            setProjectType(journeys[0].playbook_data.projectType);
+          const currentJ = journeys[0];
+          setActiveJourney(currentJ);
+          if (currentJ.playbook_data?.projectType) {
+            setProjectType(currentJ.playbook_data.projectType);
           }
+          const isLean = currentJ.playbook_data?.isLean || currentJ.playbook_data?.is_lean;
+          if (isLean) {
+            setIsLeanMode(true);
+            setLeanSummary(currentJ.playbook_data?.projectSummary || client?.notes || "");
+            setLeanStatus(currentJ.status === "Concluído" ? "Concluído" : "Projeto em Andamento");
+          } else {
+            setIsLeanMode(defaultLean || false);
+            setLeanSummary(client?.notes || "");
+            setLeanStatus(client?.status === "Concluído" ? "Concluído" : "Projeto em Andamento");
+          }
+        } else {
+          setIsLeanMode(defaultLean || false);
+          setLeanSummary(client?.notes || "");
+          setLeanStatus("Projeto em Andamento");
         }
         
         const { data: partnersData } = await supabase.from('partners').select('*').order('name');
@@ -85,7 +109,7 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
       };
       fetchData();
     }
-  }, [open, client?.id, journeyId]);
+  }, [open, client?.id, journeyId, defaultLean]);
 
   if (!client) return null;
 
@@ -237,12 +261,71 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
   };
 
   const resetState = () => {
-        setTattooLocation("");
+    setTattooLocation("");
     setTattooSize("");
     setTattooStyle("");
     setDecision(null);
     setStudentName("");
     setCustomStudentName("");
+  };
+
+  const handleSaveLeanJourney = async () => {
+    try {
+      setSubmitting(true);
+      const updatedPlaybookData = {
+        ...(activeJourney?.playbook_data || {}),
+        isLean: true,
+        projectSummary: leanSummary,
+        status: leanStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      const leanLog = leanSummary ? `[Jornada Enxuta - ${leanStatus === 'Concluído' ? 'Concluído' : 'Em Andamento'}]\n${leanSummary}\nAtualizado em: ${new Date().toLocaleDateString()}\n------------------------` : '';
+      const updatedNotes = leanLog ? (client.notes ? `${leanLog}\n\n${client.notes}` : leanLog) : client.notes;
+
+      // 1. Atualizar o cliente
+      const { error: clientError } = await supabase
+        .from("clientes")
+        .update({
+          status: leanStatus,
+          notes: updatedNotes,
+        })
+        .eq("id", client.id);
+
+      if (clientError) throw clientError;
+
+      // 2. Atualizar ou criar a jornada
+      if (activeJourney) {
+        const { error: journeyError } = await supabase
+          .from("journeys")
+          .update({
+            status: leanStatus,
+            playbook_data: updatedPlaybookData,
+            closed_at: leanStatus === "Concluído" ? new Date().toISOString() : null
+          })
+          .eq("id", activeJourney.id);
+        if (journeyError) console.log("Aviso ao atualizar jornada:", journeyError);
+      } else {
+        const { error: journeyError } = await supabase
+          .from("journeys")
+          .insert([{
+            client_id: client.id,
+            status: leanStatus,
+            playbook_data: updatedPlaybookData,
+            closed_at: leanStatus === "Concluído" ? new Date().toISOString() : null
+          }]);
+        if (journeyError) console.log("Aviso ao criar jornada:", journeyError);
+      }
+
+      toast.success(`Jornada enxuta salva como ${leanStatus}!`);
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar jornada enxuta.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -257,6 +340,101 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
             Playbook CRM — {client.name}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Toggle para Modo Bypass / Jornada Enxuta */}
+        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-3 my-1">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-1.5 rounded-lg transition-colors ${isLeanMode ? 'bg-amber-500/20 text-amber-500' : 'bg-muted text-muted-foreground'}`}>
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-foreground">Jornada Enxuta (Bypass)</p>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">Rápido</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Pula as perguntas longas e registra direto o resumo do projeto
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={isLeanMode}
+            onCheckedChange={(checked) => setIsLeanMode(checked)}
+          />
+        </div>
+
+        {isLeanMode ? (
+          <div className="space-y-4 py-2 animate-in fade-in duration-200">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-foreground">Status do Projeto</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLeanStatus("Projeto em Andamento")}
+                  className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+                    leanStatus === "Projeto em Andamento"
+                      ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-600 dark:text-amber-400"
+                      : "border-border bg-card hover:bg-muted/30 text-muted-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-xs font-bold">Em Andamento</span>
+                  </div>
+                  <span className="text-[10px] opacity-80">Sessões em execução</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLeanStatus("Concluído")}
+                  className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+                    leanStatus === "Concluído"
+                      ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                      : "border-border bg-card hover:bg-muted/30 text-muted-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="text-xs font-bold">Concluído</span>
+                  </div>
+                  <span className="text-[10px] opacity-80">Trabalho finalizado</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-amber-500" />
+                  História & Contexto do Projeto
+                </Label>
+                <span className="text-[10px] text-muted-foreground">Opcional</span>
+              </div>
+              <Textarea
+                rows={5}
+                placeholder="Conte uma historinha do projeto para dar contexto (Ex: Fechamento de braço oriental com carpa. Já fizemos 3 sessões, faltam 2 para finalizar o sombreado...)"
+                value={leanSummary}
+                onChange={(e) => setLeanSummary(e.target.value)}
+                className="text-xs leading-relaxed resize-none rounded-xl"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Essa descrição fica visível no histórico do cliente e na lista da Jornada Enxuta.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-3 gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button 
+                onClick={handleSaveLeanJourney} 
+                disabled={submitting}
+                className="bg-primary text-primary-foreground font-bold shadow-md"
+              >
+                {submitting ? "Salvando..." : "Salvar Jornada Enxuta"}
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <>
 
         
           {currentStatus === "Orçamento" && (
@@ -854,6 +1032,8 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
           </DialogFooter>
         </div>
       )}
+          </>
+        )}
 
       </DialogContent>
     </Dialog>

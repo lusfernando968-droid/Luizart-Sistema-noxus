@@ -16,10 +16,12 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
+import { LeanJourneyTab } from "@/components/crm/LeanJourneyTab";
 import PlaybookAccordion from "@/components/PlaybookAccordion";
 import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
 import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
@@ -85,6 +87,7 @@ const Clients = () => {
   const [playbookModalOpen, setPlaybookModalOpen] = useState(false);
   const [playbookJourneyId, setPlaybookJourneyId] = useState<string | undefined>(undefined);
   const [playbookClient, setPlaybookClient] = useState<any | null>(null);
+  const [playbookDefaultLean, setPlaybookDefaultLean] = useState(false);
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedJourneyDetails, setSelectedJourneyDetails] = useState<any | null>(null);
@@ -104,7 +107,10 @@ const Clients = () => {
     status: "Orçamento",
     notes: "",
     avatar_url: "",
-    referred_by_id: ""
+    referred_by_id: "",
+    isLeanJourney: false,
+    leanSummary: "",
+    leanStatus: "Projeto em Andamento" as "Projeto em Andamento" | "Concluído"
   });
 
   const [isEditingClient, setIsEditingClient] = useState(false);
@@ -272,12 +278,20 @@ const Clients = () => {
       const userStr = localStorage.getItem("noxus_user");
       const loggedUser = userStr ? JSON.parse(userStr) : null;
 
+      const finalStatus = newClientData.isLeanJourney ? newClientData.leanStatus : "Orçamento";
+      const leanLog = newClientData.isLeanJourney && newClientData.leanSummary 
+        ? `[Jornada Enxuta - ${newClientData.leanStatus}]\n${newClientData.leanSummary}\n------------------------`
+        : "";
+      const finalNotes = leanLog 
+        ? (newClientData.notes ? `${leanLog}\n\n${newClientData.notes}` : leanLog)
+        : (newClientData.notes || "");
+
       const { data: newClient, error } = await supabase.from('clientes').insert([{
         name: newClientData.name,
         phone: newClientData.phone,
         birth_date: newClientData.birthDate || null,
-        status: "Orçamento",
-        notes: newClientData.notes || "",
+        status: finalStatus,
+        notes: finalNotes,
         avatar_url: newClientData.avatar_url,
         referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null),
         user_id: loggedUser?.id || null
@@ -285,10 +299,39 @@ const Clients = () => {
 
       if (error) throw error;
 
-      toast.success("Cliente criado com sucesso!");
+      // Se marcou Jornada Enxuta, cria imediatamente a jornada enxuta correspondente
+      if (newClientData.isLeanJourney && newClient?.id) {
+        const playbookData = {
+          isLean: true,
+          projectSummary: newClientData.leanSummary || "",
+          status: newClientData.leanStatus,
+          updatedAt: new Date().toISOString()
+        };
+
+        await supabase.from('journeys').insert([{
+          client_id: newClient.id,
+          status: newClientData.leanStatus,
+          playbook_data: playbookData,
+          closed_at: newClientData.leanStatus === "Concluído" ? new Date().toISOString() : null
+        }]);
+      }
+
+      toast.success(newClientData.isLeanJourney ? "Cliente cadastrado na Jornada Enxuta com sucesso!" : "Cliente criado com sucesso!");
       await fetchClients();
       setIsAddingClient(false);
-      setNewClientData({ name: "", phone: "", instagram: "", birthDate: "", status: "Orçamento", notes: "", avatar_url: "", referred_by_id: "" });
+      setNewClientData({ 
+        name: "", 
+        phone: "", 
+        instagram: "", 
+        birthDate: "", 
+        status: "Orçamento", 
+        notes: "", 
+        avatar_url: "", 
+        referred_by_id: "",
+        isLeanJourney: false,
+        leanSummary: "",
+        leanStatus: "Projeto em Andamento"
+      });
     } catch (error) {
       console.error('Error creating client:', error);
       toast.error('Erro ao criar cliente.');
@@ -467,6 +510,14 @@ const Clients = () => {
             <TabsTrigger value="lista" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <Users className="w-3.5 h-3.5" /> Lista de Clientes
             </TabsTrigger>
+            <TabsTrigger value="enxuta" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <Zap className="w-3.5 h-3.5 text-amber-500" /> Jornada Enxuta (Bypass)
+              {journeys.filter(j => j.playbook_data?.isLean || j.playbook_data?.is_lean).length > 0 && (
+                <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
+                  {journeys.filter(j => j.playbook_data?.isLean || j.playbook_data?.is_lean).length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
             </TabsTrigger>
@@ -607,9 +658,16 @@ const Clients = () => {
                             </TableCell>
                             <TableCell className="text-muted-foreground">{client.phone}</TableCell>
                             <TableCell>
-                               <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
-                                 {client.status}
-                               </span>
+                               <div className="flex items-center gap-1.5 flex-wrap">
+                                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
+                                   {client.status}
+                                 </span>
+                                 {journeys.some(j => j.client_id === client.id && (j.playbook_data?.isLean || j.playbook_data?.is_lean)) && (
+                                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" title="Jornada Enxuta Ativa">
+                                     <Zap className="w-2.5 h-2.5" /> Enxuta
+                                   </span>
+                                 )}
+                               </div>
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.totalInvoiced)}
@@ -621,6 +679,18 @@ const Clients = () => {
                         <ContextMenuContent>
                           <ContextMenuItem onClick={() => setSelectedClient(client)}>
                             <User className="mr-2 h-4 w-4" /> Visualizar Perfil
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => {
+                            setPlaybookClient(client);
+                            const clientJourneys = journeys.filter(j => j.client_id === client.id);
+                            const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                            if (latestJourney) setPlaybookJourneyId(latestJourney.id);
+                            else setPlaybookJourneyId(undefined);
+                            setPlaybookDefaultLean(true);
+                            setPlaybookModalOpen(true);
+                          }}>
+                            <Zap className="mr-2 h-4 w-4 text-amber-500" /> 
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">Jornada Enxuta (Bypass)</span>
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => handleJourneyAction(client)}>
                             <Play className="mr-2 h-4 w-4 text-primary" /> 
@@ -658,6 +728,22 @@ const Clients = () => {
               </Table>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ABA 2: JORNADA ENXUTA (BYPASS) */}
+        <TabsContent value="enxuta" className="m-0 space-y-6">
+          <LeanJourneyTab
+            clients={clients}
+            journeys={journeys}
+            onRefresh={fetchClients}
+            onOpenClientProfile={(c) => setSelectedClient(c)}
+            onOpenPlaybook={(c, jId) => {
+              setPlaybookClient(c);
+              setPlaybookJourneyId(jId);
+              setPlaybookDefaultLean(true);
+              setPlaybookModalOpen(true);
+            }}
+          />
         </TabsContent>
 
         <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
@@ -798,32 +884,49 @@ const Clients = () => {
                             {journeys.filter(j => j.client_id === selectedClient.id).length} registros
                           </span>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 text-[11px] gap-1 px-2"
-                          onClick={async () => {
-                            try {
-                              const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
-                              if (error) throw error;
-                              
-                              await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
-                              
-                              toast.success("Nova jornada criada! Ela já está disponível no histórico.");
-                              await fetchClients();
-                            } catch (e) {
-                              console.error(e);
-                              toast.error("Erro ao criar jornada.");
-                            }
-                          }}
-                        >
-                          <Plus className="w-3 h-3" /> Nova Jornada
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-[11px] gap-1 px-2 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                            onClick={() => {
+                              setPlaybookClient(selectedClient);
+                              setPlaybookJourneyId(undefined);
+                              setPlaybookDefaultLean(true);
+                              setPlaybookModalOpen(true);
+                            }}
+                          >
+                            <Zap className="w-3 h-3 text-amber-500" /> + Jornada Enxuta
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-[11px] gap-1 px-2"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
+                                if (error) throw error;
+                                
+                                await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
+                                
+                                toast.success("Nova jornada criada! Ela já está disponível no histórico.");
+                                await fetchClients();
+                              } catch (e) {
+                                console.error(e);
+                                toast.error("Erro ao criar jornada.");
+                              }
+                            }}
+                          >
+                            <Plus className="w-3 h-3" /> Nova Jornada
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="space-y-3">
                         {journeys.filter(j => j.client_id === selectedClient.id).length > 0 ? (
-                          journeys.filter(j => j.client_id === selectedClient.id).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(journey => (
+                          journeys.filter(j => j.client_id === selectedClient.id).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(journey => {
+                            const isLean = journey.playbook_data?.isLean || journey.playbook_data?.is_lean;
+                            return (
                             <div 
                               key={journey.id} 
                               className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer group"
@@ -831,6 +934,7 @@ const Clients = () => {
                                 if (journey.status !== 'Concluído') {
                                   setPlaybookJourneyId(journey.id);
                                   setPlaybookClient(selectedClient);
+                                  setPlaybookDefaultLean(!!isLean);
                                   setPlaybookModalOpen(true);
                                 } else {
                                   setSelectedJourneyDetails(journey);
@@ -838,17 +942,35 @@ const Clients = () => {
                                 }
                               }}
                             >
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <p className="font-bold text-sm text-foreground flex items-center gap-2 group-hover:text-primary transition-colors">
-                                  {journey.status === 'Concluído' ? <CheckCircle className="w-3.5 h-3.5 text-primary" /> : <List className="w-3.5 h-3.5 text-primary" />}
-                                  {journey.status === 'Concluído' ? 'Projeto Concluído (Antigo)' : 'Projeto em Andamento (Atual)'}
+                                  {isLean ? (
+                                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                                  ) : journey.status === 'Concluído' ? (
+                                    <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                                  ) : (
+                                    <List className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                  {isLean
+                                    ? `Jornada Enxuta (${journey.status})`
+                                    : journey.status === 'Concluído' ? 'Projeto Concluído (Antigo)' : 'Projeto em Andamento (Atual)'}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Iniciado em: {new Date(journey.created_at).toLocaleDateString()}
-                                </p>
+                                {isLean && journey.playbook_data?.projectSummary ? (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic bg-background/50 p-1.5 rounded border">
+                                    "{journey.playbook_data.projectSummary}"
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Iniciado em: {new Date(journey.created_at).toLocaleDateString()}
+                                  </p>
+                                )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${journey.status === 'Concluído' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                              <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 shrink-0">
+                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${
+                                  isLean
+                                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                    : "bg-primary/10 text-primary border-primary/20"
+                                }`}>
                                   {journey.status}
                                 </span>
                                 <Button size="sm" variant="ghost" className="h-7 text-[10px] bg-background/50 hover:bg-background border" onClick={(e) => {
@@ -863,14 +985,16 @@ const Clients = () => {
                                     e.stopPropagation();
                                     setPlaybookJourneyId(journey.id);
                                     setPlaybookClient(selectedClient);
+                                    setPlaybookDefaultLean(!!isLean);
                                     setPlaybookModalOpen(true);
                                   }}>
-                                    Abrir Playbook
+                                    {isLean ? "Editar Enxuta" : "Abrir Playbook"}
                                   </Button>
                                 )}
                               </div>
                             </div>
-                          ))
+                            );
+                          })
                         ) : (
                           <p className="text-xs text-center p-6 text-muted-foreground border-2 border-dashed rounded-xl">
                             Nenhuma jornada registrada para este cliente.
@@ -1150,6 +1274,69 @@ const Clients = () => {
                 onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
               />
             </div>
+
+            {/* Seletor de Jornada Enxuta (Bypass) */}
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <div>
+                    <p className="text-xs font-bold text-foreground">Iniciar na Jornada Enxuta (Bypass)</p>
+                    <p className="text-[10px] text-muted-foreground">Pula o playbook para clientes antigos ou projetos diretos</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  id="leanCheck"
+                  checked={newClientData.isLeanJourney}
+                  onChange={(e) => setNewClientData({ ...newClientData, isLeanJourney: e.target.checked })}
+                  className="h-4 w-4 rounded border-amber-500 text-amber-600 focus:ring-amber-500 accent-amber-500 cursor-pointer"
+                />
+              </div>
+
+              {newClientData.isLeanJourney && (
+                <div className="space-y-3 pt-2 border-t border-amber-500/20 animate-in fade-in">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold">Status Inicial</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewClientData({ ...newClientData, leanStatus: "Projeto em Andamento" })}
+                        className={`p-2 rounded-lg text-xs font-bold border transition-all ${
+                          newClientData.leanStatus === "Projeto em Andamento"
+                            ? "bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400"
+                            : "bg-card border-border text-muted-foreground"
+                        }`}
+                      >
+                        🟡 Em Andamento
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewClientData({ ...newClientData, leanStatus: "Concluído" })}
+                        className={`p-2 rounded-lg text-xs font-bold border transition-all ${
+                          newClientData.leanStatus === "Concluído"
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                            : "bg-card border-border text-muted-foreground"
+                        }`}
+                      >
+                        🟢 Concluído
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold">História & Resumo do Projeto (Opcional)</Label>
+                    <Textarea
+                      rows={3}
+                      placeholder="Ex: Fechamento de braço oriental. Já foram feitas 2 sessões..."
+                      value={newClientData.leanSummary}
+                      onChange={(e) => setNewClientData({ ...newClientData, leanSummary: e.target.value })}
+                      className="text-xs resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddingClient(false)}>Cancelar</Button>
@@ -1199,10 +1386,14 @@ const Clients = () => {
       {/* Modal Playbook CRM */}
       <JourneyPlaybookModal
         open={playbookModalOpen}
-        onOpenChange={setPlaybookModalOpen}
+        onOpenChange={(open) => {
+          setPlaybookModalOpen(open);
+          if (!open) setPlaybookDefaultLean(false);
+        }}
         client={playbookClient}
         journeyId={playbookJourneyId}
         onSuccess={fetchClients}
+        defaultLean={playbookDefaultLean}
       />
 
       {/* Modal Detalhes da Jornada */}

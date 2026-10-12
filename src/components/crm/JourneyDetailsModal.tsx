@@ -1,6 +1,6 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { List, ClipboardList, Activity, Info, Phone, AlertCircle, CheckCircle } from "lucide-react";
+import { List, ClipboardList, Activity, Info, Phone, AlertCircle, CheckCircle, Zap, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
@@ -47,26 +47,43 @@ export function JourneyDetailsModal({ open, onOpenChange, journey, client, anamn
                 <Info className="w-4 h-4 text-primary" />
                 Dados do Projeto
               </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/30 p-4 rounded-xl border border-border/50">
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Tipo de Projeto</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {playbookData.projectType === 'unica' ? 'Sessão Única' : playbookData.projectType === 'multipla' ? 'Múltiplas Sessões' : 'Não definido'}
-                  </p>
+              {playbookData.isLean || playbookData.is_lean ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Jornada Enxuta (Bypass de Playbook)</span>
+                  </div>
+                  <div className="pt-1">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 flex items-center gap-1">
+                      <FileText className="w-3 h-3 text-amber-500" /> História & Resumo do Projeto
+                    </p>
+                    <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed p-3 rounded-lg bg-card/60 border">
+                      {playbookData.projectSummary || client?.notes || "Nenhuma descrição informada."}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Horas Estimadas</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {playbookData.estimatedHours ? `${playbookData.estimatedHours}h` : 'Não definido'}
-                  </p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-muted/30 p-4 rounded-xl border border-border/50">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Tipo de Projeto</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {playbookData.projectType === 'unica' ? 'Sessão Única' : playbookData.projectType === 'multipla' ? 'Múltiplas Sessões' : 'Não definido'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Horas Estimadas</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {playbookData.estimatedHours ? `${playbookData.estimatedHours}h` : 'Não definido'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">Sessões</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {playbookData.sessionCount || 'Não definido'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase">Sessões</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {playbookData.sessionCount || 'Não definido'}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Ficha de Anamnese */}
