@@ -28,7 +28,8 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info } from "lucide-react";
+import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -70,6 +71,11 @@ const Agenda = () => {
   const calendarRef = useRef<any>(null);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [agendaConfig, setAgendaConfig] = useState<AgendaConfig | null>(null);
+  const [agendaBlocks, setAgendaBlocks] = useState<AgendaBlock[]>([]);
+  const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<AgendaBlock | null>(null);
+  const [blockAlertOpen, setBlockAlertOpen] = useState(false);
 
   const [selectedDay, setSelectedDay] = useState(() => {
     const d = new Date(); d.setHours(0,0,0,0); return d;
@@ -189,9 +195,23 @@ const Agenda = () => {
     }
   };
 
+  const fetchAgendaConfigAndBlocks = async () => {
+    try {
+      const [{ data: configData }, { data: blocksData }] = await Promise.all([
+        supabase.from('agenda_config').select('*').limit(1).maybeSingle(),
+        supabase.from('agenda_blocks').select('*').order('date', { ascending: true })
+      ]);
+      if (configData) setAgendaConfig(configData);
+      if (blocksData) setAgendaBlocks(blocksData);
+    } catch (error) {
+      console.error('Error fetching agenda config and blocks:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAppointments();
     fetchClients();
+    fetchAgendaConfigAndBlocks();
   }, []);
 
   const getEventColors = (status: string) => {
@@ -208,12 +228,14 @@ const Agenda = () => {
   };
 
   const calendarEvents = useMemo(() => {
+    const list: any[] = [];
     if (!Array.isArray(appointments)) return [];
-    return appointments
+
+    appointments
       .filter(appt => appt && appt.date && appt.startTime)
-      .map(appt => {
+      .forEach(appt => {
         const colors = getEventColors(appt.status);
-        return {
+        list.push({
           id: appt.id,
           title: appt.client_name || "Cliente",
           start: `${appt.date}T${appt.startTime}`,
@@ -222,15 +244,97 @@ const Agenda = () => {
           borderColor: colors.borderColor,
           textColor: "#ffffff",
           extendedProps: {
+            isBlock: false,
             status: appt.status,
             value: appt.value,
             deposit: appt.deposit,
             deposit_date: appt.deposit_date,
             deposit_link: appt.deposit_link
           }
-        };
+        });
       });
-  }, [appointments]);
+
+    if (Array.isArray(agendaBlocks)) {
+      agendaBlocks.forEach(block => {
+        list.push({
+          id: `block-${block.id}`,
+          title: `🔒 Bloqueado: ${block.title}`,
+          start: block.all_day ? block.date : `${block.date}T${block.start_time || "00:00"}`,
+          end: block.all_day ? block.date : `${block.date}T${block.end_time || "23:59"}`,
+          allDay: block.all_day,
+          backgroundColor: "#475569",
+          borderColor: "#334155",
+          textColor: "#f8fafc",
+          display: "block",
+          extendedProps: {
+            isBlock: true,
+            blockData: block
+          }
+        });
+      });
+    }
+
+    return list;
+  }, [appointments, agendaBlocks]);
+
+  const currentConflict = useMemo(() => {
+    if (!formData.date) return { hasConflict: false, type: null, message: "" };
+
+    // 1. Checar bloqueio por compromisso pontual
+    const matchedBlock = agendaBlocks.find(b => b.date === formData.date);
+    if (matchedBlock) {
+      if (matchedBlock.all_day) {
+        return {
+          hasConflict: true,
+          type: "block",
+          message: `O dia todo está bloqueado por compromisso: "${matchedBlock.title}". Evite agendamentos nesta data.`
+        };
+      }
+      if (matchedBlock.start_time && matchedBlock.end_time && formData.startTime && formData.endTime) {
+        if (formData.startTime < matchedBlock.end_time && formData.endTime > matchedBlock.start_time) {
+          return {
+            hasConflict: true,
+            type: "block",
+            message: `Conflito com o compromisso "${matchedBlock.title}" (${matchedBlock.start_time} às ${matchedBlock.end_time}).`
+          };
+        }
+      }
+    }
+
+    // 2. Checar disponibilidade da grade semanal
+    if (agendaConfig?.weekly_schedule) {
+      const [year, month, day] = formData.date.split("-").map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const dayOfWeek = dateObj.getDay().toString();
+      const dayRule = agendaConfig.weekly_schedule[dayOfWeek];
+
+      if (dayRule) {
+        if (!dayRule.enabled) {
+          return {
+            hasConflict: true,
+            type: "day_disabled",
+            message: `A agenda está configurada como FECHADA aos ${dayRule.name}s. Não há vagas abertas para o assistente marcar.`
+          };
+        }
+        if (formData.startTime && dayRule.start && formData.startTime < dayRule.start) {
+          return {
+            hasConflict: true,
+            type: "out_of_hours",
+            message: `Horário de início (${formData.startTime}) é anterior ao expediente de ${dayRule.name} (${dayRule.start} às ${dayRule.end}).`
+          };
+        }
+        if (formData.endTime && dayRule.end && formData.endTime > dayRule.end) {
+          return {
+            hasConflict: true,
+            type: "out_of_hours",
+            message: `Horário de término (${formData.endTime}) ultrapassa o expediente de ${dayRule.name} (${dayRule.start} às ${dayRule.end}).`
+          };
+        }
+      }
+    }
+
+    return { hasConflict: false, type: null, message: "" };
+  }, [formData.date, formData.startTime, formData.endTime, agendaBlocks, agendaConfig]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -263,6 +367,16 @@ const Agenda = () => {
   };
 
   const handleEventClick = (arg: any) => {
+    if (typeof arg?.event?.id === "string" && arg.event.id.startsWith("block-")) {
+      const blockId = arg.event.id.replace("block-", "");
+      const block = agendaBlocks.find(b => b.id === blockId);
+      if (block) {
+        setSelectedBlockToDelete(block);
+        setBlockAlertOpen(true);
+      }
+      return;
+    }
+
     const appt = appointments.find(a => a.id === arg.event.id);
     if (appt) {
       setEditingAppointment(appt);
@@ -307,6 +421,18 @@ const Agenda = () => {
       if (!formData.client_id) {
         toast.error("Por favor, selecione um cliente.");
         return;
+      }
+
+      // Validação de restrição da agenda ou compromisso bloqueado
+      if (currentConflict.hasConflict) {
+        if (agendaConfig?.block_outside_schedule) {
+          const confirmForce = window.confirm(
+            `ATENÇÃO: RESTRIÇÃO DE AGENDA!\n\n${currentConflict.message}\n\nDeseja confirmar o agendamento mesmo com essa restrição?`
+          );
+          if (!confirmForce) return;
+        } else {
+          toast.warning(`Aviso: ${currentConflict.message}`);
+        }
       }
 
       const clientObj = clients.find(c => c.id === formData.client_id);
@@ -559,6 +685,20 @@ const Agenda = () => {
   };
 
   const renderEventContent = (eventInfo: EventContentArg) => {
+    if (eventInfo.event.extendedProps?.isBlock) {
+      return (
+        <div className="w-full h-full flex flex-col justify-center overflow-hidden text-xs text-white p-1 min-h-[20px] bg-slate-700/90 rounded border border-slate-500/40 shadow-inner">
+          <div className="font-bold truncate leading-tight flex items-center gap-1 text-[11px]">
+            <span>🔒</span>
+            <span className="truncate">{eventInfo.event.title.replace("🔒 Bloqueado: ", "")}</span>
+          </div>
+          {!eventInfo.event.allDay && eventInfo.timeText && (
+            <div className="text-[10px] text-slate-300 truncate leading-tight mt-0.5">{eventInfo.timeText}</div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="w-full h-full flex flex-col overflow-hidden text-xs text-white p-1 min-h-[20px]">
         <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
@@ -574,24 +714,41 @@ const Agenda = () => {
           <h1 className="page-title">Agenda & Recebimentos</h1>
           <p className="page-subtitle">Gerencie suas sessões, sinais e baixas financeiras</p>
         </div>
-        <Button className="hidden sm:flex" onClick={() => {
-          setEditingAppointment(null);
-          setFormData({
-            client_id: "",
-            date: new Date().toISOString().split("T")[0],
-            startTime: "09:00",
-            endTime: "10:00",
-            status: "Agendado",
-            value: 0,
-            deposit: 0,
-            deposit_date: new Date().toISOString().split("T")[0],
-            deposit_link: ""
-          });
-          setModalOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Agendamento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 h-10 px-3.5 border-border shadow-sm hover:bg-accent"
+            onClick={() => setConfigModalOpen(true)}
+            title="Configurar horários permitidos e bloqueios para o assistente"
+          >
+            <Settings className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-semibold">Configurar Agenda</span>
+            {agendaBlocks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-0.5">
+                {agendaBlocks.length}
+              </Badge>
+            )}
+          </Button>
+
+          <Button className="hidden sm:flex h-10" onClick={() => {
+            setEditingAppointment(null);
+            setFormData({
+              client_id: "",
+              date: new Date().toISOString().split("T")[0],
+              startTime: "09:00",
+              endTime: "10:00",
+              status: "Agendado",
+              value: 0,
+              deposit: 0,
+              deposit_date: new Date().toISOString().split("T")[0],
+              deposit_link: ""
+            });
+            setModalOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Agendamento
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="calendario" className="space-y-6">
@@ -645,6 +802,15 @@ const Agenda = () => {
                 {calendarRef.current ? calendarRef.current.getApi().view.title : currentWeekStart.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
               </span>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-md"
+                  onClick={() => setConfigModalOpen(true)}
+                  title="Configurar Horários e Vagas"
+                >
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </Button>
                 <div className="flex items-center bg-accent/50 rounded-lg p-0.5">
                   <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => calendarRef.current?.getApi().prev()}>
                     <ChevronLeft className="h-4 w-4" />
@@ -725,6 +891,15 @@ const Agenda = () => {
                 info.el.addEventListener('contextmenu', (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (typeof info.event.id === "string" && info.event.id.startsWith("block-")) {
+                    const blockId = info.event.id.replace("block-", "");
+                    const block = agendaBlocks.find(b => b.id === blockId);
+                    if (block) {
+                      setSelectedBlockToDelete(block);
+                      setBlockAlertOpen(true);
+                    }
+                    return;
+                  }
                   const appt = appointments.find(a => a.id === info.event.id);
                   if (appt) {
                     setContextMenuData({ x: e.clientX, y: e.clientY, appt });
@@ -765,6 +940,15 @@ const Agenda = () => {
               info.el.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (typeof info.event.id === "string" && info.event.id.startsWith("block-")) {
+                  const blockId = info.event.id.replace("block-", "");
+                  const block = agendaBlocks.find(b => b.id === blockId);
+                  if (block) {
+                    setSelectedBlockToDelete(block);
+                    setBlockAlertOpen(true);
+                  }
+                  return;
+                }
                 const appt = appointments.find(a => a.id === info.event.id);
                 if (appt) {
                   setContextMenuData({ x: e.clientX, y: e.clientY, appt });
@@ -871,6 +1055,26 @@ const Agenda = () => {
                 {clientJourneys.length === 0 && !loadingJourneys && (
                   <p className="text-xs text-muted-foreground mt-1">Este cliente não possui jornadas no CRM.</p>
                 )}
+              </div>
+            )}
+
+            {/* Orientações e Regras de Bloqueio/Disponibilidade */}
+            {currentConflict.hasConflict && (
+              <div className="p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>Atenção: Horário Indisponível / Restrito</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-destructive/90">{currentConflict.message}</p>
+              </div>
+            )}
+
+            {agendaConfig?.assistant_notes && (
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-xs text-muted-foreground flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <span className="text-[11px] leading-tight">
+                  <strong className="text-foreground">Recado da Agenda:</strong> {agendaConfig.assistant_notes}
+                </span>
               </div>
             )}
 
@@ -1104,6 +1308,70 @@ const Agenda = () => {
           <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm text-red-500" onClick={() => { setEditingAppointment(contextMenuData.appt); setDeleteAlertOpen(true); setContextMenuData(null); }}>Excluir</div>
         </div>
       )}
+
+      {/* Modal de Configuração de Agenda (Horários permitidos e Bloqueios) */}
+      <AgendaConfigModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        onConfigSaved={() => {
+          fetchAgendaConfigAndBlocks();
+        }}
+      />
+
+      {/* Modal de Detalhes/Remoção de Bloqueio clicado no calendário */}
+      <AlertDialog open={blockAlertOpen} onOpenChange={setBlockAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <CalendarOff className="w-5 h-5" />
+              Compromisso Bloqueado
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 pt-2 text-foreground">
+              <span className="font-semibold text-base block">{selectedBlockToDelete?.title}</span>
+              <span className="text-xs text-muted-foreground block space-y-1">
+                <span className="block"><strong>Data:</strong> {selectedBlockToDelete?.date}</span>
+                <span className="block">
+                  <strong>Horário:</strong> {selectedBlockToDelete?.all_day ? "Dia inteiro" : `${selectedBlockToDelete?.start_time} às ${selectedBlockToDelete?.end_time}`}
+                </span>
+                {selectedBlockToDelete?.reason && <span className="block"><strong>Motivo:</strong> {selectedBlockToDelete.reason}</span>}
+              </span>
+              <span className="text-xs text-muted-foreground pt-2 block">
+                Este horário está protegido contra agendamentos de clientes pelo assistente.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedBlockToDelete(null)}>Fechar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBlockAlertOpen(false);
+                setConfigModalOpen(true);
+              }}
+            >
+              <Settings className="w-3.5 h-3.5 mr-1" />
+              Configurar Agenda
+            </Button>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={async () => {
+                if (!selectedBlockToDelete) return;
+                try {
+                  const { error } = await supabase.from('agenda_blocks').delete().eq('id', selectedBlockToDelete.id);
+                  if (error) throw error;
+                  toast.success("Bloqueio removido com sucesso!");
+                  await fetchAgendaConfigAndBlocks();
+                } catch (e) {
+                  toast.error("Erro ao remover bloqueio.");
+                }
+              }}
+            >
+              Desbloquear Horário
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
