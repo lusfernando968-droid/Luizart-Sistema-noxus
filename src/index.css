@@ -267,6 +267,22 @@
   @apply border-primary text-primary;
 }
 
+/* Realce Visual de Vagas & Horários de Expediente */
+.fc .fc-non-business {
+  background-color: hsl(var(--muted) / 0.45) !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    hsl(var(--muted-foreground) / 0.05) 10px,
+    hsl(var(--muted-foreground) / 0.05) 20px
+  ) !important;
+}
+
+.fc .fc-business-hours {
+  background-color: hsl(var(--card)) !important;
+}
+
 /* Define a "today" style for ALL views (Month, Week, Day) */
 .fc .fc-day-today,
 .fc td.fc-day-today,
