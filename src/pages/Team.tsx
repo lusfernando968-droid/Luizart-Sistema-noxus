@@ -79,10 +79,13 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  "Concluído":  { label: "Concluído",  color: "text-primary" },
-  "Agendado":   { label: "Agendado",   color: "text-warning" },
-  "Confirmado": { label: "Confirmado", color: "text-primary" },
-  "Cancelado":  { label: "Cancelado",  color: "text-destructive" },
+  "Concluído":        { label: "Concluído",        color: "text-emerald-500" },
+  "Agendado":         { label: "Agendado",         color: "text-amber-500" },
+  "Confirmado":       { label: "Confirmado",       color: "text-blue-500" },
+  "Cancelado":        { label: "Cancelado",        color: "text-destructive" },
+  "Orçamento":        { label: "Orçamento",        color: "text-indigo-400" },
+  "Sessão Agendada":  { label: "Sessão Agendada",  color: "text-amber-500" },
+  "Onboarding":       { label: "Onboarding",       color: "text-purple-400" },
 };
 
 const formatDate = (d: string) => {
@@ -168,33 +171,193 @@ export default function Team() {
     setProfileData(null);
     setLoadingProfile(true);
     try {
-      // Mocked stats since we don't have a backend endpoint to aggregate them easily yet
-      const s = {
-        clientsCreated: 12,
-        totalAppointments: 24,
-        completedAppointments: 18,
-        cancelledAppointments: 2,
-        scheduledAppointments: 4,
-        totalDepositsCollected: 1250,
-        totalRevenue: 8500,
-        anamnesisCount: 10,
-        avgTicket: 354,
-        completionRate: 75
+      // 1. Buscar agendamentos com dados dos clientes
+      const { data: rawAppts, error: apptsError } = await supabase
+        .from('appointments')
+        .select('*, client:clientes(id, name, phone, status)')
+        .order('date', { ascending: false });
+      if (apptsError) console.error("Erro ao buscar appointments:", apptsError);
+      const appts = rawAppts || [];
+
+      // 2. Buscar clientes cadastrados
+      const { data: rawClients, error: clientsError } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (clientsError) console.error("Erro ao buscar clientes:", clientsError);
+      const clients = rawClients || [];
+
+      // 3. Buscar transações financeiras (para sinais e faturamento reais)
+      const { data: rawFin, error: finError } = await supabase
+        .from('financial_transactions')
+        .select('*')
+        .order('date', { ascending: false });
+      if (finError) console.error("Erro ao buscar financeiro:", finError);
+      const transactions = rawFin || [];
+
+      // 4. Buscar fichas de anamnese
+      const { data: rawAnamnesis, error: anamnesisError } = await supabase
+        .from('anamnesis')
+        .select('id, client_id, created_at');
+      if (anamnesisError) console.error("Erro ao buscar anamnese:", anamnesisError);
+      const anamnesis = rawAnamnesis || [];
+
+      // Filtro por membro:
+      // Para ADMIN e RECEPCAO (Atendimento), eles gerenciam a operação do estúdio.
+      // Se houver registros com user_id vinculado a esse membro, usamos eles;
+      // caso contrário, ou para RECEPCAO/ADMIN, utilizamos os dados operacionais do estúdio.
+      const isGeneral = member.role === 'ADMIN' || member.role === 'RECEPCAO';
+
+      const memberAppts = isGeneral
+        ? appts
+        : appts.filter(a => a.user_id === member.id || (member.name && (a.notes?.includes(member.name) || a.type?.includes(member.name))));
+
+      const memberClients = isGeneral
+        ? clients
+        : clients.filter(c => c.user_id === member.id);
+
+      // Métricas calculadas
+      const totalAppointments = memberAppts.length;
+      const completedAppointments = memberAppts.filter(a => a.status === 'Concluído').length;
+      const cancelledAppointments = memberAppts.filter(a => a.status === 'Cancelado').length;
+      const scheduledAppointments = memberAppts.filter(a => a.status === 'Agendado' || a.status === 'Confirmado').length;
+
+      // Sinais Coletados:
+      // Soma dos depósitos registrados nos agendamentos + transações de entrada identificadas como sinal
+      const depositFromAppts = memberAppts.reduce((sum, a) => sum + Number(a.deposit || 0), 0);
+      const depositFromFin = transactions
+        .filter(t => t.type === 'entrada' && (t.description?.toLowerCase().includes('sinal') || t.appointment_id))
+        .reduce((sum, t) => sum + Number(t.value || 0), 0);
+      const totalDepositsCollected = Math.max(depositFromAppts, depositFromFin);
+
+      // Faturamento Gerado:
+      // Soma dos valores dos agendamentos concluídos + entradas registradas no financeiro
+      const revenueFromAppts = memberAppts
+        .filter(a => a.status === 'Concluído')
+        .reduce((sum, a) => sum + Number(a.value || 0), 0);
+      const revenueFromFin = transactions
+        .filter(t => t.type === 'entrada')
+        .reduce((sum, t) => sum + Number(t.value || 0), 0);
+      const totalRevenue = Math.max(revenueFromFin, revenueFromAppts);
+
+      const clientsCreated = memberClients.length;
+      const anamnesisCount = isGeneral
+        ? anamnesis.length
+        : anamnesis.filter(an => memberClients.some(c => c.id === an.client_id)).length;
+
+      const avgTicket = completedAppointments > 0 
+        ? Math.round(totalRevenue / completedAppointments) 
+        : (totalRevenue > 0 ? totalRevenue : 0);
+
+      const completionRate = totalAppointments > 0 
+        ? Math.round((completedAppointments / totalAppointments) * 100) 
+        : (completedAppointments > 0 ? 100 : 0);
+
+      const stats: MemberStats = {
+        clientsCreated,
+        totalAppointments,
+        completedAppointments,
+        cancelledAppointments,
+        scheduledAppointments,
+        totalDepositsCollected,
+        totalRevenue,
+        anamnesisCount,
+        avgTicket,
+        completionRate
       };
-      const monthlyData = [
-        { month: "2026-04", revenue: 4000, sessions: 10, clientsAdded: 3 },
-        { month: "2026-05", revenue: 5500, sessions: 12, clientsAdded: 5 },
-        { month: "2026-06", revenue: 8500, sessions: 18, clientsAdded: 12 }
-      ];
+
+      // 5. Dados mensais dos últimos 6 meses calculados dinamicamente
+      const now = new Date();
+      const monthlyData = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const monthKey = `${y}-${m}`;
+
+        const monthRevenue = transactions
+          .filter(t => t.type === 'entrada' && (t.date?.startsWith(monthKey) || t.created_at?.startsWith(monthKey)))
+          .reduce((sum, t) => sum + Number(t.value || 0), 0) ||
+          memberAppts
+            .filter(a => a.status === 'Concluído' && (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey)))
+            .reduce((sum, a) => sum + Number(a.value || 0), 0);
+
+        const monthSessions = memberAppts.filter(a => (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey))).length;
+        const monthClients = memberClients.filter(c => (c.created_at?.startsWith(monthKey))).length;
+
+        monthlyData.push({
+          month: monthKey,
+          revenue: monthRevenue,
+          sessions: monthSessions,
+          clientsAdded: monthClients
+        });
+      }
+
+      // 6. Status de Agendamentos e Funil de CRM
+      const statusCounts: Record<string, number> = {};
+      memberAppts.forEach(a => {
+        const st = a.status || "Agendado";
+        statusCounts[st] = (statusCounts[st] || 0) + 1;
+      });
+
+      // Funil de atendimento dos clientes
+      const orcamentoCount = memberClients.filter(c => c.status === "Orçamento" || !c.status).length;
+      const agendadaCount = memberClients.filter(c => c.status === "Sessão Agendada").length;
+      const concluidoCount = memberClients.filter(c => c.status === "Concluído").length;
+
+      const clientFunnelData = [
+        { name: "Orçamento", value: orcamentoCount },
+        { name: "Sessão Agendada", value: agendadaCount },
+        { name: "Concluído", value: concluidoCount }
+      ].filter(f => f.value > 0);
+
+      let statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+      if (statusData.length === 0 || member.role === 'RECEPCAO') {
+        statusData = clientFunnelData.length > 0 ? clientFunnelData : [{ name: "Sem dados", value: 1 }];
+      }
+
+      // 7. Atividades Recentes
+      const recentActivity: RecentActivity[] = [];
+
+      memberAppts.forEach(a => {
+        recentActivity.push({
+          id: `appt-${a.id}`,
+          clientName: a.client?.name || "Cliente",
+          date: a.date || a.created_at || "",
+          status: a.status || "Agendado",
+          value: Number(a.value || a.deposit || 0),
+          type: a.type || "Sessão de Tatuagem"
+        });
+      });
+
+      // Se houver poucos agendamentos, lista os clientes mais recentes em atendimento
+      if (recentActivity.length < 6) {
+        memberClients.slice(0, 6).forEach(c => {
+          if (!recentActivity.some(act => act.clientName === c.name)) {
+            recentActivity.push({
+              id: `cli-${c.id}`,
+              clientName: c.name || "Cliente",
+              date: c.created_at ? c.created_at.split('T')[0] : "Hoje",
+              status: c.status || "Orçamento",
+              value: 0,
+              type: "Atendimento CRM"
+            });
+          }
+        });
+      }
+
+      recentActivity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
       setProfileData({
         member,
-        stats: s,
-        recentActivity: [],
+        stats,
+        recentActivity: recentActivity.slice(0, 10),
         monthlyData,
-        statusData: [{ name: "Concluído", value: 18 }, { name: "Agendado", value: 4 }, { name: "Cancelado", value: 2 }],
-        clientFunnelData: []
+        statusData,
+        clientFunnelData
       });
     } catch (error: any) {
+      console.error("Erro ao carregar perfil:", error);
       toast.error("Erro ao carregar perfil: " + error.message);
     } finally {
       setLoadingProfile(false);
@@ -418,10 +581,10 @@ export default function Team() {
                 </div>
               </div>
 
-              {/* Gráfico 2: Status dos Agendamentos */}
+              {/* Gráfico 2: Status dos Agendamentos / Funil de Atendimento */}
               <div className="bg-card rounded-2xl border shadow-sm p-5 space-y-5 flex flex-col">
                 <h3 className="font-bold flex items-center gap-2 text-sm">
-                  <PieChartIcon className="h-4 w-4 text-primary" /> Distribuição de Agendamentos
+                  <PieChartIcon className="h-4 w-4 text-primary" /> {selectedMember.role === "RECEPCAO" ? "Distribuição do Atendimento & Agendamentos" : "Distribuição de Agendamentos"}
                 </h3>
                 <div className="flex-1 min-h-[250px] w-full flex items-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -502,7 +665,7 @@ export default function Team() {
             {/* Atividades Recentes */}
             <div className="bg-card rounded-2xl border shadow-sm p-5 space-y-4">
               <h3 className="font-bold flex items-center gap-2 text-sm">
-                <BarChart3 className="h-4 w-4 text-primary" /> Últimos Agendamentos Criados
+                <BarChart3 className="h-4 w-4 text-primary" /> {selectedMember.role === "RECEPCAO" ? "Últimos Atendimentos & Agendamentos" : "Últimos Agendamentos Criados"}
               </h3>
               {activities.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atividade registrada ainda.</p>
