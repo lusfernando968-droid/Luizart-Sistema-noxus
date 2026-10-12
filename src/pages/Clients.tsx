@@ -54,6 +54,38 @@ const JOURNEY_STAGES = [
   { id: "Concluído", title: "Concluído", icon: <CheckCircle className="w-4 h-4 text-blue-500/80" />, badgeBg: "bg-muted text-foreground", headerBg: "bg-card", description: "Processo finalizado com sucesso." }
 ];
 
+export const formatInstagramUrl = (value?: string | null): string => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "@") return "";
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("instagram.com/") || trimmed.startsWith("www.instagram.com/")) {
+    return `https://${trimmed}`;
+  }
+
+  const cleanUsername = trimmed.replace(/^@+/, "").replace(/\/+$/, "").trim();
+  if (!cleanUsername) return "";
+  return `https://instagram.com/${cleanUsername}`;
+};
+
+export const getInstagramHandle = (value?: string | null): string => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "@") return "";
+
+  const match = trimmed.match(/(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)/i);
+  if (match && match[1]) {
+    return `@${match[1]}`;
+  }
+
+  const clean = trimmed.replace(/^@+/, "").replace(/\/+$/, "").trim();
+  return clean ? `@${clean}` : "";
+};
+
 const Clients = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -143,7 +175,7 @@ const Clients = () => {
         id: c.id,
         name: c.name,
         phone: c.phone || "Não informado",
-        instagram: c.instagram || "@",
+        instagram: c.instagram || "",
         birthDate: c.birth_date || "",
         sessions: c.appointments ? c.appointments.length : 0,
         totalInvoiced: c.appointments ? c.appointments.reduce((sum: number, app: any) => sum + (Number(app.value) || 0), 0) : 0,
@@ -291,9 +323,12 @@ const Clients = () => {
         ? (newClientData.notes ? `${leanLog}\n\n${newClientData.notes}` : leanLog)
         : (newClientData.notes || "");
 
+      const formattedInstagram = newClientData.instagram ? formatInstagramUrl(newClientData.instagram) : null;
+
       const { data: newClient, error } = await supabase.from('clientes').insert([{
         name: newClientData.name,
         phone: newClientData.phone,
+        instagram: formattedInstagram,
         birth_date: newClientData.birthDate || null,
         status: finalStatus,
         notes: finalNotes,
@@ -364,7 +399,7 @@ const Clients = () => {
       id: clientToEdit.id,
       name: clientToEdit.name,
       phone: clientToEdit.phone === "Não informado" ? "" : clientToEdit.phone,
-      instagram: clientToEdit.instagram === "@" ? "" : clientToEdit.instagram,
+      instagram: clientToEdit.instagram === "@" ? "" : (clientToEdit.instagram || ""),
       birthDate: clientToEdit.birthDate || "",
       status: clientToEdit.status || "Orçamento",
       avatar_url: clientToEdit.avatar_url || "",
@@ -381,16 +416,30 @@ const Clients = () => {
       }
       setUploading(true);
       
+      const formattedInstagram = editClientData.instagram ? formatInstagramUrl(editClientData.instagram) : null;
+
       const { error } = await supabase.from('clientes').update({
         name: editClientData.name,
         phone: editClientData.phone,
-        instagram: editClientData.instagram,
+        instagram: formattedInstagram,
         birth_date: editClientData.birthDate || null,
         status: editClientData.status,
         referred_by_id: editClientData.referred_by_id === "none" ? null : (editClientData.referred_by_id || null)
       }).eq('id', editClientData.id);
 
       if (error) throw error;
+
+      if (selectedClient && selectedClient.id === editClientData.id) {
+        setSelectedClient(prev => prev ? {
+          ...prev,
+          name: editClientData.name,
+          phone: editClientData.phone,
+          instagram: formattedInstagram || "",
+          birthDate: editClientData.birthDate,
+          status: editClientData.status,
+          referred_by_id: editClientData.referred_by_id === "none" ? undefined : editClientData.referred_by_id
+        } : null);
+      }
 
       toast.success("Cliente atualizado com sucesso!");
       await fetchClients();
@@ -739,14 +788,60 @@ const Clients = () => {
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground font-medium truncate mt-1">
-                            {selectedClient.phone} {selectedClient.instagram ? ` • ${selectedClient.instagram}` : ''}
-                          </p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium truncate mt-1 flex-wrap">
+                            {selectedClient.phone && selectedClient.phone !== "Não informado" ? (
+                              <a
+                                href={`https://wa.me/55${selectedClient.phone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-foreground inline-flex items-center gap-1 transition-colors hover:underline"
+                                title="Conversar no WhatsApp"
+                              >
+                                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>{selectedClient.phone}</span>
+                              </a>
+                            ) : (
+                              <span>{selectedClient.phone}</span>
+                            )}
+                            {formatInstagramUrl(selectedClient.instagram) && (
+                              <>
+                                <span>•</span>
+                                <a
+                                  href={formatInstagramUrl(selectedClient.instagram)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-foreground hover:text-primary transition-colors hover:underline font-semibold"
+                                  title="Abrir perfil no Instagram"
+                                >
+                                  <Instagram className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span>{getInstagramHandle(selectedClient.instagram)}</span>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                                </a>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1 md:justify-end shrink-0 md:max-w-[50%]">
-                        
+                        {formatInstagramUrl(selectedClient.instagram) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs gap-1.5"
+                            asChild
+                          >
+                            <a
+                              href={formatInstagramUrl(selectedClient.instagram)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Instagram className="w-3.5 h-3.5" />
+                              Instagram
+                              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                            </a>
+                          </Button>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
@@ -1499,14 +1594,34 @@ const Clients = () => {
                 className="h-11"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">WhatsApp</Label>
-              <Input
-                placeholder="(11) 99999-9999"
-                value={newClientData.phone}
-                onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                className="h-11"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">WhatsApp</Label>
+                <Input
+                  placeholder="(11) 99999-9999"
+                  value={newClientData.phone}
+                  onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Instagram (URL ou @)</Label>
+                <div className="relative">
+                  <Input
+                    placeholder="Ex: @usuario ou link"
+                    value={newClientData.instagram}
+                    onChange={(e) => setNewClientData({ ...newClientData, instagram: e.target.value })}
+                    onBlur={(e) => {
+                      const formatted = formatInstagramUrl(e.target.value);
+                      if (formatted) {
+                        setNewClientData(prev => ({ ...prev, instagram: formatted }));
+                      }
+                    }}
+                    className="h-11 pl-9"
+                  />
+                  <Instagram className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
             </div>
 
             {/* Seletor de Jornada Enxuta (Bypass) */}
@@ -1591,24 +1706,53 @@ const Clients = () => {
               <Input
                 value={editClientData.name}
                 onChange={(e) => setEditClientData({ ...editClientData, name: e.target.value })}
+                className="h-11"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">WhatsApp</Label>
                 <Input
                   value={editClientData.phone}
                   onChange={(e) => setEditClientData({ ...editClientData, phone: e.target.value })}
+                  placeholder="(11) 99999-9999"
+                  className="h-11"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Instagram</Label>
-                <Input
-                  value={editClientData.instagram}
-                  onChange={(e) => setEditClientData({ ...editClientData, instagram: e.target.value })}
-                />
+                <Label className="text-xs font-semibold">Instagram (URL ou @)</Label>
+                <div className="relative">
+                  <Input
+                    value={editClientData.instagram}
+                    onChange={(e) => setEditClientData({ ...editClientData, instagram: e.target.value })}
+                    onBlur={(e) => {
+                      const formatted = formatInstagramUrl(e.target.value);
+                      if (formatted) {
+                        setEditClientData(prev => ({ ...prev, instagram: formatted }));
+                      }
+                    }}
+                    placeholder="Ex: @usuario ou https://..."
+                    className="h-11 pl-9"
+                  />
+                  <Instagram className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
             </div>
+
+            {formatInstagramUrl(editClientData.instagram) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 -mt-1">
+                <span>Link direto:</span>
+                <a
+                  href={formatInstagramUrl(editClientData.instagram)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:text-primary transition-colors underline-offset-4 hover:underline inline-flex items-center gap-1 font-medium truncate max-w-[320px]"
+                >
+                  {formatInstagramUrl(editClientData.instagram)}
+                  <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
+                </a>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditingClient(false)}>Cancelar</Button>
