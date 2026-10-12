@@ -393,12 +393,16 @@ const Clients = () => {
     }
   };
 
-  const openEditModal = (clientToEdit = selectedClient) => {
+  const openEditModal = (targetClient?: any) => {
+    const clientToEdit = (targetClient && typeof targetClient === 'object' && targetClient.id)
+      ? targetClient
+      : selectedClient;
+
     if (!clientToEdit) return;
     setEditClientData({
       id: clientToEdit.id,
-      name: clientToEdit.name,
-      phone: clientToEdit.phone === "Não informado" ? "" : clientToEdit.phone,
+      name: clientToEdit.name || "",
+      phone: clientToEdit.phone === "Não informado" ? "" : (clientToEdit.phone || ""),
       instagram: clientToEdit.instagram === "@" ? "" : (clientToEdit.instagram || ""),
       birthDate: clientToEdit.birthDate || "",
       status: clientToEdit.status || "Orçamento",
@@ -418,26 +422,32 @@ const Clients = () => {
       
       const formattedInstagram = editClientData.instagram ? formatInstagramUrl(editClientData.instagram) : null;
 
-      const { error } = await supabase.from('clientes').update({
-        name: editClientData.name,
-        phone: editClientData.phone,
+      const updatePayload: any = {
+        name: editClientData.name.trim(),
+        phone: editClientData.phone.trim(),
         instagram: formattedInstagram,
-        birth_date: editClientData.birthDate || null,
-        status: editClientData.status,
-        referred_by_id: editClientData.referred_by_id === "none" ? null : (editClientData.referred_by_id || null)
-      }).eq('id', editClientData.id);
+      };
+
+      if (editClientData.birthDate) {
+        updatePayload.birth_date = editClientData.birthDate;
+      }
+      if (editClientData.status) {
+        updatePayload.status = editClientData.status;
+      }
+      if (editClientData.referred_by_id && editClientData.referred_by_id !== "none") {
+        updatePayload.referred_by_id = editClientData.referred_by_id;
+      }
+
+      const { error } = await supabase.from('clientes').update(updatePayload).eq('id', editClientData.id);
 
       if (error) throw error;
 
       if (selectedClient && selectedClient.id === editClientData.id) {
         setSelectedClient(prev => prev ? {
           ...prev,
-          name: editClientData.name,
-          phone: editClientData.phone,
+          name: editClientData.name.trim(),
+          phone: editClientData.phone.trim(),
           instagram: formattedInstagram || "",
-          birthDate: editClientData.birthDate,
-          status: editClientData.status,
-          referred_by_id: editClientData.referred_by_id === "none" ? undefined : editClientData.referred_by_id
         } : null);
       }
 
@@ -895,7 +905,7 @@ const Clients = () => {
                               <BookOpen className="h-4 w-4 mr-2" />
                               {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={openEditModal}>
+                            <DropdownMenuItem onClick={() => openEditModal(selectedClient)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar Cliente
                             </DropdownMenuItem>
