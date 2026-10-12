@@ -341,23 +341,18 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
           </DialogTitle>
         </DialogHeader>
 
-        {/* Toggle para Modo Bypass / Jornada Enxuta */}
-        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between gap-3 my-1">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-1.5 rounded-lg transition-colors ${isLeanMode ? 'bg-amber-500/20 text-amber-500' : 'bg-muted text-muted-foreground'}`}>
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-bold text-foreground">Jornada Enxuta (Bypass)</p>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">Rápido</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-tight">
-                Pula as perguntas longas e registra direto o resumo do projeto
-              </p>
-            </div>
+        {/* Alternador de Modo: Jornada Enxuta (Bypass) */}
+        <div className="p-3 rounded-xl border bg-muted/30 flex items-center justify-between gap-3 my-1">
+          <div className="space-y-0.5">
+            <Label htmlFor="lean-switch-modal" className="text-xs font-semibold text-foreground cursor-pointer">
+              Jornada Enxuta (Bypass)
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Pula as etapas detalhadas para clientes antigos ou fluxo direto
+            </p>
           </div>
           <Switch
+            id="lean-switch-modal"
             checked={isLeanMode}
             onCheckedChange={(checked) => setIsLeanMode(checked)}
           />
@@ -365,71 +360,62 @@ export function JourneyPlaybookModal({ open, onOpenChange, client, journeyId, on
 
         {isLeanMode ? (
           <div className="space-y-4 py-2 animate-in fade-in duration-200">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-foreground">Status do Projeto</Label>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Status do Projeto</Label>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setLeanStatus("Projeto em Andamento")}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+                  className={`h-11 px-3 rounded-lg border text-xs font-semibold transition-all ${
                     leanStatus === "Projeto em Andamento"
-                      ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30 text-amber-600 dark:text-amber-400"
-                      : "border-border bg-card hover:bg-muted/30 text-muted-foreground"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card text-muted-foreground hover:bg-muted/40 border-border"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-xs font-bold">Em Andamento</span>
-                  </div>
-                  <span className="text-[10px] opacity-80">Sessões em execução</span>
+                  Em Andamento
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setLeanStatus("Concluído")}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+                  className={`h-11 px-3 rounded-lg border text-xs font-semibold transition-all ${
                     leanStatus === "Concluído"
-                      ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                      : "border-border bg-card hover:bg-muted/30 text-muted-foreground"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card text-muted-foreground hover:bg-muted/40 border-border"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span className="text-xs font-bold">Concluído</span>
-                  </div>
-                  <span className="text-[10px] opacity-80">Trabalho finalizado</span>
+                  Concluído
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-amber-500" />
-                  História & Contexto do Projeto
+                <Label className="text-xs font-semibold text-foreground">
+                  Resumo & Contexto do Projeto
                 </Label>
-                <span className="text-[10px] text-muted-foreground">Opcional</span>
+                <span className="text-[11px] text-muted-foreground">Opcional</span>
               </div>
               <Textarea
                 rows={5}
-                placeholder="Conte uma historinha do projeto para dar contexto (Ex: Fechamento de braço oriental com carpa. Já fizemos 3 sessões, faltam 2 para finalizar o sombreado...)"
+                placeholder="Descreva o contexto do projeto (ex: Fechamento de braço oriental, faltam 2 sessões para finalização)..."
                 value={leanSummary}
                 onChange={(e) => setLeanSummary(e.target.value)}
-                className="text-xs leading-relaxed resize-none rounded-xl"
+                className="text-xs leading-relaxed resize-none rounded-lg"
               />
-              <p className="text-[10px] text-muted-foreground">
-                Essa descrição fica visível no histórico do cliente e na lista da Jornada Enxuta.
+              <p className="text-[11px] text-muted-foreground">
+                Esse resumo fica registrado no histórico do cliente e na jornada do CRM.
               </p>
             </div>
 
             <DialogFooter className="pt-3 gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="outline" className="h-11" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button 
                 onClick={handleSaveLeanJourney} 
                 disabled={submitting}
-                className="bg-primary text-primary-foreground font-bold shadow-md"
+                className="h-11 bg-primary text-primary-foreground font-bold shadow-sm"
               >
-                {submitting ? "Salvando..." : "Salvar Jornada Enxuta"}
+                {submitting ? "Salvando..." : "Salvar Jornada"}
               </Button>
             </DialogFooter>
           </div>

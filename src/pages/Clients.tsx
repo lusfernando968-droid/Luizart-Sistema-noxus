@@ -16,12 +16,11 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
-import { LeanJourneyTab } from "@/components/crm/LeanJourneyTab";
 import PlaybookAccordion from "@/components/PlaybookAccordion";
 import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
 import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
@@ -72,6 +71,12 @@ const Clients = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedOverStage, setDraggedOverStage] = useState<string | null>(null);
+
+  // States de Visualização e Filtros da Jornada CRM (Kanban / Tabela)
+  const [journeyView, setJourneyView] = useState<"kanban" | "tabela">("kanban");
+  const [journeySearch, setJourneySearch] = useState("");
+  const [journeyStageFilter, setJourneyStageFilter] = useState("all");
+  const [journeyTypeFilter, setJourneyTypeFilter] = useState("all");
 
   // States do Modal de Decisão do Cliente
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
@@ -510,18 +515,9 @@ const Clients = () => {
             <TabsTrigger value="lista" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <Users className="w-3.5 h-3.5" /> Lista de Clientes
             </TabsTrigger>
-            <TabsTrigger value="enxuta" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <Zap className="w-3.5 h-3.5 text-amber-500" /> Jornada Enxuta (Bypass)
-              {journeys.filter(j => j.playbook_data?.isLean || j.playbook_data?.is_lean).length > 0 && (
-                <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
-                  {journeys.filter(j => j.playbook_data?.isLean || j.playbook_data?.is_lean).length}
-                </span>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM (Kanban)
+              <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM
             </TabsTrigger>
-            
             <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
             </TabsTrigger>
@@ -730,22 +726,6 @@ const Clients = () => {
           </div>
         </TabsContent>
 
-        {/* ABA 2: JORNADA ENXUTA (BYPASS) */}
-        <TabsContent value="enxuta" className="m-0 space-y-6">
-          <LeanJourneyTab
-            clients={clients}
-            journeys={journeys}
-            onRefresh={fetchClients}
-            onOpenClientProfile={(c) => setSelectedClient(c)}
-            onOpenPlaybook={(c, jId) => {
-              setPlaybookClient(c);
-              setPlaybookJourneyId(jId);
-              setPlaybookDefaultLean(true);
-              setPlaybookModalOpen(true);
-            }}
-          />
-        </TabsContent>
-
         <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
           <DialogContent className="w-[95vw] sm:w-[95vw] sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
             <div className="bg-background rounded-xl overflow-x-hidden w-full">
@@ -945,7 +925,7 @@ const Clients = () => {
                               <div className="min-w-0 flex-1">
                                 <p className="font-bold text-sm text-foreground flex items-center gap-2 group-hover:text-primary transition-colors">
                                   {isLean ? (
-                                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                                   ) : journey.status === 'Concluído' ? (
                                     <CheckCircle className="w-3.5 h-3.5 text-primary" />
                                   ) : (
@@ -968,7 +948,7 @@ const Clients = () => {
                               <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 shrink-0">
                                 <span className={`text-[11px] font-bold px-2.5 py-1 rounded-md border ${
                                   isLean
-                                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                    ? "bg-muted text-muted-foreground border-border"
                                     : "bg-primary/10 text-primary border-primary/20"
                                 }`}>
                                   {journey.status}
@@ -1115,121 +1095,398 @@ const Clients = () => {
           </DialogContent>
         </Dialog>
 
-        <TabsContent value="jornada" className="m-0">
-          {/* Indicador de Swipe para Mobile */}
-          <div className="md:hidden flex items-center justify-center gap-2 text-xs text-muted-foreground mb-3 animate-pulse">
-            <span className="font-medium">Deslize para os lados para ver as etapas</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </div>
-          
-          <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-3 overflow-x-auto pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] -mx-4 px-4 md:mx-0 md:px-0">
-            {JOURNEY_STAGES.map((stage) => {
-              const stageJourneys = journeys.filter(j => 
-                j.status === stage.id && 
-                (search === "" || (j.client?.name || "").toLowerCase().includes(search.toLowerCase()) || (j.client?.phone || "").includes(search))
-              );
+        <TabsContent value="jornada" className="m-0 space-y-4">
+          {/* Barra de Controles e Alternância de Visualização (Kanban vs Tabela) */}
+          <div className="bg-card rounded-xl border shadow-sm p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente, telefone ou resumo..."
+                  value={journeySearch}
+                  onChange={(e) => setJourneySearch(e.target.value)}
+                  className="pl-9 bg-accent/20 h-11 text-sm"
+                />
+              </div>
 
-              return (
-                <div 
-                  key={stage.id} 
-                  className={`w-[85vw] sm:w-[320px] md:w-auto shrink-0 snap-start rounded-2xl p-3 flex flex-col h-[calc(100dvh-18rem)] min-h-[500px] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggedOverStage !== stage.id) setDraggedOverStage(stage.id);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDraggedOverStage(null);
-                    const journeyId = e.dataTransfer.getData("journeyId");
-                    if (journeyId && journeyId !== "") {
-                      handleUpdateJourneyStatus(journeyId, stage.id);
+              <div className="w-full sm:w-[180px]">
+                <Select value={journeyStageFilter} onValueChange={setJourneyStageFilter}>
+                  <SelectTrigger className="w-full h-11 bg-card text-sm">
+                    <SelectValue placeholder="Todos os Estágios" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Estágios</SelectItem>
+                    {JOURNEY_STAGES.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="w-full sm:w-[180px]">
+                <Select value={journeyTypeFilter} onValueChange={setJourneyTypeFilter}>
+                  <SelectTrigger className="w-full h-11 bg-card text-sm">
+                    <SelectValue placeholder="Todos os Modelos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Modelos</SelectItem>
+                    <SelectItem value="lean">Jornada Enxuta</SelectItem>
+                    <SelectItem value="standard">Playbook Padrão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center self-end sm:self-auto rounded-lg border bg-muted p-1 h-11 shrink-0">
+              <button
+                type="button"
+                onClick={() => setJourneyView("kanban")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all h-full ${
+                  journeyView === "kanban"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Kanban
+              </button>
+              <button
+                type="button"
+                onClick={() => setJourneyView("tabela")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all h-full ${
+                  journeyView === "tabela"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                Tabela
+              </button>
+            </div>
+          </div>
+
+          {/* VISUALIZAÇÃO 1: KANBAN */}
+          {journeyView === "kanban" && (
+            <div>
+              {/* Indicador de Swipe para Mobile */}
+              <div className="md:hidden flex items-center justify-center gap-2 text-xs text-muted-foreground mb-3 animate-pulse">
+                <span className="font-medium">Deslize para os lados para ver as etapas</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </div>
+              
+              <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-3 overflow-x-auto pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] -mx-4 px-4 md:mx-0 md:px-0">
+                {(journeyStageFilter === "all" ? JOURNEY_STAGES : JOURNEY_STAGES.filter(s => s.id === journeyStageFilter)).map((stage) => {
+                  const stageJourneys = journeys.filter(j => {
+                    if (j.status !== stage.id) return false;
+                    
+                    const clientName = (j.client?.name || "").toLowerCase();
+                    const clientPhone = (j.client?.phone || "");
+                    const summary = (j.playbook_data?.projectSummary || "").toLowerCase();
+                    const query = journeySearch.toLowerCase();
+                    if (query && !clientName.includes(query) && !clientPhone.includes(query) && !summary.includes(query)) {
+                      return false;
                     }
-                  }}
-                >
-                  {/* Cabeçalho da Coluna do Kanban */}
-                  <div className={`flex items-center justify-between mb-3 p-2 rounded-xl border ${stage.headerBg}`}>
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      <div className="bg-card p-1.5 rounded-md shadow-sm shrink-0">
-                        {stage.icon}
-                      </div>
-                      <h3 className="font-bold text-xs text-foreground truncate">{stage.title}</h3>
-                    </div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold shrink-0 ${stage.badgeBg}`}>
-                      {stageJourneys.length}
-                    </span>
-                  </div>
 
-                  {/* Lista de Cards da Coluna */}
-                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 [&::-webkit-scrollbar]:hidden">
-                    {stageJourneys.length > 0 ? (
-                      stageJourneys.map((journey) => (
-                        <div
-                          key={journey.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("journeyId", journey.id);
-                          }}
-                          onDragEnd={() => setDraggedOverStage(null)}
-                          onClick={() => {
-                            const foundClient = clients.find(c => c.id === journey.client_id) || { id: journey.client_id, name: journey.client?.name || "Cliente", phone: journey.client?.phone || "" };
-                            setPlaybookJourneyId(journey.id);
-                            setPlaybookClient(foundClient);
-                            setPlaybookModalOpen(true);
-                          }}
-                          className="bg-card border shadow-sm hover:shadow-md transition-all rounded-xl p-3 cursor-grab active:cursor-grabbing group hover:border-primary/50 space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                                {journey.client?.avatar_url ? (
-                                  <img src={journey.client.avatar_url} alt={journey.client.name} className="h-full w-full rounded-full object-cover" />
-                                ) : (
-                                  journey.client?.name?.charAt(0) || '?'
-                                )}
-                              </div>
-                              <div className="overflow-hidden">
-                                <div className="flex items-center gap-1"><h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">{journey.client?.name || "Cliente"}</h4>{journey.client?.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Aluno" />}</div>
-                                <p className="text-[10px] text-muted-foreground">{journey.client?.phone || ""}</p>
-                              </div>
-                            </div>
-                          </div>
+                    const isLean = !!(j.playbook_data?.isLean || j.playbook_data?.is_lean);
+                    if (journeyTypeFilter === "lean" && !isLean) return false;
+                    if (journeyTypeFilter === "standard" && isLean) return false;
 
-                          {/* Botões Rápidos no Card do Kanban */}
-                          <div className="flex items-center justify-between pt-2 border-t text-[11px] gap-1">
-                            {journey.client?.phone && journey.client.phone !== "Não informado" && (
-                              <a
-                                href={
-                                  stage.id === "Garimpo"
-                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Tudo bem? Passando para saber como ficou a sua ideia de tatuagem. Conseguimos abrir uma condição especial na agenda este mês! Vamos dar andamento no projeto?`)}`
-                                    : stage.id === "Sem Resposta"
-                                    ? `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${journey.client.name}! Vi que não conseguimos nos falar depois da ideia do projeto de tatuagem. Ficou alguma dúvida sobre o orçamento que eu possa te ajudar?`)}`
-                                    : `https://wa.me/55${journey.client.phone.replace(/\D/g, '')}`
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className={`flex items-center gap-1 px-2 py-1 rounded font-bold transition-colors text-[10px] ${
-                                  stage.id === "Garimpo" || stage.id === "Sem Resposta"
-                                    ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                    : "text-muted-foreground hover:text-primary"
-                                }`}
-                              >
-                                {stage.id === "Garimpo" || stage.id === "Sem Resposta" ? "📲 Resgatar" : "Whats"}
-                              </a>
-                            )}
+                    return true;
+                  });
+
+                  return (
+                    <div 
+                      key={stage.id} 
+                      className={`w-[85vw] sm:w-[320px] md:w-auto shrink-0 snap-start rounded-2xl p-3 flex flex-col h-[calc(100dvh-18rem)] min-h-[500px] transition-all border-2 ${draggedOverStage === stage.id ? 'bg-primary/5 border-primary/50 border-dashed scale-[1.02]' : 'bg-muted/20 border-transparent'}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (draggedOverStage !== stage.id) setDraggedOverStage(stage.id);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDraggedOverStage(null);
+                        const journeyId = e.dataTransfer.getData("journeyId");
+                        if (journeyId && journeyId !== "") {
+                          handleUpdateJourneyStatus(journeyId, stage.id);
+                        }
+                      }}
+                    >
+                      {/* Cabeçalho da Coluna do Kanban */}
+                      <div className={`flex items-center justify-between mb-3 p-2 rounded-xl border ${stage.headerBg}`}>
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                          <div className="bg-card p-1.5 rounded-md shadow-sm shrink-0">
+                            {stage.icon}
                           </div>
+                          <h3 className="font-bold text-xs text-foreground truncate">{stage.title}</h3>
                         </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border/50 rounded-xl bg-muted/10">
-                        <p className="text-[11px] text-muted-foreground font-medium">Vazio</p>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold shrink-0 ${stage.badgeBg}`}>
+                          {stageJourneys.length}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+
+                      {/* Lista de Cards da Coluna */}
+                      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 [&::-webkit-scrollbar]:hidden">
+                        {stageJourneys.length > 0 ? (
+                          stageJourneys.map((journey) => {
+                            const isLean = !!(journey.playbook_data?.isLean || journey.playbook_data?.is_lean);
+                            const foundClient = clients.find(c => c.id === journey.client_id) || { id: journey.client_id, name: journey.client?.name || "Cliente", phone: journey.client?.phone || "" };
+
+                            return (
+                              <div
+                                key={journey.id}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData("journeyId", journey.id);
+                                }}
+                                onDragEnd={() => setDraggedOverStage(null)}
+                                onClick={() => {
+                                  setPlaybookJourneyId(journey.id);
+                                  setPlaybookClient(foundClient);
+                                  setPlaybookDefaultLean(isLean);
+                                  setPlaybookModalOpen(true);
+                                }}
+                                className="bg-card border shadow-sm hover:shadow-md transition-all rounded-xl p-3 cursor-grab active:cursor-grabbing group hover:border-primary/50 space-y-2.5"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                      {journey.client?.avatar_url ? (
+                                        <img src={journey.client.avatar_url} alt={journey.client.name} className="h-full w-full rounded-full object-cover" />
+                                      ) : (
+                                        journey.client?.name?.charAt(0) || '?'
+                                      )}
+                                    </div>
+                                    <div className="overflow-hidden min-w-0">
+                                      <div className="flex items-center gap-1">
+                                        <h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">
+                                          {journey.client?.name || "Cliente"}
+                                        </h4>
+                                        {journey.client?.is_student && <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" title="Aluno" />}
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground">{journey.client?.phone || ""}</p>
+                                    </div>
+                                  </div>
+
+                                  {isLean && (
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted border text-muted-foreground shrink-0">
+                                      Enxuta
+                                    </span>
+                                  )}
+                                </div>
+
+                                {journey.playbook_data?.projectSummary && (
+                                  <p className="text-[11px] text-muted-foreground line-clamp-2 bg-muted/30 p-2 rounded-lg border border-border/40 text-left">
+                                    "{journey.playbook_data.projectSummary}"
+                                  </p>
+                                )}
+
+                                {/* Ações Rápidas no Card */}
+                                <div className="flex items-center justify-between pt-2 border-t text-[11px] gap-1">
+                                  {journey.client?.phone && journey.client.phone !== "Não informado" ? (
+                                    <a
+                                      href={`https://wa.me/55${journey.client.phone.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 px-2 py-1 rounded font-medium transition-colors text-[10px] text-muted-foreground hover:text-foreground border bg-background/50 hover:bg-background"
+                                    >
+                                      <MessageCircle className="w-3 h-3 text-muted-foreground" />
+                                      WhatsApp
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">Sem telefone</span>
+                                  )}
+
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedJourneyDetails(journey);
+                                      setDetailsModalOpen(true);
+                                    }}
+                                  >
+                                    Detalhes
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border/50 rounded-xl bg-muted/10">
+                            <p className="text-[11px] text-muted-foreground font-medium">Vazio</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* VISUALIZAÇÃO 2: TABELA */}
+          {journeyView === "tabela" && (
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      <TableHead className="font-semibold text-xs text-foreground">Cliente</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground">Contato</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground">Estágio CRM</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground">Modelo</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground">Resumo do Projeto</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground">Início</TableHead>
+                      <TableHead className="font-semibold text-xs text-foreground text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const tableJourneys = journeys.filter(j => {
+                        const clientName = (j.client?.name || "").toLowerCase();
+                        const clientPhone = (j.client?.phone || "");
+                        const summary = (j.playbook_data?.projectSummary || "").toLowerCase();
+                        const query = journeySearch.toLowerCase();
+                        if (query && !clientName.includes(query) && !clientPhone.includes(query) && !summary.includes(query)) {
+                          return false;
+                        }
+
+                        if (journeyStageFilter !== "all" && j.status !== journeyStageFilter) {
+                          return false;
+                        }
+
+                        const isLean = !!(j.playbook_data?.isLean || j.playbook_data?.is_lean);
+                        if (journeyTypeFilter === "lean" && !isLean) return false;
+                        if (journeyTypeFilter === "standard" && isLean) return false;
+
+                        return true;
+                      });
+
+                      if (tableJourneys.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-28 text-center text-muted-foreground text-xs">
+                              Nenhuma jornada encontrada com os filtros selecionados.
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return tableJourneys.map(journey => {
+                        const isLean = !!(journey.playbook_data?.isLean || journey.playbook_data?.is_lean);
+                        const foundClient = clients.find(c => c.id === journey.client_id) || {
+                          id: journey.client_id,
+                          name: journey.client?.name || "Cliente",
+                          phone: journey.client?.phone || "",
+                          avatar_url: journey.client?.avatar_url
+                        };
+
+                        return (
+                          <TableRow
+                            key={journey.id}
+                            className="hover:bg-muted/20 cursor-pointer transition-colors"
+                            onClick={() => {
+                              setPlaybookJourneyId(journey.id);
+                              setPlaybookClient(foundClient);
+                              setPlaybookDefaultLean(isLean);
+                              setPlaybookModalOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-medium text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="h-7 w-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                  {foundClient.avatar_url ? (
+                                    <img src={foundClient.avatar_url} alt={foundClient.name} className="h-full w-full rounded-full object-cover" />
+                                  ) : (
+                                    foundClient.name.charAt(0)
+                                  )}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-foreground">{foundClient.name}</span>
+                                  {journey.client?.is_student && (
+                                    <span className="text-[10px] text-muted-foreground">Aluno</span>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {foundClient.phone || "Não informado"}
+                            </TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted border text-foreground">
+                                {journey.status}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${
+                                isLean ? "bg-muted text-muted-foreground border-border" : "bg-primary/5 text-primary border-primary/20"
+                              }`}>
+                                {isLean ? "Jornada Enxuta" : "Playbook Padrão"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[280px]">
+                              <p className="truncate">
+                                {journey.playbook_data?.projectSummary || foundClient.notes || "Sem resumo informado"}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {journey.created_at ? new Date(journey.created_at).toLocaleDateString("pt-BR") : "—"}
+                            </TableCell>
+                            <TableCell className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1.5">
+                                {foundClient.phone && foundClient.phone !== "Não informado" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                    asChild
+                                  >
+                                    <a
+                                      href={`https://wa.me/55${foundClient.phone.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 mr-1" />
+                                      WhatsApp
+                                    </a>
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-2 text-xs"
+                                  onClick={() => {
+                                    setSelectedJourneyDetails(journey);
+                                    setDetailsModalOpen(true);
+                                  }}
+                                >
+                                  Detalhes
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-8 px-2.5 text-xs font-semibold"
+                                  onClick={() => {
+                                    setPlaybookJourneyId(journey.id);
+                                    setPlaybookClient(foundClient);
+                                    setPlaybookDefaultLean(isLean);
+                                    setPlaybookModalOpen(true);
+                                  }}
+                                >
+                                  {isLean ? "Abrir" : "Playbook"}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
 
@@ -1264,6 +1521,7 @@ const Clients = () => {
                 placeholder="Ex: Lucas Silva"
                 value={newClientData.name}
                 onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+                className="h-11"
               />
             </div>
             <div className="space-y-1.5">
@@ -1272,14 +1530,15 @@ const Clients = () => {
                 placeholder="(11) 99999-9999"
                 value={newClientData.phone}
                 onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                className="h-11"
               />
             </div>
 
             {/* Seletor de Jornada Enxuta (Bypass) */}
-            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3">
+            <div className="p-3.5 rounded-xl border bg-muted/30 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-amber-500" />
+                  <FileText className="w-4 h-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs font-bold text-foreground">Iniciar na Jornada Enxuta (Bypass)</p>
                     <p className="text-[10px] text-muted-foreground">Pula o playbook para clientes antigos ou projetos diretos</p>
@@ -1290,42 +1549,42 @@ const Clients = () => {
                   id="leanCheck"
                   checked={newClientData.isLeanJourney}
                   onChange={(e) => setNewClientData({ ...newClientData, isLeanJourney: e.target.checked })}
-                  className="h-4 w-4 rounded border-amber-500 text-amber-600 focus:ring-amber-500 accent-amber-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
                 />
               </div>
 
               {newClientData.isLeanJourney && (
-                <div className="space-y-3 pt-2 border-t border-amber-500/20 animate-in fade-in">
+                <div className="space-y-3 pt-2 border-t border-border animate-in fade-in">
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold">Status Inicial</Label>
+                    <Label className="text-[11px] font-semibold text-foreground">Status Inicial</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setNewClientData({ ...newClientData, leanStatus: "Projeto em Andamento" })}
-                        className={`p-2 rounded-lg text-xs font-bold border transition-all ${
+                        className={`h-11 px-3 rounded-lg border text-xs font-semibold transition-all ${
                           newClientData.leanStatus === "Projeto em Andamento"
-                            ? "bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400"
-                            : "bg-card border-border text-muted-foreground"
+                            ? "bg-card border-foreground text-foreground shadow-sm"
+                            : "bg-muted/30 border-border text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        🟡 Em Andamento
+                        Em Andamento
                       </button>
                       <button
                         type="button"
                         onClick={() => setNewClientData({ ...newClientData, leanStatus: "Concluído" })}
-                        className={`p-2 rounded-lg text-xs font-bold border transition-all ${
+                        className={`h-11 px-3 rounded-lg border text-xs font-semibold transition-all ${
                           newClientData.leanStatus === "Concluído"
-                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                            : "bg-card border-border text-muted-foreground"
+                            ? "bg-card border-foreground text-foreground shadow-sm"
+                            : "bg-muted/30 border-border text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        🟢 Concluído
+                        Concluído
                       </button>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold">História & Resumo do Projeto (Opcional)</Label>
+                    <Label className="text-[11px] font-semibold text-foreground">História & Resumo do Projeto (Opcional)</Label>
                     <Textarea
                       rows={3}
                       placeholder="Ex: Fechamento de braço oriental. Já foram feitas 2 sessões..."
