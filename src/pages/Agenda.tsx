@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
@@ -227,88 +227,6 @@ const Agenda = () => {
     }
   };
 
-  const calendarEvents = useMemo(() => {
-    const list: any[] = [];
-    if (!Array.isArray(appointments)) return [];
-
-    appointments
-      .filter(appt => appt && appt.date && appt.startTime)
-      .forEach(appt => {
-        const colors = getEventColors(appt.status);
-        list.push({
-          id: appt.id,
-          title: appt.client_name || "Cliente",
-          start: `${appt.date}T${appt.startTime}`,
-          end: `${appt.date}T${appt.endTime || appt.startTime}`,
-          backgroundColor: colors.backgroundColor,
-          borderColor: colors.borderColor,
-          textColor: "#ffffff",
-          extendedProps: {
-            isBlock: false,
-            status: appt.status,
-            value: appt.value,
-            deposit: appt.deposit,
-            deposit_date: appt.deposit_date,
-            deposit_link: appt.deposit_link
-          }
-        });
-      });
-
-    if (Array.isArray(agendaBlocks)) {
-      agendaBlocks.forEach(block => {
-        list.push({
-          id: `block-${block.id}`,
-          title: `🔒 Bloqueado: ${block.title}`,
-          start: block.all_day ? block.date : `${block.date}T${block.start_time || "00:00"}`,
-          end: block.all_day ? block.date : `${block.date}T${block.end_time || "23:59"}`,
-          allDay: block.all_day,
-          backgroundColor: "#475569",
-          borderColor: "#334155",
-          textColor: "#f8fafc",
-          display: "block",
-          extendedProps: {
-            isBlock: true,
-            blockData: block
-          }
-        });
-
-        // Destaque de fundo no horário bloqueado
-        list.push({
-          id: `block-bg-${block.id}`,
-          start: block.all_day ? block.date : `${block.date}T${block.start_time || "00:00"}`,
-          end: block.all_day ? block.date : `${block.date}T${block.end_time || "23:59"}`,
-          allDay: block.all_day,
-          display: "background",
-          backgroundColor: "rgba(220, 38, 38, 0.15)"
-        });
-      });
-    }
-
-    return list;
-  }, [appointments, agendaBlocks]);
-
-  const calendarBusinessHours = useMemo(() => {
-    if (!agendaConfig?.weekly_schedule) {
-      return [
-        { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '18:00' },
-        { daysOfWeek: [6], startTime: '09:00', endTime: '14:00' }
-      ];
-    }
-
-    const bh: any[] = [];
-    Object.entries(agendaConfig.weekly_schedule).forEach(([dayKey, day]) => {
-      if (day.enabled) {
-        bh.push({
-          daysOfWeek: [parseInt(dayKey, 10)],
-          startTime: day.start || '09:00',
-          endTime: day.end || '18:00'
-        });
-      }
-    });
-
-    return bh;
-  }, [agendaConfig]);
-
   const { calendarSlotMinTime, calendarSlotMaxTime } = useMemo(() => {
     if (!agendaConfig?.weekly_schedule) {
       return { calendarSlotMinTime: "08:00", calendarSlotMaxTime: "20:00" };
@@ -340,6 +258,99 @@ const Agenda = () => {
       calendarSlotMaxTime: `${finalMax.toString().padStart(2, "0")}:00`
     };
   }, [agendaConfig]);
+
+  const calendarBusinessHours = useMemo(() => {
+    if (!agendaConfig?.weekly_schedule) {
+      return [
+        { daysOfWeek: [1, 2, 3, 4, 5], startTime: '09:00', endTime: '18:00' },
+        { daysOfWeek: [6], startTime: '09:00', endTime: '14:00' }
+      ];
+    }
+
+    const bh: any[] = [];
+    Object.entries(agendaConfig.weekly_schedule).forEach(([dayKey, day]) => {
+      if (day.enabled) {
+        bh.push({
+          daysOfWeek: [parseInt(dayKey, 10)],
+          startTime: day.start || '09:00',
+          endTime: day.end || '18:00'
+        });
+      }
+    });
+
+    return bh;
+  }, [agendaConfig]);
+
+  const calendarEvents = useMemo(() => {
+    const list: any[] = [];
+    if (!Array.isArray(appointments)) return [];
+
+    appointments
+      .filter(appt => appt && appt.date && appt.startTime)
+      .forEach(appt => {
+        const colors = getEventColors(appt.status);
+        list.push({
+          id: appt.id,
+          title: appt.client_name || "Cliente",
+          start: `${appt.date}T${appt.startTime}`,
+          end: `${appt.date}T${appt.endTime || appt.startTime}`,
+          backgroundColor: colors.backgroundColor,
+          borderColor: colors.borderColor,
+          textColor: "#ffffff",
+          extendedProps: {
+            isBlock: false,
+            status: appt.status,
+            value: appt.value,
+            deposit: appt.deposit,
+            deposit_date: appt.deposit_date,
+            deposit_link: appt.deposit_link
+          }
+        });
+      });
+
+    if (Array.isArray(agendaBlocks)) {
+      agendaBlocks.forEach(block => {
+        const startHour = block.all_day
+          ? calendarSlotMinTime
+          : (block.start_time || "08:00");
+        const endHour = block.all_day
+          ? calendarSlotMaxTime
+          : (block.end_time || "18:00");
+
+        // Evento visível em primeiro plano (sempre com allDay: false para renderizar no corpo dos horários)
+        list.push({
+          id: `block-${block.id}`,
+          title: `Bloqueado: ${block.title}`,
+          start: `${block.date}T${startHour}`,
+          end: `${block.date}T${endHour}`,
+          allDay: false,
+          backgroundColor: "#881337",
+          borderColor: "#f43f5e",
+          textColor: "#ffffff",
+          display: "block",
+          className: "fc-block-event cursor-pointer",
+          extendedProps: {
+            isBlock: true,
+            blockData: block,
+            isAllDay: block.all_day
+          }
+        });
+
+        // Sombreamento de fundo destacado no horário bloqueado
+        list.push({
+          id: `block-bg-${block.id}`,
+          start: `${block.date}T${startHour}`,
+          end: `${block.date}T${endHour}`,
+          allDay: false,
+          display: "background",
+          className: "fc-block-bg-event",
+          backgroundColor: "rgba(225, 29, 72, 0.28)"
+        });
+      });
+    }
+
+    return list;
+  }, [appointments, agendaBlocks, calendarSlotMinTime, calendarSlotMaxTime]);
 
   const currentConflict = useMemo(() => {
     if (!formData.date) return { hasConflict: false, type: null, message: "" };
@@ -750,15 +761,28 @@ const Agenda = () => {
 
   const renderEventContent = (eventInfo: EventContentArg) => {
     if (eventInfo.event.extendedProps?.isBlock) {
+      const blockData = eventInfo.event.extendedProps?.blockData;
+      const isAllDay = eventInfo.event.extendedProps?.isAllDay;
       return (
-        <div className="w-full h-full flex flex-col justify-center overflow-hidden text-xs text-white p-1 min-h-[20px] bg-slate-700/90 rounded border border-slate-500/40 shadow-inner">
-          <div className="font-bold truncate leading-tight flex items-center gap-1 text-[11px]">
-            <span>🔒</span>
-            <span className="truncate">{eventInfo.event.title.replace("🔒 Bloqueado: ", "")}</span>
+        <div className="w-full h-full flex flex-col justify-start overflow-hidden p-2 rounded-lg bg-rose-950/90 border-2 border-rose-500 text-rose-50 shadow-md">
+          <div className="flex items-center gap-1.5 font-bold text-rose-300 uppercase tracking-wider text-[10px]">
+            <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            <span>Horário Bloqueado</span>
           </div>
-          {!eventInfo.event.allDay && eventInfo.timeText && (
-            <div className="text-[10px] text-slate-300 truncate leading-tight mt-0.5">{eventInfo.timeText}</div>
+          <div className="font-bold text-sm text-white truncate mt-1">
+            {blockData?.title || eventInfo.event.title.replace("Bloqueado: ", "")}
+          </div>
+          <div className="text-[11px] text-rose-200 font-semibold mt-0.5">
+            {isAllDay ? "Dia Inteiro Indisponível" : `${blockData?.start_time || ""} às ${blockData?.end_time || ""}`}
+          </div>
+          {blockData?.reason && (
+            <div className="text-[10px] text-rose-300/90 italic truncate mt-1 bg-rose-900/50 px-1.5 py-0.5 rounded">
+              {blockData.reason}
+            </div>
           )}
+          <div className="mt-auto pt-1 text-[9px] text-rose-300/70 flex items-center gap-1">
+            <span>Clique para gerenciar</span>
+          </div>
         </div>
       );
     }
@@ -856,94 +880,88 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Barra Visual de Vagas & Horários Liberados para o Assistente */}
-      <div className="bg-card rounded-xl border p-3.5 shadow-sm mb-4 space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 flex-shrink-0">
-              <Clock className="w-4 h-4" />
+      {/* Barra de Disponibilidade & Legenda de Vagas */}
+      <div className="bg-card/90 backdrop-blur-sm rounded-xl border border-border p-3 shadow-xs mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Lado Esquerdo: Resumo dos Dias e Horários Permitidos */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <CalendarRange className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-foreground">Horários de Atendimento Liberados para o Assistente</span>
-                <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30 bg-emerald-500/5 px-1.5 py-0">
-                  Vagas Ativas
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Os blocos claros na grade abaixo indicam onde o assistente pode agendar. Áreas listradas estão fora do expediente ou fechadas.
-              </p>
-            </div>
+            <span className="text-xs font-bold text-foreground">Grade de Vagas:</span>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfigModalOpen(true)}
-              className="h-8 text-xs gap-1.5"
-            >
-              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-              Ajustar Grade
-            </Button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { key: "1", label: "Seg" },
+              { key: "2", label: "Ter" },
+              { key: "3", label: "Qua" },
+              { key: "4", label: "Qui" },
+              { key: "5", label: "Sex" },
+              { key: "6", label: "Sáb" },
+              { key: "0", label: "Dom" },
+            ].map(d => {
+              const dayConfig = agendaConfig?.weekly_schedule?.[d.key];
+              const isEnabled = dayConfig ? dayConfig.enabled : d.key !== "0";
+              const timeText = dayConfig?.enabled
+                ? `${dayConfig.start}–${dayConfig.end}`
+                : d.key === "6"
+                ? "09:00–14:00"
+                : d.key === "0"
+                ? "Fechado"
+                : "09:00–18:00";
+
+              return (
+                <div
+                  key={d.key}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] border font-medium ${
+                    isEnabled
+                      ? "bg-muted/50 border-border text-foreground"
+                      : "bg-muted/20 border-border/40 text-muted-foreground/60 line-through"
+                  }`}
+                  title={`${d.label}: ${isEnabled ? timeText : "Fechado"}`}
+                >
+                  <span className="font-semibold text-muted-foreground">{d.label}</span>
+                  <span className="text-[10px]">{isEnabled ? timeText : "Off"}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Badges dos dias da semana com horários */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1">
-          {[
-            { key: "1", label: "Seg" },
-            { key: "2", label: "Ter" },
-            { key: "3", label: "Qua" },
-            { key: "4", label: "Qui" },
-            { key: "5", label: "Sex" },
-            { key: "6", label: "Sáb" },
-            { key: "0", label: "Dom" },
-          ].map(d => {
-            const dayConfig = agendaConfig?.weekly_schedule?.[d.key];
-            const isEnabled = dayConfig ? dayConfig.enabled : d.key !== "0";
-            const timeText = dayConfig?.enabled
-              ? `${dayConfig.start} às ${dayConfig.end}`
-              : d.key === "6"
-              ? "09:00 às 14:00"
-              : d.key === "0"
-              ? "Fechado"
-              : "09:00 às 18:00";
+        {/* Lado Direito: Legenda Visual Moderna & Ações */}
+        <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/50">
+          <div className="flex items-center gap-3.5 text-[11px]">
+            <div className="flex items-center gap-1.5" title="Horário aberto para agendamentos">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-500/20" />
+              <span className="text-foreground font-medium">Livre</span>
+            </div>
 
-            return (
-              <div
-                key={d.key}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] whitespace-nowrap border transition-all ${
-                  isEnabled
-                    ? "bg-accent/40 border-border text-foreground font-medium"
-                    : "bg-muted/40 border-dashed text-muted-foreground line-through opacity-70"
-                }`}
-              >
-                <span className="font-bold">{d.label}:</span>
-                <span>{isEnabled ? timeText : "Fechado"}</span>
-              </div>
-            );
-          })}
-        </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground" title="Fora do horário de expediente ou dia fechado">
+              <Ban className="w-3.5 h-3.5 text-muted-foreground/70" />
+              <span>Fechado</span>
+            </div>
 
-        {/* Legenda visual das cores do calendário */}
-        <div className="flex flex-wrap items-center gap-4 pt-1.5 border-t text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-card border border-border inline-block shadow-sm" />
-            <span className="text-foreground font-medium">Vaga Aberta</span> (Expediente)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-muted/60 border border-muted-foreground/30 inline-block" />
-            <span>Fora de Horário / Fechado</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-slate-600 inline-block text-[9px] text-white flex items-center justify-center font-bold">🔒</span>
-            <span>Compromisso Bloqueado</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-primary inline-block" />
-            <span>Cliente Agendado</span>
-          </span>
+            <div className="flex items-center gap-1.5 text-rose-500 font-semibold" title="Horário bloqueado por compromisso pessoal">
+              <Lock className="w-3.5 h-3.5 text-rose-500" />
+              <span>Bloqueado</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-primary font-medium" title="Sessão marcada com cliente">
+              <UserCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Agendado</span>
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfigModalOpen(true)}
+            className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-2.5 gap-1.5 rounded-lg border border-border/60"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ajustar Grade</span>
+          </Button>
         </div>
       </div>
 
