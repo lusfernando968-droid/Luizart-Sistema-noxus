@@ -3,7 +3,8 @@ import {
   Users as UsersIcon, Search, UserPlus, CheckCircle2, XCircle,
   Loader2, ShieldCheck, Phone, Trash2, Key, ArrowLeft,
   Calendar, DollarSign, TrendingUp, FileText, Target,
-  Clock, ChevronRight, Activity, BarChart3, PieChart as PieChartIcon
+  Clock, ChevronRight, Activity, BarChart3, PieChart as PieChartIcon,
+  Copy, LayoutGrid, List
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
@@ -85,6 +87,16 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 const formatDate = (d: string) => {
   if (!d) return "—";
+  try {
+    const dateObj = new Date(d);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    }
+  } catch (e) {}
   if (d.includes("T")) d = d.split("T")[0]; // Handle timestamps
   const parts = d.split("-");
   if (parts.length === 3) {
@@ -118,6 +130,9 @@ export default function Team() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -249,10 +264,26 @@ export default function Team() {
     setNewAccessCode(`${prefix}-${Math.floor(1000 + Math.random() * 9000)}`);
   };
 
-  const filteredTeam = team.filter(m =>
-    m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.accessCode?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCopyCode = (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    toast.success(`Código ${code} copiado com sucesso!`);
+  };
+
+  const filteredTeam = team.filter(m => {
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      m.name?.toLowerCase().includes(q) ||
+      m.accessCode?.toLowerCase().includes(q) ||
+      (m.whatsapp && m.whatsapp.includes(q));
+    const matchesRole = roleFilter === "ALL" || m.role === roleFilter;
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ACTIVE" && m.isActive) ||
+      (statusFilter === "INACTIVE" && !m.isActive);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   // =============================================
   // RENDER — PERFIL ABERTO
@@ -523,15 +554,10 @@ export default function Team() {
           <p className="page-subtitle">Gerencie os membros do estúdio e acompanhe o desempenho de cada um.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nome ou código..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 rounded-xl w-full" />
-          </div>
-
+        <div className="flex items-center gap-3">
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto rounded-xl gap-2">
+              <Button className="w-full sm:w-auto rounded-xl gap-2 h-11 px-4 font-semibold shadow-sm">
                 <UserPlus className="h-4 w-4" /> Adicionar Colaborador
               </Button>
             </DialogTrigger>
@@ -543,7 +569,7 @@ export default function Team() {
               <form onSubmit={handleAddMember} className="space-y-4 py-2">
                 <div className="space-y-2">
                   <Label>Nome Completo</Label>
-                  <Input placeholder="Ex: Carol Silva" value={newName} onChange={e => setNewName(e.target.value)} required className="rounded-xl" />
+                  <Input placeholder="Ex: Carol Silva" value={newName} onChange={e => setNewName(e.target.value)} required className="rounded-xl h-11" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -551,14 +577,14 @@ export default function Team() {
                     <button type="button" onClick={generateRandomCode} className="text-xs text-primary hover:underline font-medium">Gerar Automático</button>
                   </div>
                   <div className="relative">
-                    <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Ex: TATTOO-1020" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value.toUpperCase())} required className="pl-10 uppercase font-mono tracking-wider rounded-xl" />
+                    <Key className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Ex: TATTOO-1020" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value.toUpperCase())} required className="pl-10 uppercase font-mono tracking-wider rounded-xl h-11" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Cargo / Função</Label>
                   <Select value={newRole} onValueChange={setNewRole}>
-                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TATUADOR">Tatuador(a)</SelectItem>
                       <SelectItem value="ASSISTENTE">Assistente de Tatuagem</SelectItem>
@@ -569,11 +595,11 @@ export default function Team() {
                 </div>
                 <div className="space-y-2">
                   <Label>WhatsApp (Opcional)</Label>
-                  <Input placeholder="(11) 99999-9999" value={newWhatsapp} onChange={e => setNewWhatsapp(e.target.value)} className="rounded-xl" />
+                  <Input placeholder="(11) 99999-9999" value={newWhatsapp} onChange={e => setNewWhatsapp(e.target.value)} className="rounded-xl h-11" />
                 </div>
                 <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="rounded-xl">Cancelar</Button>
-                  <Button type="submit" disabled={submitting} className="rounded-xl">
+                  <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="rounded-xl h-11">Cancelar</Button>
+                  <Button type="submit" disabled={submitting} className="rounded-xl h-11 font-semibold">
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Salvar Colaborador
                   </Button>
@@ -584,81 +610,292 @@ export default function Team() {
         </div>
       </div>
 
-      {/* Team grid */}
+      {/* Barra de Filtros e Alternador de Visualização */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card p-3 rounded-2xl border shadow-sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, código ou Whats..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 h-11 rounded-xl bg-background"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-[170px] h-11 rounded-xl bg-background">
+                <SelectValue placeholder="Cargo / Função" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os Cargos</SelectItem>
+                <SelectItem value="ADMIN">Proprietário / Admin</SelectItem>
+                <SelectItem value="TATUADOR">Tatuador(a)</SelectItem>
+                <SelectItem value="ASSISTENTE">Assistente</SelectItem>
+                <SelectItem value="RECEPCAO">Recepção</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[150px] h-11 rounded-xl bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os Status</SelectItem>
+                <SelectItem value="ACTIVE">Apenas Ativos</SelectItem>
+                <SelectItem value="INACTIVE">Apenas Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Alternador de Visualização (Tabela x Cards) */}
+        <div className="flex items-center gap-1 self-end md:self-auto bg-muted/60 p-1 rounded-xl border border-border/50">
+          <Button
+            type="button"
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+            className={`h-9 px-3 rounded-lg text-xs font-semibold gap-1.5 ${viewMode === "table" ? "bg-background shadow-xs text-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3.5 w-3.5" />
+            Tabela
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "cards" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("cards")}
+            className={`h-9 px-3 rounded-lg text-xs font-semibold gap-1.5 ${viewMode === "cards" ? "bg-background shadow-xs text-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Cards
+          </Button>
+        </div>
+      </div>
+
+      {/* Conteúdo: Tabela ou Cards */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 gap-3 bg-card rounded-2xl border">
+        <div className="flex flex-col items-center justify-center p-16 gap-3 bg-card rounded-2xl border shadow-sm">
           <Loader2 className="h-10 w-10 animate-spin text-primary/50" />
           <p className="text-sm text-muted-foreground">Carregando equipe...</p>
         </div>
       ) : filteredTeam.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTeam.map(member => (
-            <div key={member.id} className="bg-card rounded-2xl border shadow-sm hover:shadow-md hover:border-primary/30 transition-all group">
-              {/* Card clicável — abre perfil */}
-              <button className="w-full text-left p-5 space-y-4" onClick={() => openProfile(member)}>
-                <div className="flex items-center gap-4">
-                  {/* Avatar */}
-                  <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow group-hover:scale-105 transition-transform"
-                    style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.5))" }}>
-                    {member.name?.charAt(0) || "?"}
+        viewMode === "table" ? (
+          <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
+                    <TableHead className="font-semibold text-foreground py-3.5 pl-6 min-w-[200px]">Colaborador</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 min-w-[150px]">Código de Acesso</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 min-w-[150px]">Data de Cadastro</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 min-w-[160px]">Cargo / Função</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 min-w-[140px]">WhatsApp</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 min-w-[130px]">Acesso</TableHead>
+                    <TableHead className="font-semibold text-foreground py-3.5 text-right pr-6 min-w-[140px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTeam.map(member => (
+                    <TableRow
+                      key={member.id}
+                      className="cursor-pointer hover:bg-muted/30 transition-colors group border-b border-border/50"
+                      onClick={() => openProfile(member)}
+                    >
+                      {/* Colaborador */}
+                      <TableCell className="py-3.5 pl-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white text-base shrink-0 shadow-sm group-hover:scale-105 transition-transform"
+                            style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.6))" }}
+                          >
+                            {member.name?.charAt(0) || "?"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate">
+                              {member.name || "Colaborador"}
+                            </p>
+                            {member.email && (
+                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Código de Acesso */}
+                      <TableCell className="py-3.5">
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted border border-border/70 text-foreground flex items-center gap-1.5 w-fit">
+                            <Key className="h-3 w-3 text-muted-foreground" />
+                            {member.accessCode}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                            title="Copiar código de acesso"
+                            onClick={(e) => handleCopyCode(member.accessCode, e)}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+
+                      {/* Data de Cadastro */}
+                      <TableCell className="py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                          <Calendar className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                          {formatDate(member.createdAt)}
+                        </span>
+                      </TableCell>
+
+                      {/* Cargo / Função */}
+                      <TableCell className="py-3.5">
+                        {getRoleBadge(member.role)}
+                      </TableCell>
+
+                      {/* Contato (WhatsApp) */}
+                      <TableCell className="py-3.5" onClick={e => e.stopPropagation()}>
+                        {member.whatsapp ? (
+                          <a
+                            href={`https://wa.me/55${member.whatsapp.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary font-medium hover:underline transition-colors"
+                          >
+                            <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
+                            {member.whatsapp}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/60">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Acesso (Switch) */}
+                      <TableCell className="py-3.5" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2">
+                          {updatingId === member.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Switch
+                              checked={member.isActive}
+                              onCheckedChange={() => toggleMemberStatus(member.id, member.isActive)}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          )}
+                          <span className={`text-xs font-medium ${member.isActive ? "text-primary" : "text-muted-foreground"}`}>
+                            {member.isActive ? "Ativo" : "Inativo"}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      {/* Ações */}
+                      <TableCell className="py-3.5 text-right pr-6" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs rounded-lg gap-1 border hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                            onClick={() => openProfile(member)}
+                          >
+                            <BarChart3 className="h-3.5 w-3.5" /> Métricas
+                          </Button>
+                          {member.role !== "ADMIN" && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"
+                              title="Remover colaborador"
+                              onClick={() => handleDeleteMember(member.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTeam.map(member => (
+              <div key={member.id} className="bg-card rounded-2xl border shadow-sm hover:shadow-md hover:border-primary/30 transition-all group">
+                {/* Card clicável — abre perfil */}
+                <button className="w-full text-left p-5 space-y-4" onClick={() => openProfile(member)}>
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow group-hover:scale-105 transition-transform"
+                      style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.5))" }}>
+                      {member.name?.charAt(0) || "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-base truncate">{member.name || "Colaborador"}</p>
+                      {getRoleBadge(member.role)}
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-base truncate">{member.name || "Colaborador"}</p>
-                    {getRoleBadge(member.role)}
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                </div>
 
-                {/* Info row */}
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 font-mono bg-muted px-2 py-1 rounded-lg border">
-                    <Key className="h-3 w-3" /> {member.accessCode}
-                  </span>
-                  {member.whatsapp && (
-                    <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {member.whatsapp}</span>
-                  )}
-                </div>
-              </button>
-
-              {/* Status + toggle na base */}
-              <div className="px-5 pb-4 pt-1 flex items-center justify-between border-t border-border/30">
-                {member.isActive ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Acesso Ativo
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-destructive font-medium">
-                    <XCircle className="h-3.5 w-3.5" /> Desativado
-                  </span>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {updatingId === member.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  ) : (
-                    <>
-                      <Switch
-                        checked={member.isActive}
-                        onCheckedChange={() => toggleMemberStatus(member.id, member.isActive)}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                      {member.role !== "ADMIN" && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"
-                          onClick={e => { e.stopPropagation(); handleDeleteMember(member.id); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {/* Info row */}
+                  <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1 font-mono bg-muted px-2 py-1 rounded-lg border">
+                        <Key className="h-3 w-3" /> {member.accessCode}
+                      </span>
+                      {member.whatsapp && (
+                        <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {member.whatsapp}</span>
                       )}
-                    </>
+                    </div>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
+                      <Calendar className="h-3 w-3 text-primary/70" /> Cadastrado em {formatDate(member.createdAt)}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Status + toggle na base */}
+                <div className="px-5 pb-4 pt-1 flex items-center justify-between border-t border-border/30">
+                  {member.isActive ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Acesso Ativo
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-destructive font-medium">
+                      <XCircle className="h-3.5 w-3.5" /> Desativado
+                    </span>
                   )}
+
+                  <div className="flex items-center gap-2">
+                    {updatingId === member.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : (
+                      <>
+                        <Switch
+                          checked={member.isActive}
+                          onCheckedChange={() => toggleMemberStatus(member.id, member.isActive)}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                        {member.role !== "ADMIN" && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg"
+                            onClick={e => { e.stopPropagation(); handleDeleteMember(member.id); }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       ) : (
-        <div className="p-12 text-center text-muted-foreground bg-card rounded-2xl border">
+        <div className="p-12 text-center text-muted-foreground bg-card rounded-2xl border shadow-sm">
           <UsersIcon className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          Nenhum colaborador encontrado.
+          Nenhum colaborador encontrado com os filtros atuais.
         </div>
       )}
     </div>
