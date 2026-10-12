@@ -659,8 +659,8 @@ const Clients = () => {
                                    {client.status}
                                  </span>
                                  {journeys.some(j => j.client_id === client.id && (j.playbook_data?.isLean || j.playbook_data?.is_lean)) && (
-                                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" title="Jornada Enxuta Ativa">
-                                     <Zap className="w-2.5 h-2.5" /> Enxuta
+                                   <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border" title="Jornada Enxuta Ativa">
+                                     Enxuta
                                    </span>
                                  )}
                                </div>
@@ -675,18 +675,6 @@ const Clients = () => {
                         <ContextMenuContent>
                           <ContextMenuItem onClick={() => setSelectedClient(client)}>
                             <User className="mr-2 h-4 w-4" /> Visualizar Perfil
-                          </ContextMenuItem>
-                          <ContextMenuItem onClick={() => {
-                            setPlaybookClient(client);
-                            const clientJourneys = journeys.filter(j => j.client_id === client.id);
-                            const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-                            if (latestJourney) setPlaybookJourneyId(latestJourney.id);
-                            else setPlaybookJourneyId(undefined);
-                            setPlaybookDefaultLean(true);
-                            setPlaybookModalOpen(true);
-                          }}>
-                            <Zap className="mr-2 h-4 w-4 text-amber-500" /> 
-                            <span className="text-amber-600 dark:text-amber-400 font-medium">Jornada Enxuta (Bypass)</span>
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => handleJourneyAction(client)}>
                             <Play className="mr-2 h-4 w-4 text-primary" /> 
@@ -865,19 +853,6 @@ const Clients = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 text-[11px] gap-1 px-2 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                            onClick={() => {
-                              setPlaybookClient(selectedClient);
-                              setPlaybookJourneyId(undefined);
-                              setPlaybookDefaultLean(true);
-                              setPlaybookModalOpen(true);
-                            }}
-                          >
-                            <Zap className="w-3 h-3 text-amber-500" /> + Jornada Enxuta
-                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
