@@ -16,7 +16,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
@@ -131,6 +131,15 @@ const Clients = () => {
 
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [tempNotes, setTempNotes] = useState("");
+  const [notesExpanded, setNotesExpanded] = useState(true);
+
+  useEffect(() => {
+    if (selectedClient) {
+      setTempNotes(selectedClient.notes || "");
+      setIsEditingNotes(false);
+      setNotesExpanded(true);
+    }
+  }, [selectedClient?.id]);
 
   // New Client & Edit States
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -944,8 +953,119 @@ const Clients = () => {
                     </div>
                   </div>
 
-                  
-                    {/* Aba de Jornadas / Projetos do Cliente */}
+                  {/* Card de Anotações & Observações do Cliente (Aberto por padrão, minimizável) */}
+                  <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 text-foreground space-y-3">
+                    <div className="flex items-center justify-between border-b pb-3 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <h3 className="font-bold text-base text-foreground shrink-0">Anotações & Observações</h3>
+                        {selectedClient.notes && !notesExpanded && (
+                          <span className="text-xs text-muted-foreground truncate hidden sm:inline-block">
+                            — {selectedClient.notes}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!isEditingNotes && notesExpanded && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                            onClick={() => {
+                              setTempNotes(selectedClient.notes || "");
+                              setIsEditingNotes(true);
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Editar</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                          onClick={() => setNotesExpanded(!notesExpanded)}
+                          title={notesExpanded ? "Minimizar anotações" : "Expandir anotações"}
+                        >
+                          {notesExpanded ? (
+                            <>
+                              <span className="hidden sm:inline">Minimizar</span>
+                              <ChevronUp className="w-4 h-4" />
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden sm:inline">Expandir</span>
+                              <ChevronDown className="w-4 h-4" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {notesExpanded && (
+                      <div className="pt-1 animate-in fade-in duration-150 space-y-3">
+                        {isEditingNotes ? (
+                          <div className="space-y-3">
+                            <Textarea
+                              value={tempNotes}
+                              onChange={(e) => setTempNotes(e.target.value)}
+                              placeholder="Escreva observações importantes sobre o cliente (preferências, estilo favorito, restrições, histórico pessoal...)"
+                              rows={4}
+                              className="w-full text-sm resize-y min-h-[100px] bg-background"
+                              autoFocus
+                            />
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 px-3 text-xs"
+                                onClick={() => {
+                                  setTempNotes(selectedClient.notes || "");
+                                  setIsEditingNotes(false);
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-9 px-3.5 text-xs font-semibold"
+                                onClick={handleSaveNotes}
+                              >
+                                Salvar Anotações
+                              </Button>
+                            </div>
+                          </div>
+                        ) : selectedClient.notes ? (
+                          <div
+                            onClick={() => {
+                              setTempNotes(selectedClient.notes || "");
+                              setIsEditingNotes(true);
+                            }}
+                            className="bg-muted/20 hover:bg-muted/30 transition-colors p-3.5 rounded-lg border text-sm text-foreground whitespace-pre-wrap leading-relaxed cursor-pointer group relative"
+                            title="Clique para editar as anotações"
+                          >
+                            <p>{selectedClient.notes}</p>
+                            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity absolute right-2.5 bottom-2 flex items-center gap-1">
+                              <Pencil className="w-3 h-3" /> Clique para editar
+                            </span>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => {
+                              setTempNotes("");
+                              setIsEditingNotes(true);
+                            }}
+                            className="border-2 border-dashed border-border/60 hover:border-border hover:bg-muted/10 transition-colors p-6 rounded-lg text-center cursor-pointer space-y-1"
+                          >
+                            <p className="text-xs font-medium text-muted-foreground">Nenhuma observação registrada para este cliente.</p>
+                            <p className="text-[11px] text-muted-foreground/80">Clique aqui para adicionar anotações rápidas.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Aba de Jornadas / Projetos do Cliente */}
                     <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
                       <div className="flex items-center justify-between border-b pb-3">
                         <div className="flex items-center gap-3">
