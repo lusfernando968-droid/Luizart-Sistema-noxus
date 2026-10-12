@@ -202,19 +202,27 @@ export default function Team() {
       if (anamnesisError) console.error("Erro ao buscar anamnese:", anamnesisError);
       const anamnesis = rawAnamnesis || [];
 
-      // Filtro por membro:
-      // Para ADMIN e RECEPCAO (Atendimento), eles gerenciam a operação do estúdio.
-      // Se houver registros com user_id vinculado a esse membro, usamos eles;
-      // caso contrário, ou para RECEPCAO/ADMIN, utilizamos os dados operacionais do estúdio.
-      const isGeneral = member.role === 'ADMIN' || member.role === 'RECEPCAO';
+      // Filtro por código de acesso / atendente:
+      // O perfil do Admin ('NOXUS-ADMIN') acompanha a visão geral do estúdio.
+      // Já para o Gabriel (Recepção) ou demais atendentes, registra ESTRITAMENTE as atividades que pertencem ao seu código de acesso (user_id === member.id ou vinculado a member.accessCode)
+      const isAdmin = member.role === 'ADMIN' && member.accessCode === 'NOXUS-ADMIN';
 
-      const memberAppts = isGeneral
+      // Agendamentos deste colaborador / atendente:
+      const memberAppts = isAdmin
         ? appts
-        : appts.filter(a => a.user_id === member.id || (member.name && (a.notes?.includes(member.name) || a.type?.includes(member.name))));
+        : appts.filter(a =>
+            a.user_id === member.id ||
+            (a.notes && (a.notes.includes(member.accessCode) || a.notes.includes(member.name || ""))) ||
+            (a.type && (a.type.includes(member.accessCode) || a.type.includes(member.name || "")))
+          );
 
-      const memberClients = isGeneral
+      // Clientes cadastrados por este colaborador / atendente:
+      const memberClients = isAdmin
         ? clients
-        : clients.filter(c => c.user_id === member.id);
+        : clients.filter(c =>
+            c.user_id === member.id ||
+            (c.notes && (c.notes.includes(member.accessCode) || c.notes.includes(member.name || "")))
+          );
 
       // Métricas calculadas
       const totalAppointments = memberAppts.length;
@@ -222,26 +230,24 @@ export default function Team() {
       const cancelledAppointments = memberAppts.filter(a => a.status === 'Cancelado').length;
       const scheduledAppointments = memberAppts.filter(a => a.status === 'Agendado' || a.status === 'Confirmado').length;
 
-      // Sinais Coletados:
-      // Soma dos depósitos registrados nos agendamentos + transações de entrada identificadas como sinal
-      const depositFromAppts = memberAppts.reduce((sum, a) => sum + Number(a.deposit || 0), 0);
-      const depositFromFin = transactions
-        .filter(t => t.type === 'entrada' && (t.description?.toLowerCase().includes('sinal') || t.appointment_id))
-        .reduce((sum, t) => sum + Number(t.value || 0), 0);
-      const totalDepositsCollected = Math.max(depositFromAppts, depositFromFin);
+      // Sinais Coletados pelo atendente:
+      const totalDepositsCollected = isAdmin
+        ? Math.max(
+            appts.reduce((sum, a) => sum + Number(a.deposit || 0), 0),
+            transactions.filter(t => t.type === 'entrada' && (t.description?.toLowerCase().includes('sinal') || t.appointment_id)).reduce((sum, t) => sum + Number(t.value || 0), 0)
+          )
+        : memberAppts.reduce((sum, a) => sum + Number(a.deposit || 0), 0);
 
-      // Faturamento Gerado:
-      // Soma dos valores dos agendamentos concluídos + entradas registradas no financeiro
-      const revenueFromAppts = memberAppts
-        .filter(a => a.status === 'Concluído')
-        .reduce((sum, a) => sum + Number(a.value || 0), 0);
-      const revenueFromFin = transactions
-        .filter(t => t.type === 'entrada')
-        .reduce((sum, t) => sum + Number(t.value || 0), 0);
-      const totalRevenue = Math.max(revenueFromFin, revenueFromAppts);
+      // Faturamento Gerado pelo atendente:
+      const totalRevenue = isAdmin
+        ? Math.max(
+            transactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + Number(t.value || 0), 0),
+            appts.filter(a => a.status === 'Concluído').reduce((sum, a) => sum + Number(a.value || 0), 0)
+          )
+        : memberAppts.filter(a => a.status === 'Concluído').reduce((sum, a) => sum + Number(a.value || 0), 0);
 
       const clientsCreated = memberClients.length;
-      const anamnesisCount = isGeneral
+      const anamnesisCount = isAdmin
         ? anamnesis.length
         : anamnesis.filter(an => memberClients.some(c => c.id === an.client_id)).length;
 
@@ -266,7 +272,7 @@ export default function Team() {
         completionRate
       };
 
-      // 5. Dados mensais dos últimos 6 meses calculados dinamicamente
+      // 5. Dados mensais dos últimos 6 meses (estritamente do atendente)
       const now = new Date();
       const monthlyData = [];
       for (let i = 5; i >= 0; i--) {
@@ -275,12 +281,16 @@ export default function Team() {
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const monthKey = `${y}-${m}`;
 
-        const monthRevenue = transactions
-          .filter(t => t.type === 'entrada' && (t.date?.startsWith(monthKey) || t.created_at?.startsWith(monthKey)))
-          .reduce((sum, t) => sum + Number(t.value || 0), 0) ||
-          memberAppts
-            .filter(a => a.status === 'Concluído' && (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey)))
-            .reduce((sum, a) => sum + Number(a.value || 0), 0);
+        const monthRevenue = isAdmin
+          ? (transactions
+              .filter(t => t.type === 'entrada' && (t.date?.startsWith(monthKey) || t.created_at?.startsWith(monthKey)))
+              .reduce((sum, t) => sum + Number(t.value || 0), 0) ||
+            memberAppts
+              .filter(a => a.status === 'Concluído' && (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey)))
+              .reduce((sum, a) => sum + Number(a.value || 0), 0))
+          : memberAppts
+              .filter(a => a.status === 'Concluído' && (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey)))
+              .reduce((sum, a) => sum + Number(a.value || 0), 0);
 
         const monthSessions = memberAppts.filter(a => (a.date?.startsWith(monthKey) || a.created_at?.startsWith(monthKey))).length;
         const monthClients = memberClients.filter(c => (c.created_at?.startsWith(monthKey))).length;
@@ -300,7 +310,7 @@ export default function Team() {
         statusCounts[st] = (statusCounts[st] || 0) + 1;
       });
 
-      // Funil de atendimento dos clientes
+      // Funil de clientes atribuídos a este código
       const orcamentoCount = memberClients.filter(c => c.status === "Orçamento" || !c.status).length;
       const agendadaCount = memberClients.filter(c => c.status === "Sessão Agendada").length;
       const concluidoCount = memberClients.filter(c => c.status === "Concluído").length;
@@ -312,8 +322,8 @@ export default function Team() {
       ].filter(f => f.value > 0);
 
       let statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-      if (statusData.length === 0 || member.role === 'RECEPCAO') {
-        statusData = clientFunnelData.length > 0 ? clientFunnelData : [{ name: "Sem dados", value: 1 }];
+      if (statusData.length === 0) {
+        statusData = clientFunnelData.length > 0 ? clientFunnelData : [{ name: "Sem registros", value: 0 }];
       }
 
       // 7. Atividades Recentes
@@ -330,21 +340,18 @@ export default function Team() {
         });
       });
 
-      // Se houver poucos agendamentos, lista os clientes mais recentes em atendimento
-      if (recentActivity.length < 6) {
-        memberClients.slice(0, 6).forEach(c => {
-          if (!recentActivity.some(act => act.clientName === c.name)) {
-            recentActivity.push({
-              id: `cli-${c.id}`,
-              clientName: c.name || "Cliente",
-              date: c.created_at ? c.created_at.split('T')[0] : "Hoje",
-              status: c.status || "Orçamento",
-              value: 0,
-              type: "Atendimento CRM"
-            });
-          }
-        });
-      }
+      memberClients.forEach(c => {
+        if (!recentActivity.some(act => act.clientName === c.name)) {
+          recentActivity.push({
+            id: `cli-${c.id}`,
+            clientName: c.name || "Cliente",
+            date: c.created_at ? c.created_at.split('T')[0] : "Hoje",
+            status: c.status || "Orçamento",
+            value: 0,
+            type: "Atendimento CRM"
+          });
+        }
+      });
 
       recentActivity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -668,7 +675,13 @@ export default function Team() {
                 <BarChart3 className="h-4 w-4 text-primary" /> {selectedMember.role === "RECEPCAO" ? "Últimos Atendimentos & Agendamentos" : "Últimos Agendamentos Criados"}
               </h3>
               {activities.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atividade registrada ainda.</p>
+                <div className="text-center py-8 px-4 rounded-xl border border-dashed bg-muted/20">
+                  <p className="text-sm font-medium text-foreground">Nenhuma atividade vinculada ainda</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+                    Atividades, novos clientes e agendamentos registrados sob a sessão ou código de acesso{" "}
+                    <span className="font-mono font-semibold text-primary">{selectedMember.accessCode}</span> serão listados aqui automaticamente.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {activities.map(a => {

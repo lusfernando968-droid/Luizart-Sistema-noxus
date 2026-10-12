@@ -313,6 +313,9 @@ const Agenda = () => {
       const clientName = clientObj?.name || "Cliente";
       const finalStatus = typeof overrideStatus === 'string' ? overrideStatus : formData.status;
 
+      const userStr = localStorage.getItem("noxus_user");
+      const loggedUser = userStr ? JSON.parse(userStr) : null;
+
       const payload: any = {
         client_id: formData.client_id,
         date: formData.date,
@@ -322,6 +325,7 @@ const Agenda = () => {
         value: formData.value,
         deposit: formData.deposit,
         deposit_date: formData.deposit_date || null,
+        user_id: loggedUser?.id || null,
       };
 
       let savedApptId = editingAppointment?.id;

@@ -269,6 +269,9 @@ const Clients = () => {
         return;
       }
       
+      const userStr = localStorage.getItem("noxus_user");
+      const loggedUser = userStr ? JSON.parse(userStr) : null;
+
       const { data: newClient, error } = await supabase.from('clientes').insert([{
         name: newClientData.name,
         phone: newClientData.phone,
@@ -276,7 +279,8 @@ const Clients = () => {
         status: "Orçamento",
         notes: newClientData.notes || "",
         avatar_url: newClientData.avatar_url,
-        referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null)
+        referred_by_id: newClientData.referred_by_id === "none" ? null : (newClientData.referred_by_id || null),
+        user_id: loggedUser?.id || null
       }]).select().single();
 
       if (error) throw error;
