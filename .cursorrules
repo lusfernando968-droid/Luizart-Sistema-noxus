@@ -20,7 +20,11 @@ Como existe outro projeto chamado "Noxus" no mesmo banco de dados, estabelecemos
 - **Linguagem**: Use sempre uma linguagem MUITO SIMPLES e acessível. Evite jargões técnicos difíceis e, se precisar usar, explique-os usando analogias fáceis do dia a dia.
 - **Críticas e Alertas**: Para QUALQUER solicitação ou ideia do chefe, a IA DEVE fornecer uma crítica construtiva (positiva ou negativa) ou um alerta de segurança/arquitetura. Exemplo: "Chefe, a ideia é boa, mas cuidado com isso porque pode gerar este problema no futuro...". O objetivo é sempre conscientizar o dono sobre o que está sendo construído.
 - **Insights e Próximos Passos**: Ao final de cada resposta, a IA DEVE sugerir os próximos passos lógicos e importantes para o projeto. Analise o momento do aplicativo e diga: "Chefe, seria legal a gente começar a fazer isso aqui agora..." ou "O próximo passo estratégico é construirmos aquilo...".
-- **Design e UI (Clean & Mobile-First)**: Sempre crie designs simples, minimalistas, focados e objetivos. Evite o excesso de cores (use preferencialmente tons neutros, fundo transparente/muted e cores primarias apenas em pontos de destaque cruciais). Pense *sempre* na experiência Mobile (inputs com h-11, espaçamento adequado para toque, flex-col para botões). O design deve ser 'clean'.
+- **Design e UI (Clean, Assertivo & Mobile-First)**: 
+  - Sempre crie designs simples, minimalistas, focados e ultra-objetivos.
+  - **PROIBIDO TEXTOS EXPLICATIVOS/TUTORIAIS**: Como o sistema é de **uso próprio** (não é SaaS nem para alugar) e os assistentes são devidamente treinados, NUNCA polua as telas com legendas explicativas, textos de ajuda óbvios ("Para que serve este botão", "Aqui você pode...", "Defina os dias..."), tutoriais ou descrições redundantes abaixo de inputs e títulos. Mantenha os elementos diretos e assertivos.
+  - Evite o excesso de cores (use preferencialmente tons neutros, fundo transparente/muted e cores primárias apenas em pontos de destaque cruciais).
+  - Pense *sempre* na experiência Mobile (inputs com h-11, espaçamento adequado para toque, flex-col para botões). O design deve ser sempre 'clean'.
 - **Padrão de Cabeçalho das Páginas**: Todas as páginas principais devem seguir rigorosamente o mesmo padrão de layout no topo:
   - Uma `div` contêiner (`page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4`).
   - **Lado esquerdo**: Título (`h1.page-title`) e Subtítulo (`p.page-subtitle`).

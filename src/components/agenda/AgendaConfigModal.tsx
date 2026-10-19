@@ -289,9 +289,6 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
             </div>
             <div>
               <DialogTitle className="text-lg font-bold">Configuração da Agenda & Vagas</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Defina os dias, horários permitidos e bloqueios para o assistente não agendar em horários ocupados.
-              </DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -314,21 +311,16 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
 
             {/* ABA 1: GRADE SEMANAL */}
             <TabsContent value="horarios" className="space-y-4 pt-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/40 rounded-xl border">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    Padrão de Expediente
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Configure os dias que o assistente pode encaixar clientes.
-                  </p>
+              <div className="flex items-center justify-between gap-2 p-3 bg-muted/40 rounded-xl border">
+                <div className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  Padrão de Expediente
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleApplyCommercialHours}
-                  className="text-xs h-8 whitespace-nowrap self-start sm:self-auto"
+                  className="text-xs h-8 whitespace-nowrap"
                 >
                   Restaurar Padrão Comercial
                 </Button>
@@ -350,19 +342,14 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
                           checked={day.enabled}
                           onCheckedChange={(val) => handleDayToggle(dayKey, val)}
                         />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{day.name}</span>
-                            <Badge
-                              variant={day.enabled ? "default" : "outline"}
-                              className="text-[10px] px-1.5 py-0"
-                            >
-                              {day.enabled ? "Disponível" : "Fechado / Folga"}
-                            </Badge>
-                          </div>
-                          <span className="text-[11px] text-muted-foreground">
-                            {day.enabled ? "Assistente pode marcar vagas" : "Assistente será avisado que este dia não atende"}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{day.name}</span>
+                          <Badge
+                            variant={day.enabled ? "default" : "outline"}
+                            className="text-[10px] px-1.5 py-0"
+                          >
+                            {day.enabled ? "Disponível" : "Fechado"}
+                          </Badge>
                         </div>
                       </div>
 
@@ -400,12 +387,7 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
                 </h4>
 
                 <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <Label className="text-xs font-semibold">Alertar e Bloquear Horários Fora da Grade</Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      Impede ou alerta o assistente se ele tentar marcar em dias fechados ou fora do horário.
-                    </p>
-                  </div>
+                  <Label className="text-xs font-semibold">Alertar e Bloquear Horários Fora da Grade</Label>
                   <Switch
                     checked={blockOutsideSchedule}
                     onCheckedChange={setBlockOutsideSchedule}
@@ -421,9 +403,6 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
                     rows={2}
                     className="text-xs resize-none"
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Este recado aparecerá como orientação quando o assistente for criar um agendamento.
-                  </p>
                 </div>
               </div>
             </TabsContent>
@@ -436,12 +415,7 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
                   <div className="p-1.5 rounded-md bg-destructive/10 text-destructive">
                     <CalendarOff className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold">Bloquear Data ou Horário por Compromisso</h4>
-                    <p className="text-[11px] text-muted-foreground">
-                      Use para médicos, viagens ou compromissos para evitar que o assistente marque clientes por engano.
-                    </p>
-                  </div>
+                  <h4 className="text-xs font-bold">Bloquear Data ou Horário por Compromisso</h4>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -523,11 +497,8 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
 
                 {blocks.length === 0 ? (
                   <div className="p-6 text-center border-2 border-dashed rounded-xl space-y-1">
-                    <CalendarOff className="w-6 h-6 text-muted-foreground mx-auto opacity-50" />
-                    <p className="text-xs font-semibold text-foreground">Nenhum compromisso bloqueado no momento</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Quando você tiver algum imprevisto ou folga programada, adicione acima para proteger sua agenda.
-                    </p>
+                    <CalendarOff className="w-5 h-5 text-muted-foreground mx-auto opacity-50" />
+                    <p className="text-xs text-muted-foreground">Nenhum compromisso cadastrado</p>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
