@@ -767,8 +767,8 @@ const Agenda = () => {
       return (
         <div className="w-full h-full flex flex-col justify-start overflow-hidden p-2 text-white select-none">
           <div className="flex items-center gap-1.5 leading-tight">
-            <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="block-badge text-[10px] font-bold uppercase tracking-wider text-amber-400">
+            <Lock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span className="block-badge text-[10px] font-bold uppercase tracking-wider text-blue-400">
               Horário Bloqueado
             </span>
           </div>
@@ -777,17 +777,11 @@ const Agenda = () => {
           </div>
           <div className="block-time text-[11px] text-slate-300 font-medium leading-tight mt-0.5 flex items-center gap-1">
             <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-            <span>{isAllDay ? "Dia inteiro indisponível" : `${blockData?.start_time || ""} às ${blockData?.end_time || ""}`}</span>
+            <span>{isAllDay ? "Dia inteiro" : `${blockData?.start_time || ""} às ${blockData?.end_time || ""}`}</span>
           </div>
-          {blockData?.reason ? (
-            <div className="block-desc text-[10px] text-slate-300 truncate mt-1.5 bg-slate-900/60 border border-slate-700/60 px-2 py-0.5 rounded flex items-center gap-1">
-              <span className="text-slate-400 font-medium">Motivo:</span>
-              <span className="italic">{blockData.reason}</span>
-            </div>
-          ) : (
-            <div className="block-desc text-[10px] text-slate-400 truncate mt-1.5 flex items-center gap-1">
-              <Ban className="w-3 h-3 text-amber-400/80 shrink-0" />
-              <span>Indisponível para clientes</span>
+          {blockData?.reason && (
+            <div className="block-desc text-[10px] text-slate-300 truncate mt-1 bg-slate-900/60 border border-slate-700/60 px-1.5 py-0.5 rounded">
+              {blockData.reason}
             </div>
           )}
         </div>
