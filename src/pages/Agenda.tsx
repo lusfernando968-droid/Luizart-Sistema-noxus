@@ -1240,14 +1240,11 @@ const Agenda = () => {
               </div>
             )}
 
-            {/* Orientações e Regras de Bloqueio/Disponibilidade */}
+            {/* Alerta simples de Bloqueio/Disponibilidade */}
             {currentConflict.hasConflict && (
-              <div className="p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs space-y-1">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>Atenção: Horário Indisponível / Restrito</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-destructive/90">{currentConflict.message}</p>
+              <div className="p-2.5 px-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2 font-medium">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
+                <span>Atenção: Horário Indisponível / Restrito</span>
               </div>
             )}
 
