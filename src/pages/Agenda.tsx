@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange, BookOpen } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
@@ -57,6 +57,8 @@ interface Appointment {
   deposit_date?: string;
   deposit_link?: string;
   status: string;
+  type?: string;
+  notes?: string;
 }
 
 const Agenda = () => {
@@ -111,6 +113,9 @@ const Agenda = () => {
 
   const [formData, setFormData] = useState({
     client_id: "",
+    journey_id: "",
+    type: "Tatuagem",
+    notes: "",
     date: "",
     startTime: "09:00",
     endTime: "10:00",
@@ -158,23 +163,25 @@ const Agenda = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('appointments')
-        .select('*, client:clientes(name)');
+        .select('*, client:clientes(name, is_student)');
 
       if (error) throw error;
 
       const formatted = (data || []).map((a: any) => ({
         id: a.id,
         client_id: a.client_id,
-          journey_id: a.journey_id,
+        journey_id: a.journey_id,
         client_name: a.client?.name || "Cliente",
         date: a.date || "",
-          startTime: a.start_time || a.startTime || "09:00",
-          endTime: a.end_time || a.endTime || "10:00",
+        startTime: a.start_time || a.startTime || "09:00",
+        endTime: a.end_time || a.endTime || "10:00",
         value: a.value || 0,
         deposit: a.deposit || 0,
         deposit_date: a.deposit_date || "",
         deposit_link: a.deposit_link || a.deposit_drive_link || "",
-        status: a.status || "Agendado"
+        status: a.status || "Agendado",
+        type: a.type || "Tatuagem",
+        notes: a.notes || ""
       }));
 
       setAppointments(formatted);
@@ -188,9 +195,18 @@ const Agenda = () => {
 
   const fetchClients = async () => {
     try {
-      const { data, error } = await supabase.from('clientes').select('*');
+      const [{ data: clientsData, error }, { data: profilesData }] = await Promise.all([
+        supabase.from('clientes').select('*'),
+        supabase.from('mentorship_profiles').select('client_id')
+      ]);
       if (error) throw error;
-      setClients(data || []);
+
+      const menteeSet = new Set((profilesData || []).map((p: any) => p.client_id));
+      const enriched = (clientsData || []).map((c: any) => ({
+        ...c,
+        is_student: Boolean(c.is_student || menteeSet.has(c.id))
+      }));
+      setClients(enriched);
     } catch (error) {
       console.error('Error fetching clients:', error);
     }
@@ -290,6 +306,7 @@ const Agenda = () => {
       .filter(appt => appt && appt.date && appt.startTime)
       .forEach(appt => {
         const colors = getEventColors(appt.status);
+        const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
         list.push({
           id: appt.id,
           title: appt.client_name || "Cliente",
@@ -300,6 +317,9 @@ const Agenda = () => {
           textColor: "#ffffff",
           extendedProps: {
             isBlock: false,
+            isMentoria,
+            type: appt.type || "Tatuagem",
+            notes: appt.notes || "",
             status: appt.status,
             value: appt.value,
             deposit: appt.deposit,
@@ -428,6 +448,9 @@ const Agenda = () => {
     setEditingAppointment(null);
     setFormData({
       client_id: "",
+      journey_id: "",
+      type: "Tatuagem",
+      notes: "",
       date: arg.dateStr.includes("T") ? arg.dateStr.split("T")[0] : arg.dateStr,
       startTime: arg.dateStr.includes("T") ? arg.dateStr.split("T")[1].substring(0, 5) : "09:00",
       endTime: arg.dateStr.includes("T") ?
@@ -456,9 +479,13 @@ const Agenda = () => {
     const appt = appointments.find(a => a.id === arg.event.id);
     if (appt) {
       setEditingAppointment(appt);
+      const normalizedType =
+        appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1" ? "Mentoria" : "Tatuagem";
       setFormData({
         client_id: appt.client_id || "",
-          journey_id: appt.journey_id || "",
+        journey_id: appt.journey_id || "",
+        type: normalizedType,
+        notes: appt.notes || "",
         date: appt.date,
         startTime: appt.startTime,
         endTime: appt.endTime,
@@ -477,6 +504,7 @@ const Agenda = () => {
 
     try {
       setLoading(true);
+      await supabase.from('mentorship_meetings').delete().eq('appointment_id', editingAppointment.id);
       const { error } = await supabase.from('appointments').delete().eq('id', editingAppointment.id);
       if (error) throw error;
 
@@ -514,6 +542,7 @@ const Agenda = () => {
       const clientObj = clients.find(c => c.id === formData.client_id);
       const clientName = clientObj?.name || "Cliente";
       const finalStatus = typeof overrideStatus === 'string' ? overrideStatus : formData.status;
+      const isMentoria = formData.type === "Mentoria";
 
       const userStr = localStorage.getItem("noxus_user");
       const loggedUser = userStr ? JSON.parse(userStr) : null;
@@ -524,6 +553,8 @@ const Agenda = () => {
         start_time: formData.startTime,
         end_time: formData.endTime,
         status: finalStatus,
+        type: isMentoria ? "Mentoria" : "Tatuagem",
+        notes: formData.notes?.trim() || null,
         value: formData.value,
         deposit: formData.deposit,
         deposit_date: formData.deposit_date || null,
@@ -542,6 +573,80 @@ const Agenda = () => {
         if (error) { console.error("Supabase insert error:", JSON.stringify(error)); throw error; }
         apptData = data;
         savedApptId = data.id;
+      }
+
+      // Sincronização automática com o módulo de Mentorias (mentorship_meetings e mentorship_profiles)
+      if (savedApptId) {
+        if (isMentoria) {
+          const [sh, sm] = (formData.startTime || "09:00").split(":").map(Number);
+          const [eh, em] = (formData.endTime || "10:00").split(":").map(Number);
+          const durationMins = Math.max(15, (eh * 60 + em) - (sh * 60 + sm));
+          const meetingStatus =
+            finalStatus === "Concluído"
+              ? "Realizado"
+              : finalStatus === "Cancelado"
+              ? "Cancelado"
+              : "Agendado";
+
+          const { data: existingMeeting } = await supabase
+            .from("mentorship_meetings")
+            .select("id, meeting_number")
+            .eq("appointment_id", savedApptId)
+            .maybeSingle();
+
+          if (existingMeeting) {
+            await supabase
+              .from("mentorship_meetings")
+              .update({
+                client_id: formData.client_id,
+                date: formData.date,
+                start_time: formData.startTime,
+                duration_minutes: durationMins,
+                title:
+                  formData.notes?.trim() ||
+                  `Encontro #${existingMeeting.meeting_number} - Mentoria Quinzenal`,
+                status: meetingStatus
+              })
+              .eq("id", existingMeeting.id);
+          } else {
+            const { count } = await supabase
+              .from("mentorship_meetings")
+              .select("id", { count: "exact", head: true })
+              .eq("client_id", formData.client_id);
+
+            const nextNum = (count || 0) + 1;
+            await supabase.from("mentorship_meetings").insert({
+              client_id: formData.client_id,
+              appointment_id: savedApptId,
+              meeting_number: nextNum,
+              date: formData.date,
+              start_time: formData.startTime,
+              duration_minutes: durationMins,
+              title: formData.notes?.trim() || `Encontro #${nextNum} - Mentoria Quinzenal`,
+              status: meetingStatus
+            });
+          }
+
+          // Atualiza o próximo encontro na ficha do mentorado
+          let nextCycleDate = formData.date;
+          if (meetingStatus === "Realizado" && formData.date) {
+            const d = new Date(`${formData.date}T12:00:00`);
+            d.setDate(d.getDate() + 15);
+            nextCycleDate = d.toISOString().split("T")[0];
+          }
+
+          await supabase.from("mentorship_profiles").upsert(
+            {
+              client_id: formData.client_id,
+              next_meeting_date: nextCycleDate,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: "client_id" }
+          );
+        } else if (editingAppointment) {
+          // Caso tenha sido alterado de Mentoria para Tatuagem, remove o encontro vinculado
+          await supabase.from("mentorship_meetings").delete().eq("appointment_id", savedApptId);
+        }
       }
 
       if (formData.deposit > 0) {
@@ -578,10 +683,19 @@ const Agenda = () => {
 
       await fetchAppointments();
       setModalOpen(false);
-      toast.success("Agendamento salvo com sucesso!");
+      toast.success(
+        isMentoria
+          ? "Sessão de mentoria agendada e vinculada ao perfil do aluno!"
+          : "Agendamento salvo com sucesso!"
+      );
 
-      // Se o status mudou para 'Concluído', abra o modal de checkout para dar baixa financeira
-      if (finalStatus === 'Concluído' && editingAppointment?.status !== 'Concluído' && apptData) {
+      // Se o status mudou para 'Concluído', abra o modal de checkout para dar baixa financeira (se for tatuagem ou tiver valor)
+      if (
+        finalStatus === 'Concluído' &&
+        editingAppointment?.status !== 'Concluído' &&
+        apptData &&
+        (!isMentoria || Number(formData.value) > 0)
+      ) {
         setTimeout(() => {
           setSelectedCheckout({
             ...apptData,
@@ -608,6 +722,9 @@ const Agenda = () => {
     setEditingAppointment(null);
     setFormData({
       client_id: "",
+      journey_id: "",
+      type: "Tatuagem",
+      notes: "",
       date: arg.startStr.split("T")[0],
       startTime: arg.startStr.includes("T") ? arg.startStr.split("T")[1].substring(0, 5) : "09:00",
       endTime: arg.endStr.includes("T") ? arg.endStr.split("T")[1].substring(0, 5) : "10:00",
@@ -626,13 +743,25 @@ const Agenda = () => {
       const appt = appointments.find(a => a.id === event.id);
       if (!appt) return;
 
+      const newDate = event.startStr.split("T")[0];
+      const newStart = event.startStr.split("T")[1].substring(0, 5);
+      const newEnd = event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime;
+
       const { error } = await supabase.from('appointments').update({
-          date: event.startStr.split("T")[0],
-          start_time: event.startStr.split("T")[1].substring(0, 5),
-          end_time: event.endStr ? event.endStr.split("T")[1].substring(0, 5) : appt.endTime,
+          date: newDate,
+          start_time: newStart,
+          end_time: newEnd,
         }).eq('id', event.id);
 
       if (error) throw error;
+
+      if (appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1") {
+        await supabase
+          .from("mentorship_meetings")
+          .update({ date: newDate, start_time: newStart })
+          .eq("appointment_id", event.id);
+      }
+
       await fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -745,9 +874,13 @@ const Agenda = () => {
 
   const handleDuplicateContextMenu = (appt: Appointment) => {
     setEditingAppointment(null);
+    const normalizedType =
+      appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1" ? "Mentoria" : "Tatuagem";
     setFormData({
       client_id: appt.client_id || "",
       journey_id: appt.journey_id || "",
+      type: normalizedType,
+      notes: appt.notes || "",
       date: appt.date,
       startTime: appt.startTime,
       endTime: appt.endTime,
@@ -788,10 +921,20 @@ const Agenda = () => {
       );
     }
 
+    const isMentoria = Boolean(eventInfo.event.extendedProps?.isMentoria);
+
     return (
       <div className="w-full h-full flex flex-col overflow-hidden text-xs text-white p-1 min-h-[20px]">
-        <div className="font-semibold truncate leading-tight">{eventInfo.timeText}</div>
-        <div className="truncate whitespace-normal leading-tight">{eventInfo.event.title}</div>
+        <div className="font-semibold truncate leading-tight flex items-center gap-1">
+          {isMentoria && <BookOpen className="w-3.5 h-3.5 text-white shrink-0" title="Sessão de Mentoria" />}
+          <span>{eventInfo.timeText}</span>
+        </div>
+        <div className="truncate whitespace-normal leading-tight flex items-center gap-1">
+          {!eventInfo.timeText && isMentoria && (
+            <BookOpen className="w-3.5 h-3.5 text-white shrink-0" title="Sessão de Mentoria" />
+          )}
+          <span className="font-medium">{eventInfo.event.title}</span>
+        </div>
       </div>
     );
   };
@@ -808,6 +951,9 @@ const Agenda = () => {
             setEditingAppointment(null);
             setFormData({
               client_id: "",
+              journey_id: "",
+              type: "Tatuagem",
+              notes: "",
               date: new Date().toISOString().split("T")[0],
               startTime: "09:00",
               endTime: "10:00",
@@ -847,21 +993,27 @@ const Agenda = () => {
             appointments
               .filter(a => a.date === new Date().toISOString().split("T")[0])
               .sort((a, b) => a.startTime.localeCompare(b.startTime))
-              .map(a => (
-                <div 
-                  key={a.id} 
-                  className="min-w-[200px] flex-shrink-0 bg-accent/10 border border-border p-3 rounded-lg flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors"
-                  onClick={() => handleEventClick({ event: { id: a.id } } as any)}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold text-sm truncate pr-2">{a.client_name}</span>
-                    <Badge variant={a.status === 'Confirmado' ? 'default' : a.status === 'Concluído' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
-                      {a.status}
-                    </Badge>
+              .map(a => {
+                const isMentoria = a.type === "Mentoria" || a.type === "Mentoria 1 a 1";
+                return (
+                  <div 
+                    key={a.id} 
+                    className="min-w-[200px] flex-shrink-0 bg-accent/10 border border-border p-3 rounded-lg flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors"
+                    onClick={() => handleEventClick({ event: { id: a.id } } as any)}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-semibold text-sm truncate flex items-center gap-1.5">
+                        {isMentoria && <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Sessão de Mentoria" />}
+                        <span className="truncate">{a.client_name}</span>
+                      </span>
+                      <Badge variant={a.status === 'Confirmado' ? 'default' : a.status === 'Concluído' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
+                        {a.status}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{a.startTime} - {a.endTime}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{a.startTime} - {a.endTime}</span>
-                </div>
-              ))
+                );
+              })
           )}
         </div>
       </div>
@@ -1010,6 +1162,9 @@ const Agenda = () => {
               setEditingAppointment(null);
               setFormData({
                 client_id: "",
+                journey_id: "",
+                type: "Tatuagem",
+                notes: "",
                 date: new Date().toISOString().split("T")[0],
                 startTime: "09:00",
                 endTime: "10:00",
@@ -1148,9 +1303,16 @@ const Agenda = () => {
                   className="w-full justify-between mt-1.5"
                   onClick={() => setClientDropdownOpen(prev => !prev)}
                 >
-                  {formData.client_id
-                    ? clients.find((c) => c.id === formData.client_id)?.name
-                    : "Selecione um cliente..."}
+                  <span className="flex items-center gap-2 truncate">
+                    {formData.client_id
+                      ? clients.find((c) => c.id === formData.client_id)?.name
+                      : "Selecione um cliente..."}
+                    {formData.client_id && clients.find((c) => c.id === formData.client_id)?.is_student && (
+                      <span className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                        <BookOpen className="w-3 h-3" /> Aluno
+                      </span>
+                    )}
+                  </span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
                 {clientDropdownOpen && (
@@ -1172,20 +1334,32 @@ const Agenda = () => {
                           <button
                             key={client.id}
                             type="button"
-                            className="flex items-center w-full px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
+                            className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
                             onClick={() => {
-                              setFormData(prev => ({ ...prev, client_id: client.id, journey_id: "" }));
+                              setFormData(prev => ({
+                                ...prev,
+                                client_id: client.id,
+                                journey_id: "",
+                                type: client.is_student ? "Mentoria" : "Tatuagem"
+                              }));
                               setClientDropdownOpen(false);
                               setClientSearch("");
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 shrink-0",
-                                formData.client_id === client.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {client.name}
+                            <span className="flex items-center truncate">
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 shrink-0",
+                                  formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="truncate">{client.name}</span>
+                            </span>
+                            {client.is_student && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0 ml-2">
+                                <BookOpen className="w-3 h-3" /> Aluno
+                              </span>
+                            )}
                           </button>
                         ))
                       )}
@@ -1195,7 +1369,53 @@ const Agenda = () => {
               </div>
             </div>
 
-            {formData.client_id && (
+            {/* Caixa de Escolha: Mentoria vs Tatuagem (exibida automaticamente para alunos) */}
+            {formData.client_id &&
+              (clients.find(c => c.id === formData.client_id)?.is_student ||
+                formData.type === "Mentoria") && (
+                <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                    <BookOpen className="w-3.5 h-3.5 text-primary" />
+                    Tipo de Agendamento (Cliente de Mentoria)
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={formData.type === "Mentoria" ? "default" : "outline"}
+                      className="h-9 text-xs gap-1.5 font-semibold"
+                      onClick={() => setFormData(prev => ({ ...prev, type: "Mentoria" }))}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Sessão de Mentoria
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={formData.type !== "Mentoria" ? "default" : "outline"}
+                      className="h-9 text-xs gap-1.5 font-semibold"
+                      onClick={() => setFormData(prev => ({ ...prev, type: "Tatuagem" }))}
+                    >
+                      Sessão de Tatuagem
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+            {formData.client_id && formData.type === "Mentoria" && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-primary" /> Pauta / Título da Mentoria
+                </Label>
+                <Input
+                  placeholder="Ex: Encontro Quinzenal de Mentoria"
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            )}
+
+            {formData.client_id && formData.type !== "Mentoria" && (
               <div className="flex flex-col gap-1.5">
                 <Label className="flex items-center gap-1.5">
                   <List className="w-4 h-4 text-primary" /> Jornada (Projeto)
@@ -1216,9 +1436,6 @@ const Agenda = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {clientJourneys.length === 0 && !loadingJourneys && (
-                  <p className="text-xs text-muted-foreground mt-1">Este cliente não possui jornadas no CRM.</p>
-                )}
               </div>
             )}
 
@@ -1279,22 +1496,24 @@ const Agenda = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Valor Total da Sessão</Label>
-                <CurrencyInput
-                  value={formData.value}
-                  onChange={(val) => setFormData(prev => ({ ...prev, value: val }))}
-                />
+            {formData.type !== "Mentoria" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Valor Total da Sessão</Label>
+                  <CurrencyInput
+                    value={formData.value}
+                    onChange={(val) => setFormData(prev => ({ ...prev, value: val }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor do Sinal</Label>
+                  <CurrencyInput
+                    value={formData.deposit}
+                    onChange={(val) => setFormData(prev => ({ ...prev, deposit: val }))}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Valor do Sinal</Label>
-                <CurrencyInput
-                  value={formData.deposit}
-                  onChange={(val) => setFormData(prev => ({ ...prev, deposit: val }))}
-                />
-              </div>
-            </div>
+            )}
 
             {/* Se houver sinal, exibe campos do Sinal e Link do Drive */}
             {formData.deposit > 0 && (

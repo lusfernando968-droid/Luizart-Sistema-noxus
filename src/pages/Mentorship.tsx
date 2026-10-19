@@ -653,15 +653,20 @@ const Mentorship = () => {
 
     try {
       let appointmentId = editingMeeting?.appointment_id || null;
+      const [h, m] = (meetingForm.start_time || "14:00").split(":").map(Number);
+      const endMinutesTotal = h * 60 + m + Number(meetingForm.duration_minutes || 60);
+      const endH = Math.min(23, Math.floor(endMinutesTotal / 60));
+      const endM = endMinutesTotal % 60;
+      const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+      const apptStatus =
+        meetingForm.status === "Realizado"
+          ? "Concluído"
+          : meetingForm.status === "Cancelado"
+          ? "Cancelado"
+          : "Agendado";
 
-      // Sincronizar com a tabela de agendamentos se marcado
+      // Sincronizar com a tabela de agendamentos (criação ou atualização)
       if (!editingMeeting && syncToAgenda) {
-        const [h, m] = (meetingForm.start_time || "14:00").split(":").map(Number);
-        const endMinutesTotal = h * 60 + m + Number(meetingForm.duration_minutes || 60);
-        const endH = Math.min(23, Math.floor(endMinutesTotal / 60));
-        const endM = endMinutesTotal % 60;
-        const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
-
         const { data: apptData } = await supabase
           .from("appointments")
           .insert({
@@ -669,15 +674,28 @@ const Mentorship = () => {
             date: meetingForm.date,
             start_time: meetingForm.start_time || "14:00",
             end_time: endTimeStr,
-            type: "Mentoria 1 a 1",
-            status: meetingForm.status === "Realizado" ? "Concluído" : "Confirmado",
+            type: "Mentoria",
+            status: apptStatus,
             value: 0,
-            notes: meetingForm.title
+            notes: meetingForm.title.trim()
           })
           .select()
           .maybeSingle();
 
         if (apptData?.id) appointmentId = apptData.id;
+      } else if (editingMeeting?.appointment_id) {
+        await supabase
+          .from("appointments")
+          .update({
+            client_id: meetingForm.client_id,
+            date: meetingForm.date,
+            start_time: meetingForm.start_time || "14:00",
+            end_time: endTimeStr,
+            type: "Mentoria",
+            status: apptStatus,
+            notes: meetingForm.title.trim()
+          })
+          .eq("id", editingMeeting.appointment_id);
       }
 
       const payload = {
@@ -709,7 +727,10 @@ const Mentorship = () => {
       if (autoScheduleNext15d) {
         const menteeObj = mentees.find(x => x.client.id === meetingForm.client_id);
         const freq = menteeObj?.profile.meeting_frequency_days || 15;
-        const nextDate = addDays(meetingForm.date, freq);
+        const nextDate =
+          meetingForm.status === "Agendado"
+            ? meetingForm.date
+            : addDays(meetingForm.date, freq);
 
         await supabase.from("mentorship_profiles").upsert(
           {
@@ -732,8 +753,12 @@ const Mentorship = () => {
 
   const handleDeleteMeeting = async (id: string) => {
     try {
+      const target = meetings.find(m => m.id === id);
       const { error } = await supabase.from("mentorship_meetings").delete().eq("id", id);
       if (error) throw error;
+      if (target?.appointment_id) {
+        await supabase.from("appointments").delete().eq("id", target.appointment_id);
+      }
       toast.success("Encontro excluído.");
       await fetchAllData();
     } catch (err) {
@@ -2279,16 +2304,28 @@ const Mentorship = () => {
                     ) : (
                       selectedMenteeData.meetings.map(m => (
                         <div key={m.id} className="p-4 rounded-xl border bg-card space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-primary text-primary-foreground text-[10px]">
-                                #{m.meeting_number}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-primary text-primary-foreground text-[10px] gap-1">
+                                <BookOpen className="w-3 h-3" /> #{m.meeting_number}
                               </Badge>
                               <span className="font-bold text-sm">{m.title}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${getStatusBadgeStyle(m.status)}`}
+                              >
+                                {m.status}
+                              </Badge>
+                              {m.appointment_id && (
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  <Calendar className="w-2.5 h-2.5" /> Na Agenda
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 self-end sm:self-center">
+                              <span className="text-xs text-muted-foreground font-medium">
                                 {formatDateBR(m.date)}
+                                {m.start_time ? ` às ${m.start_time}` : ""}
                               </span>
                               <Button
                                 variant="ghost"

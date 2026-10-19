@@ -1187,21 +1187,36 @@ const Clients = () => {
                           const restanteVal = Math.max(0, totalVal - depositVal);
                           const depositLink = session.deposit_link || session.deposit_drive_link;
                           const sessionLink = session.drive_link || session.final_drive_link;
+                          const isMentoria =
+                            session.type === "Mentoria" || session.type === "Mentoria 1 a 1";
 
                           return (
                             <div key={session.id} className="p-3.5 border rounded-xl bg-accent/10 hover:bg-accent/30 transition-colors space-y-2.5">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div>
-                                  <p className="text-sm font-bold flex items-center gap-2 text-foreground">
-                                    <Calendar className="h-3.5 w-3.5 text-primary" />
-                                    {session.date ? session.date.split("-").reverse().join("/") : "Sem data"} às {session.startTime || "09:00"}
+                                  <p className="text-sm font-bold flex items-center gap-2 text-foreground flex-wrap">
+                                    {isMentoria ? (
+                                      <BookOpen className="h-3.5 w-3.5 text-indigo-500" />
+                                    ) : (
+                                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                                    )}
+                                    <span>
+                                      {session.date ? session.date.split("-").reverse().join("/") : "Sem data"} às {session.start_time || session.startTime || "09:00"}
+                                    </span>
+                                    {isMentoria && (
+                                      <span className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                        <BookOpen className="w-2.5 h-2.5" /> Mentoria
+                                      </span>
+                                    )}
                                   </p>
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold bg-card border px-2.5 py-1 rounded-md text-foreground">
-                                    Total: R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                  </span>
+                                  {!isMentoria && (
+                                    <span className="text-xs font-bold bg-card border px-2.5 py-1 rounded-md text-foreground">
+                                      Total: R$ {totalVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                  )}
                                   <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
                                     session.status === 'Concluído' ? 'bg-primary/10 text-primary border border-primary/20' :
                                     session.status === 'Confirmado' ? 'bg-purple-500/10 text-purple-500 border border-purple-500/20' :
@@ -1213,54 +1228,63 @@ const Clients = () => {
                                 </div>
                               </div>
 
-                              {/* Detalhamento do Sinal e Saldo com Links do Drive */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/40">
-                                <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
-                                  <div>
-                                    <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Sinal de Agendamento</span>
-                                    <span className="font-bold text-primary">
-                                      R$ {depositVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                    </span>
+                              {/* Detalhamento do Sinal e Saldo com Links do Drive (ou Pauta da Mentoria) */}
+                              {isMentoria ? (
+                                <div className="pt-1 border-t border-border/40 text-xs text-muted-foreground flex items-center justify-between">
+                                  <span>{session.notes || "Sessão de Mentoria Individual"}</span>
+                                  <span className="text-[11px] font-semibold text-indigo-500">
+                                    Vinculado à Mentoria
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-border/40">
+                                  <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Sinal de Agendamento</span>
+                                      <span className="font-bold text-primary">
+                                        R$ {depositVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+
+                                    {depositLink ? (
+                                      <a
+                                        href={depositLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
+                                      >
+                                        <span>Drive Sinal</span>
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
+                                    )}
                                   </div>
 
-                                  {depositLink ? (
-                                    <a
-                                      href={depositLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
-                                    >
-                                      <span>Drive Sinal</span>
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
-                                  )}
-                                </div>
+                                  <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Saldo Restante</span>
+                                      <span className="font-bold text-foreground">
+                                        R$ {restanteVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
 
-                                <div className="bg-card/70 p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2">
-                                  <div>
-                                    <span className="text-muted-foreground text-[10px] uppercase block font-semibold">Saldo Restante</span>
-                                    <span className="font-bold text-foreground">
-                                      R$ {restanteVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                    </span>
+                                    {sessionLink ? (
+                                      <a
+                                        href={sessionLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
+                                      >
+                                        <span>Drive Sessão</span>
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
+                                    )}
                                   </div>
-
-                                  {sessionLink ? (
-                                    <a
-                                      href={sessionLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline bg-primary/10 px-2 py-1 rounded"
-                                    >
-                                      <span>Drive Sessão</span>
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground">Sem comprovante</span>
-                                  )}
                                 </div>
-                              </div>
+                              )}
                             </div>
                           );
                         })}

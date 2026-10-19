@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Activity, CheckCircle2, XCircle, RefreshCw, Filter, FileSpreadsheet } from "lucide-react";
+import { Activity, CheckCircle2, XCircle, RefreshCw, Filter, FileSpreadsheet, BookOpen } from "lucide-react";
 
 export function AgendaRegistry({ appointments, clients }: any) {
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -210,19 +210,29 @@ export function AgendaRegistry({ appointments, clients }: any) {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredAppointments.map((appt: any) => (
-                    <TableRow key={appt.id} className="hover:bg-muted/10">
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {appt.date ? format(parseISO(appt.date), "dd/MM/yyyy") : "-"}
-                      </TableCell>
-                      <TableCell className="text-xs font-medium">{appt.client_name || "Desconhecido"}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{appt.startTime} - {appt.endTime}</TableCell>
-                      <TableCell className="text-xs">{getStatusBadge(appt.status)}</TableCell>
-                      <TableCell className="text-xs text-right whitespace-nowrap">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(appt.value || 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredAppointments.map((appt: any) => {
+                    const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
+                    return (
+                      <TableRow key={appt.id} className="hover:bg-muted/10">
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {appt.date ? format(parseISO(appt.date), "dd/MM/yyyy") : "-"}
+                        </TableCell>
+                        <TableCell className="text-xs font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            {isMentoria && (
+                              <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Sessão de Mentoria" />
+                            )}
+                            <span>{appt.client_name || "Desconhecido"}</span>
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">{appt.startTime} - {appt.endTime}</TableCell>
+                        <TableCell className="text-xs">{getStatusBadge(appt.status)}</TableCell>
+                        <TableCell className="text-xs text-right whitespace-nowrap">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(appt.value || 0)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
