@@ -804,21 +804,6 @@ const Agenda = () => {
           <p className="page-subtitle">Gerencie suas sessões, sinais e baixas financeiras</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 h-10 px-3.5 border-border shadow-sm hover:bg-accent"
-            onClick={() => setConfigModalOpen(true)}
-            title="Configurar horários permitidos e bloqueios para o assistente"
-          >
-            <Settings className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-semibold">Configurar Agenda</span>
-            {agendaBlocks.length > 0 && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-0.5">
-                {agendaBlocks.length}
-              </Badge>
-            )}
-          </Button>
-
           <Button className="hidden sm:flex h-10" onClick={() => {
             setEditingAppointment(null);
             setFormData({
