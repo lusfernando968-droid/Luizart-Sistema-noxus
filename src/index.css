@@ -283,27 +283,35 @@
   background-color: hsl(var(--card)) !important;
 }
 
-/* Eventos de Bloqueio em Primeiro Plano */
+/* Eventos de Bloqueio em Primeiro Plano - Padrão Clean e Neutro */
 .fc .fc-block-event {
-  background-color: #881337 !important;
-  border: 2px solid #f43f5e !important;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.3) !important;
-  border-radius: 8px !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 3px solid #64748b !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  border-radius: 6px !important;
   z-index: 5 !important;
+  overflow: hidden !important;
 }
 
-/* Background Event de Bloqueio com alto contraste */
+.dark .fc .fc-block-event {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  border-left-color: #94a3b8 !important;
+}
+
+/* Background Event de Bloqueio - Sutil e harmonizado com a grade */
 .fc .fc-bg-event.fc-block-bg-event {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(225, 29, 72, 0.18),
-    rgba(225, 29, 72, 0.18) 12px,
-    rgba(225, 29, 72, 0.35) 12px,
-    rgba(225, 29, 72, 0.35) 24px
+    rgba(148, 163, 184, 0.07),
+    rgba(148, 163, 184, 0.07) 10px,
+    rgba(148, 163, 184, 0.14) 10px,
+    rgba(148, 163, 184, 0.14) 20px
   ) !important;
-  border-left: 2px solid rgba(225, 29, 72, 0.8) !important;
-  border-right: 2px solid rgba(225, 29, 72, 0.8) !important;
-  opacity: 1 !important;
+  border-left: 1px dashed rgba(148, 163, 184, 0.35) !important;
+  border-right: 1px dashed rgba(148, 163, 184, 0.35) !important;
+  opacity: 0.8 !important;
 }
 
 /* Define a "today" style for ALL views (Month, Week, Day) */
