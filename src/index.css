@@ -283,34 +283,44 @@
   background-color: hsl(var(--card)) !important;
 }
 
-/* Eventos de Bloqueio em Primeiro Plano - Padrão Clean e Neutro */
+/* Eventos de Bloqueio em Primeiro Plano - Padrão Grafite / Dark Slate Executivo */
 .fc .fc-block-event {
-  background-color: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  border-left: 3px solid #64748b !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-left: 4px solid #f59e0b !important;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.25) !important;
   border-radius: 6px !important;
   z-index: 5 !important;
   overflow: hidden !important;
 }
 
-.dark .fc .fc-block-event {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  border-left-color: #94a3b8 !important;
+.fc .fc-block-event .block-badge {
+  color: #fbbf24 !important;
+}
+
+.fc .fc-block-event .block-title {
+  color: #ffffff !important;
+}
+
+.fc .fc-block-event .block-time {
+  color: #cbd5e1 !important;
+}
+
+.fc .fc-block-event .block-desc {
+  color: #94a3b8 !important;
 }
 
 /* Background Event de Bloqueio - Sutil e harmonizado com a grade */
 .fc .fc-bg-event.fc-block-bg-event {
   background: repeating-linear-gradient(
     -45deg,
-    rgba(148, 163, 184, 0.07),
-    rgba(148, 163, 184, 0.07) 10px,
-    rgba(148, 163, 184, 0.14) 10px,
-    rgba(148, 163, 184, 0.14) 20px
+    rgba(30, 41, 59, 0.05),
+    rgba(30, 41, 59, 0.05) 10px,
+    rgba(30, 41, 59, 0.12) 10px,
+    rgba(30, 41, 59, 0.12) 20px
   ) !important;
-  border-left: 1px dashed rgba(148, 163, 184, 0.35) !important;
-  border-right: 1px dashed rgba(148, 163, 184, 0.35) !important;
+  border-left: 1px dashed rgba(30, 41, 59, 0.3) !important;
+  border-right: 1px dashed rgba(30, 41, 59, 0.3) !important;
   opacity: 0.8 !important;
 }
 

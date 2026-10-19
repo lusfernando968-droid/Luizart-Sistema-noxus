@@ -325,9 +325,9 @@ const Agenda = () => {
           start: `${block.date}T${startHour}`,
           end: `${block.date}T${endHour}`,
           allDay: false,
-          backgroundColor: "#f8fafc",
-          borderColor: "#e2e8f0",
-          textColor: "#0f172a",
+          backgroundColor: "#1e293b",
+          borderColor: "#334155",
+          textColor: "#ffffff",
           display: "block",
           className: "fc-block-event cursor-pointer",
           extendedProps: {
@@ -345,7 +345,7 @@ const Agenda = () => {
           allDay: false,
           display: "background",
           className: "fc-block-bg-event",
-          backgroundColor: "rgba(148, 163, 184, 0.10)"
+          backgroundColor: "rgba(30, 41, 59, 0.08)"
         });
       });
     }
@@ -765,20 +765,29 @@ const Agenda = () => {
       const blockData = eventInfo.event.extendedProps?.blockData;
       const isAllDay = eventInfo.event.extendedProps?.isAllDay;
       return (
-        <div className="w-full h-full flex flex-col justify-start overflow-hidden p-2 text-slate-800 dark:text-slate-100">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-500 dark:text-slate-400 text-[10px] leading-tight">
-            <Lock className="w-3 h-3 text-slate-500 dark:text-slate-400 shrink-0" />
-            <span className="uppercase tracking-wider font-bold text-[9px]">Bloqueado</span>
+        <div className="w-full h-full flex flex-col justify-start overflow-hidden p-2 text-white select-none">
+          <div className="flex items-center gap-1.5 leading-tight">
+            <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="block-badge text-[10px] font-bold uppercase tracking-wider text-amber-400">
+              Horário Bloqueado
+            </span>
           </div>
-          <div className="font-semibold text-xs text-slate-900 dark:text-slate-100 truncate mt-1 leading-snug">
+          <div className="block-title font-bold text-xs text-white truncate mt-1 leading-snug">
             {blockData?.title || eventInfo.event.title.replace("Bloqueado: ", "")}
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">
-            {isAllDay ? "Dia inteiro" : `${blockData?.start_time || ""} às ${blockData?.end_time || ""}`}
+          <div className="block-time text-[11px] text-slate-300 font-medium leading-tight mt-0.5 flex items-center gap-1">
+            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+            <span>{isAllDay ? "Dia inteiro indisponível" : `${blockData?.start_time || ""} às ${blockData?.end_time || ""}`}</span>
           </div>
-          {blockData?.reason && (
-            <div className="text-[9px] text-slate-600 dark:text-slate-400 italic truncate mt-1 bg-slate-200/60 dark:bg-slate-800/60 px-1.5 py-0.5 rounded">
-              {blockData.reason}
+          {blockData?.reason ? (
+            <div className="block-desc text-[10px] text-slate-300 truncate mt-1.5 bg-slate-900/60 border border-slate-700/60 px-2 py-0.5 rounded flex items-center gap-1">
+              <span className="text-slate-400 font-medium">Motivo:</span>
+              <span className="italic">{blockData.reason}</span>
+            </div>
+          ) : (
+            <div className="block-desc text-[10px] text-slate-400 truncate mt-1.5 flex items-center gap-1">
+              <Ban className="w-3 h-3 text-amber-400/80 shrink-0" />
+              <span>Indisponível para clientes</span>
             </div>
           )}
         </div>
