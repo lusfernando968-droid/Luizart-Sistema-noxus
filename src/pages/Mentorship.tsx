@@ -933,6 +933,41 @@ const Mentorship = () => {
     });
   }, [metrics, filterPerformanceStudent, clients]);
 
+  const studentRevenueComparisonData = useMemo(() => {
+    const source =
+      filterPerformanceStudent === "all"
+        ? mentees
+        : mentees.filter(m => m.client.id === filterPerformanceStudent);
+
+    return source.map(m => ({
+      nome: m.client.name.split(" ")[0],
+      inicial: Number(m.profile.initial_revenue || 0),
+      atual: Number(m.effectiveCurrentRevenue || 0),
+      meta: Number(m.profile.target_revenue || 0)
+    }));
+  }, [mentees, filterPerformanceStudent]);
+
+  const taskCategoryChartData = useMemo(() => {
+    const sourceTasks =
+      filterPerformanceStudent === "all"
+        ? tasks
+        : tasks.filter(t => t.client_id === filterPerformanceStudent);
+
+    return TASK_CATEGORIES.map(cat => {
+      const catTasks = sourceTasks.filter(t => t.category === cat);
+      const entregues = catTasks.filter(
+        t => t.status === "Entregue" || t.status === "Revisado"
+      ).length;
+      const pendentes = catTasks.length - entregues;
+      return {
+        categoria: cat.split(" ")[0],
+        entregues,
+        pendentes,
+        total: catTasks.length
+      };
+    });
+  }, [tasks, filterPerformanceStudent]);
+
   const getClientName = (clientId: string) => {
     return clients.find(c => c.id === clientId)?.name || "Aluno";
   };
@@ -958,7 +993,7 @@ const Mentorship = () => {
         <div>
           <h1 className="page-title">Mentorias Luizart</h1>
           <p className="page-subtitle">
-            Gestão de alunos, encontros quinzenais, rastreamento de atividades e performance
+            Gestão de alunos, encontros quinzenais, atividades e análise de dados
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -978,64 +1013,6 @@ const Mentorship = () => {
             <Plus className="h-4 w-4" />
             Novo Mentorado
           </Button>
-        </div>
-      </div>
-
-      {/* FAIXA DE INDICADORES RÁPIDOS (KPIs) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Mentorados Ativos
-            </p>
-            <p className="text-2xl font-bold text-foreground mt-1">{kpis.activeCount}</p>
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Users className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ciclo 15 Dias Pendente
-            </p>
-            <p className="text-2xl font-bold text-foreground mt-1">{kpis.overdueCount}</p>
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Entregas de Atividades
-            </p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <p className="text-2xl font-bold text-foreground">{kpis.taskRate}%</p>
-              <span className="text-xs text-muted-foreground">
-                ({kpis.doneTasks}/{kpis.totalTasks})
-              </span>
-            </div>
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Faturamento dos Alunos
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-foreground mt-1 truncate">
-              {formatCurrency(kpis.totalCurrentRev)}
-            </p>
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <TrendingUp className="h-5 w-5" />
-          </div>
         </div>
       </div>
 
@@ -1065,7 +1042,7 @@ const Mentorship = () => {
               value="performance"
               className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap"
             >
-              <BarChart3 className="w-3.5 h-3.5" /> Performance
+              <BarChart3 className="w-3.5 h-3.5" /> Análise de Dados
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1590,20 +1567,21 @@ const Mentorship = () => {
         </TabsContent>
 
         {/* =========================================================
-            ABA 4: ANÁLISE DE PERFORMANCE & RESULTADOS
+            ABA 4: ANÁLISE DE DADOS & PERFORMANCE
            ========================================================= */}
         <TabsContent value="performance" className="m-0 space-y-6">
+          {/* Barra de Filtro e Ação da Análise */}
           <div className="bg-card rounded-xl border p-4 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <Select
                 value={filterPerformanceStudent}
                 onValueChange={setFilterPerformanceStudent}
               >
-                <SelectTrigger className="h-10 w-full sm:w-[240px]">
+                <SelectTrigger className="h-10 w-full sm:w-[260px]">
                   <SelectValue placeholder="Selecionar Aluno" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Visão Geral (Todos os Alunos)</SelectItem>
+                  <SelectItem value="all">Visão Geral (Todos os Mentorados)</SelectItem>
                   {mentees.map(m => (
                     <SelectItem key={m.client.id} value={m.client.id}>
                       {m.client.name}
@@ -1619,13 +1597,140 @@ const Mentorship = () => {
             </Button>
           </div>
 
-          {/* Gráficos de Evolução */}
+          {/* Cards de Indicadores (Exclusivos da Aba de Análise de Dados) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Mentorados Ativos
+                </p>
+                <p className="text-2xl font-bold text-foreground mt-1">{kpis.activeCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ciclo 15 Dias Pendente
+                </p>
+                <p className="text-2xl font-bold text-foreground mt-1">{kpis.overdueCount}</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Entregas de Atividades
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <p className="text-2xl font-bold text-foreground">{kpis.taskRate}%</p>
+                  <span className="text-xs text-muted-foreground">
+                    ({kpis.doneTasks}/{kpis.totalTasks})
+                  </span>
+                </div>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <ClipboardList className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Faturamento dos Alunos
+                </p>
+                <p className="text-xl sm:text-2xl font-bold text-foreground mt-1 truncate">
+                  {formatCurrency(kpis.totalCurrentRev)}
+                </p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Gráficos de Comparação de Alunos e Execução por Categoria */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                Salto de Faturamento por Mentorado (Inicial vs. Atual vs. Meta)
+              </h3>
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={studentRevenueComparisonData}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar
+                      dataKey="inicial"
+                      name="Fat. Inicial"
+                      fill="#94a3b8"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="atual"
+                      name="Fat. Atual"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="meta"
+                      name="Meta"
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-primary" />
+                Execução de Atividades por Pilar
+              </h3>
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={taskCategoryChartData}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <XAxis dataKey="categoria" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar
+                      dataKey="entregues"
+                      name="Entregues / Revisadas"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="pendentes"
+                      name="Pendentes"
+                      fill="#cbd5e1"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Gráficos de Evolução Histórica dos Checkpoints */}
           {performanceChartData.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
                 <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  Evolução de Faturamento (R$)
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  Curva de Evolução de Faturamento nos Checkpoints (R$)
                 </h3>
                 <div className="h-[260px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1650,7 +1755,7 @@ const Mentorship = () => {
               <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
                 <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
                   <Award className="w-4 h-4 text-primary" />
-                  Score Técnico vs Comercial (0 a 10) & Sessões
+                  Score Técnico vs. Comercial (0 a 10) & Sessões
                 </h3>
                 <div className="h-[260px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
