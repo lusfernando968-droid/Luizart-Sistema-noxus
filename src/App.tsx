@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Team from "./pages/Team";
 import AnamnesisForm from "./pages/AnamnesisForm";
+import MentorshipOnboardingForm from "./pages/MentorshipOnboardingForm";
 import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import Mentorship from "./pages/Mentorship";
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/anamnese/:clientId" element={<AnamnesisForm />} />
+            <Route path="/mentoria-ficha/:clientId" element={<MentorshipOnboardingForm />} />
 
             {/* Rotas Autenticadas do Estúdio Noxus Luizart */}
             <Route element={<AuthLayout />}>

@@ -23,6 +23,8 @@ import {
   Check,
   Filter,
   Link as LinkIcon,
+  Copy,
+  Send,
   Play,
   Sparkles,
   UserPlus,
@@ -237,8 +239,9 @@ const Mentorship = () => {
     next_meeting_date: addDays(new Date().toISOString().split("T")[0], 15)
   });
 
-  // Form de edição da Ficha Técnica no Dossiê
+  // Form de edição da Ficha Técnica em modal dedicado
   const [editingProfile, setEditingProfile] = useState<MentorshipProfile | null>(null);
+  const [profileFormModalOpen, setProfileFormModalOpen] = useState(false);
 
   // Modal: Registrar / Editar Encontro Quinzenal
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -530,6 +533,31 @@ const Mentorship = () => {
     }
   };
 
+  const getMentorshipFormUrl = (clientId: string) => {
+    return `${window.location.origin}/mentoria-ficha/${clientId}`;
+  };
+
+  const handleCopyFormLink = (clientId: string) => {
+    const url = getMentorshipFormUrl(clientId);
+    navigator.clipboard.writeText(url);
+    toast.success("Link do formulário copiado para a área de transferência!");
+  };
+
+  const handleSendFormWhatsApp = (client: ClientRow) => {
+    const url = getMentorshipFormUrl(client.id);
+    const firstName = client.name.split(" ")[0];
+    const message = encodeURIComponent(
+      `Olá, ${firstName}! Segue o link para você preencher a sua Ficha de Diagnóstico da Mentoria Luizart:\n\n${url}`
+    );
+    const digits = (client.phone || "").replace(/\D/g, "");
+    if (digits.length >= 10) {
+      window.open(`https://wa.me/55${digits}?text=${message}`, "_blank");
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.info("Cliente sem telefone válido. O link foi copiado!");
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!editingProfile || !selectedMenteeId) return;
     try {
@@ -558,6 +586,7 @@ const Mentorship = () => {
 
       if (error) throw error;
       toast.success("Ficha do mentorado atualizada!");
+      setProfileFormModalOpen(false);
       await fetchAllData();
     } catch (err) {
       console.error("Erro ao salvar ficha:", err);
@@ -1994,205 +2023,250 @@ const Mentorship = () => {
 
               {/* Conteúdo rolável do Dossiê */}
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                {dossierTab === "ficha" && editingProfile && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Status da Mentoria</Label>
-                        <Select
-                          value={editingProfile.status}
-                          onValueChange={val =>
-                            setEditingProfile({ ...editingProfile, status: val })
+                {dossierTab === "ficha" && editingProfile && (() => {
+                  const p = selectedMenteeData.profile;
+                  const hasDiagnostic = Boolean(
+                    p.specialty?.trim() ||
+                    p.city_studio?.trim() ||
+                    p.main_goal?.trim() ||
+                    p.strengths?.trim() ||
+                    p.weaknesses?.trim() ||
+                    p.general_notes?.trim() ||
+                    Number(p.initial_revenue) > 0 ||
+                    Number(p.target_revenue) > 0
+                  );
+
+                  return (
+                    <div className="space-y-5">
+                      {/* Barra Superior do Documento: Ações do Formulário */}
+                      <div className="bg-card border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-sm text-foreground">
+                                Documento de Diagnóstico da Mentoria
+                              </h4>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  hasDiagnostic
+                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]"
+                                    : "bg-muted text-muted-foreground border-border text-[10px]"
+                                }
+                              >
+                                {hasDiagnostic ? "Preenchido" : "Pendente"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => handleSendFormWhatsApp(selectedMenteeData.client)}
+                          >
+                            <Send className="w-3.5 h-3.5 text-primary" />
+                            Enviar via WhatsApp
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => handleCopyFormLink(selectedMenteeData.client.id)}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copiar Link
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => {
+                              setEditingProfile({ ...selectedMenteeData.profile });
+                              setProfileFormModalOpen(true);
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            {hasDiagnostic ? "Editar Formulário" : "Preencher Formulário"}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Documento Organizado do Mentorado */}
+                      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+                        {/* Cabeçalho Institucional do Documento */}
+                        <div className="bg-muted/30 border-b px-5 py-3.5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Status
+                            </span>
+                            <span className="font-bold text-foreground mt-0.5 inline-block">
+                              {p.status || "Ativo"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Nível & Especialidade
+                            </span>
+                            <span className="font-bold text-foreground mt-0.5 block truncate">
+                              {p.level || "Intermediário"}
+                              {p.specialty ? ` • ${p.specialty}` : ""}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Cidade / Estúdio
+                            </span>
+                            <span className="font-bold text-foreground mt-0.5 block truncate">
+                              {p.city_studio || "Não informado"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Início / Ciclo 15d
+                            </span>
+                            <span className="font-bold text-foreground mt-0.5 block">
+                              {formatDateBR(p.start_date)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Quadro Financeiro no Documento */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x border-b bg-background/40">
+                          <div className="p-4">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Faturamento Inicial
+                            </span>
+                            <span className="text-base font-bold text-foreground mt-0.5 block">
+                              {formatCurrency(p.initial_revenue)}
+                            </span>
+                          </div>
+                          <div className="p-4">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Faturamento Atual
+                            </span>
+                            <span className="text-base font-bold text-primary mt-0.5 block">
+                              {formatCurrency(selectedMenteeData.effectiveCurrentRevenue)}
+                            </span>
+                          </div>
+                          <div className="p-4">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                              Meta na Mentoria
+                            </span>
+                            <span className="text-base font-bold text-foreground mt-0.5 block">
+                              {formatCurrency(p.target_revenue)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Corpo das Respostas do Diagnóstico */}
+                        {!hasDiagnostic ? (
+                          <div className="p-8 text-center space-y-3">
+                            <p className="text-sm font-semibold text-foreground">
+                              Ficha de diagnóstico ainda não preenchida
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 text-xs gap-1.5"
+                                onClick={() => handleSendFormWhatsApp(selectedMenteeData.client)}
+                              >
+                                <Send className="w-3.5 h-3.5 text-primary" />
+                                Enviar Link para o Aluno no WhatsApp
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-9 text-xs gap-1.5"
+                                onClick={() => {
+                                  setEditingProfile({ ...selectedMenteeData.profile });
+                                  setProfileFormModalOpen(true);
+                                }}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Preencher Agora
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-5 space-y-4 text-xs">
+                            <div className="space-y-1">
+                              <span className="text-[10px] uppercase tracking-wider text-primary font-bold block">
+                                1. Objetivo Principal na Mentoria
+                              </span>
+                              <div className="p-3 rounded-lg bg-muted/30 border text-foreground font-medium leading-relaxed">
+                                {p.main_goal || "Não informado."}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block">
+                                  2. Pontos Fortes Mapeados
+                                </span>
+                                <div className="p-3 rounded-lg bg-muted/20 border text-foreground whitespace-pre-line leading-relaxed min-h-[72px]">
+                                  {p.strengths || "Não informado."}
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block">
+                                  3. Gargalos & Dificuldades a Trabalhar
+                                </span>
+                                <div className="p-3 rounded-lg bg-muted/20 border text-foreground whitespace-pre-line leading-relaxed min-h-[72px]">
+                                  {p.weaknesses || "Não informado."}
+                                </div>
+                              </div>
+                            </div>
+
+                            {p.general_notes && (
+                              <div className="space-y-1">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block">
+                                  4. Observações Estratégicas & Contexto
+                                </span>
+                                <div className="p-3 rounded-lg bg-muted/20 border text-foreground whitespace-pre-line leading-relaxed">
+                                  {p.general_notes}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Rodapé de Ações Secundárias */}
+                      <div className="flex items-center justify-between pt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 text-xs"
+                          onClick={() => handleRemoveFromMentorship(selectedMenteeData.client.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                          Remover da Mentoria
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                          onClick={() =>
+                            window.open(
+                              getMentorshipFormUrl(selectedMenteeData.client.id),
+                              "_blank"
+                            )
                           }
                         >
-                          <SelectTrigger className="h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Ativo">Ativo</SelectItem>
-                            <SelectItem value="Pausado">Pausado</SelectItem>
-                            <SelectItem value="Concluído">Concluído</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Nível do Artista</Label>
-                        <Select
-                          value={editingProfile.level}
-                          onValueChange={val =>
-                            setEditingProfile({ ...editingProfile, level: val })
-                          }
-                        >
-                          <SelectTrigger className="h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {LEVELS.map(lv => (
-                              <SelectItem key={lv} value={lv}>
-                                {lv}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Estilo / Especialidade</Label>
-                        <Input
-                          className="h-10"
-                          placeholder="Ex: Realismo, Fine Line..."
-                          value={editingProfile.specialty}
-                          onChange={e =>
-                            setEditingProfile({ ...editingProfile, specialty: e.target.value })
-                          }
-                        />
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Visualizar Página do Formulário
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Cidade / Estúdio</Label>
-                        <Input
-                          className="h-10"
-                          placeholder="Ex: São Paulo - Estúdio Próprio"
-                          value={editingProfile.city_studio}
-                          onChange={e =>
-                            setEditingProfile({ ...editingProfile, city_studio: e.target.value })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Início da Mentoria</Label>
-                        <Input
-                          type="date"
-                          className="h-10"
-                          value={editingProfile.start_date}
-                          onChange={e =>
-                            setEditingProfile({ ...editingProfile, start_date: e.target.value })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Próximo Encontro (Ciclo 15d)</Label>
-                        <Input
-                          type="date"
-                          className="h-10"
-                          value={editingProfile.next_meeting_date}
-                          onChange={e =>
-                            setEditingProfile({
-                              ...editingProfile,
-                              next_meeting_date: e.target.value
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Faturamento Inicial (R$)</Label>
-                        <CurrencyInput
-                          className="h-10"
-                          value={editingProfile.initial_revenue}
-                          onValueChange={val =>
-                            setEditingProfile({ ...editingProfile, initial_revenue: val })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Faturamento Atual (R$)</Label>
-                        <CurrencyInput
-                          className="h-10"
-                          value={editingProfile.current_revenue}
-                          onValueChange={val =>
-                            setEditingProfile({ ...editingProfile, current_revenue: val })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Meta de Faturamento (R$)</Label>
-                        <CurrencyInput
-                          className="h-10"
-                          value={editingProfile.target_revenue}
-                          onValueChange={val =>
-                            setEditingProfile({ ...editingProfile, target_revenue: val })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Objetivo Principal na Mentoria</Label>
-                      <Input
-                        className="h-10"
-                        placeholder="Ex: Estruturar captação pelo Instagram e atingir R$ 15k/mês"
-                        value={editingProfile.main_goal}
-                        onChange={e =>
-                          setEditingProfile({ ...editingProfile, main_goal: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pontos Fortes do Aluno</Label>
-                        <Textarea
-                          rows={3}
-                          placeholder="Habilidades técnicas, dedicação, portfólio..."
-                          value={editingProfile.strengths}
-                          onChange={e =>
-                            setEditingProfile({ ...editingProfile, strengths: e.target.value })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Gargalos / Dificuldades a Trabalhar</Label>
-                        <Textarea
-                          rows={3}
-                          placeholder="Fechamento de vendas, precificação, sombra..."
-                          value={editingProfile.weaknesses}
-                          onChange={e =>
-                            setEditingProfile({ ...editingProfile, weaknesses: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Observações Estratégicas Gerais</Label>
-                      <Textarea
-                        rows={3}
-                        placeholder="Histórico do aluno, equipamentos, contexto..."
-                        value={editingProfile.general_notes}
-                        onChange={e =>
-                          setEditingProfile({ ...editingProfile, general_notes: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 text-xs"
-                        onClick={() => handleRemoveFromMentorship(selectedMenteeData.client.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                        Remover da Mentoria
-                      </Button>
-
-                      <Button onClick={handleSaveProfile} className="h-10 px-6">
-                        Salvar Ficha do Mentorado
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {dossierTab === "encontros" && (
                   <div className="space-y-3">
@@ -2392,6 +2466,210 @@ const Mentorship = () => {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================
+          MODAL DEDICADO: FORMULÁRIO DE DIAGNÓSTICO DO MENTORADO
+         ========================================================= */}
+      <Dialog open={profileFormModalOpen} onOpenChange={setProfileFormModalOpen}>
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Formulário de Diagnóstico — {selectedMenteeData?.client.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingProfile && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status da Mentoria</Label>
+                  <Select
+                    value={editingProfile.status}
+                    onValueChange={val =>
+                      setEditingProfile({ ...editingProfile, status: val })
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Pausado">Pausado</SelectItem>
+                      <SelectItem value="Concluído">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nível do Artista</Label>
+                  <Select
+                    value={editingProfile.level}
+                    onValueChange={val =>
+                      setEditingProfile({ ...editingProfile, level: val })
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEVELS.map(lv => (
+                        <SelectItem key={lv} value={lv}>
+                          {lv}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Estilo / Especialidade</Label>
+                  <Input
+                    className="h-10"
+                    placeholder="Ex: Realismo, Fine Line..."
+                    value={editingProfile.specialty}
+                    onChange={e =>
+                      setEditingProfile({ ...editingProfile, specialty: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cidade / Estúdio</Label>
+                  <Input
+                    className="h-10"
+                    placeholder="Ex: São Paulo - Estúdio Próprio"
+                    value={editingProfile.city_studio}
+                    onChange={e =>
+                      setEditingProfile({ ...editingProfile, city_studio: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Início da Mentoria</Label>
+                  <Input
+                    type="date"
+                    className="h-10"
+                    value={editingProfile.start_date}
+                    onChange={e =>
+                      setEditingProfile({ ...editingProfile, start_date: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Próximo Encontro (Ciclo 15d)</Label>
+                  <Input
+                    type="date"
+                    className="h-10"
+                    value={editingProfile.next_meeting_date}
+                    onChange={e =>
+                      setEditingProfile({
+                        ...editingProfile,
+                        next_meeting_date: e.target.value
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Faturamento Inicial (R$)</Label>
+                  <CurrencyInput
+                    className="h-10"
+                    value={editingProfile.initial_revenue}
+                    onValueChange={val =>
+                      setEditingProfile({ ...editingProfile, initial_revenue: val })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Faturamento Atual (R$)</Label>
+                  <CurrencyInput
+                    className="h-10"
+                    value={editingProfile.current_revenue}
+                    onValueChange={val =>
+                      setEditingProfile({ ...editingProfile, current_revenue: val })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Meta de Faturamento (R$)</Label>
+                  <CurrencyInput
+                    className="h-10"
+                    value={editingProfile.target_revenue}
+                    onValueChange={val =>
+                      setEditingProfile({ ...editingProfile, target_revenue: val })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Objetivo Principal na Mentoria</Label>
+                <Input
+                  className="h-10"
+                  placeholder="Ex: Estruturar captação pelo Instagram e atingir R$ 15k/mês"
+                  value={editingProfile.main_goal}
+                  onChange={e =>
+                    setEditingProfile({ ...editingProfile, main_goal: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Pontos Fortes do Aluno</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Habilidades técnicas, dedicação, portfólio..."
+                    value={editingProfile.strengths}
+                    onChange={e =>
+                      setEditingProfile({ ...editingProfile, strengths: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Gargalos / Dificuldades a Trabalhar</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Fechamento de vendas, precificação, sombra..."
+                    value={editingProfile.weaknesses}
+                    onChange={e =>
+                      setEditingProfile({ ...editingProfile, weaknesses: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Observações Estratégicas Gerais</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Histórico do aluno, equipamentos, contexto..."
+                  value={editingProfile.general_notes}
+                  onChange={e =>
+                    setEditingProfile({ ...editingProfile, general_notes: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProfileFormModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveProfile}>Salvar Documento</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
