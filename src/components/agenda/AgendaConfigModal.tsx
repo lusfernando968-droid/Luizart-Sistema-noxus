@@ -59,13 +59,13 @@ export interface AgendaBlock {
 }
 
 const DEFAULT_SCHEDULE: WeeklySchedule = {
-  "0": { enabled: false, name: "Domingo", start: "09:00", end: "18:00" },
-  "1": { enabled: true, name: "Segunda-feira", start: "09:00", end: "18:00" },
-  "2": { enabled: true, name: "Terça-feira", start: "09:00", end: "18:00" },
-  "3": { enabled: true, name: "Quarta-feira", start: "09:00", end: "18:00" },
-  "4": { enabled: true, name: "Quinta-feira", start: "09:00", end: "18:00" },
-  "5": { enabled: true, name: "Sexta-feira", start: "09:00", end: "18:00" },
-  "6": { enabled: true, name: "Sábado", start: "09:00", end: "14:00" },
+  "0": { enabled: false, name: "Domingo", start: "08:00", end: "22:00" },
+  "1": { enabled: true, name: "Segunda-feira", start: "08:00", end: "22:00" },
+  "2": { enabled: true, name: "Terça-feira", start: "08:00", end: "22:00" },
+  "3": { enabled: true, name: "Quarta-feira", start: "08:00", end: "22:00" },
+  "4": { enabled: true, name: "Quinta-feira", start: "08:00", end: "22:00" },
+  "5": { enabled: true, name: "Sexta-feira", start: "08:00", end: "22:00" },
+  "6": { enabled: true, name: "Sábado", start: "08:00", end: "16:00" },
 };
 
 interface AgendaConfigModalProps {

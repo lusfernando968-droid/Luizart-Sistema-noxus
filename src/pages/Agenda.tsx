@@ -230,29 +230,29 @@ const Agenda = () => {
 
   const { calendarSlotMinTime, calendarSlotMaxTime } = useMemo(() => {
     if (!agendaConfig?.weekly_schedule) {
-      return { calendarSlotMinTime: "08:00", calendarSlotMaxTime: "20:00" };
+      return { calendarSlotMinTime: "08:00", calendarSlotMaxTime: "23:00" };
     }
 
-    let minHour = 9;
-    let maxHour = 18;
+    let minHour = 8;
+    let maxHour = 22;
     let hasEnabled = false;
 
     Object.values(agendaConfig.weekly_schedule).forEach(day => {
       if (day.enabled) {
         hasEnabled = true;
-        const startH = parseInt(day.start?.split(":")[0] || "9", 10);
-        const endH = parseInt(day.end?.split(":")[0] || "18", 10);
+        const startH = parseInt(day.start?.split(":")[0] || "8", 10);
+        const endH = parseInt(day.end?.split(":")[0] || "22", 10);
         if (startH < minHour) minHour = startH;
         if (endH > maxHour) maxHour = endH;
       }
     });
 
     if (!hasEnabled) {
-      return { calendarSlotMinTime: "08:00", calendarSlotMaxTime: "20:00" };
+      return { calendarSlotMinTime: "08:00", calendarSlotMaxTime: "23:00" };
     }
 
     const finalMin = Math.max(6, minHour - 1);
-    const finalMax = Math.min(23, maxHour + 1);
+    const finalMax = Math.min(24, Math.max(23, maxHour + 1));
 
     return {
       calendarSlotMinTime: `${finalMin.toString().padStart(2, "0")}:00`,
