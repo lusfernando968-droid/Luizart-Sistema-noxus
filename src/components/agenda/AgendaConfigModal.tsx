@@ -19,7 +19,11 @@ import {
   Info,
   CheckCircle2,
   Settings2,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Filter,
+  History,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -84,6 +88,10 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
 
   // Bloqueios de compromissos pontuais
   const [blocks, setBlocks] = useState<AgendaBlock[]>([]);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<"todos" | "futuros" | "passados">("todos");
+  const [historyCollapsibleOpen, setHistoryCollapsibleOpen] = useState(false);
   const [newBlock, setNewBlock] = useState({
     title: "",
     date: new Date().toISOString().split("T")[0],
@@ -280,8 +288,9 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
   const dayKeys = ["1", "2", "3", "4", "5", "6", "0"]; // Seg até Dom
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-4 border-b">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -487,67 +496,95 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
                 </div>
               </div>
 
-              {/* Lista de Bloqueios Cadastrados */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Compromissos Cadastrados ({blocks.length})
-                  </h4>
+              {/* Seção de Compromissos Cadastrados (Menu Retrátil + Pop-up com Filtros) */}
+              <div className="rounded-xl border bg-card p-3 shadow-xs space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  {/* Botão do Menu Retrátil */}
+                  <button
+                    type="button"
+                    onClick={() => setHistoryCollapsibleOpen(prev => !prev)}
+                    className="flex items-center gap-2 text-left py-1 px-1.5 rounded-lg hover:bg-muted/60 transition-colors"
+                  >
+                    <History className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">
+                      Compromissos Cadastrados ({blocks.length})
+                    </span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
+                        historyCollapsibleOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* Botão para abrir Pop-up Completo com Filtros */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setHistoryModalOpen(true)}
+                    className="h-7 text-xs px-2.5 gap-1.5"
+                  >
+                    <Filter className="w-3 h-3" />
+                    <span>Ver em Janela</span>
+                  </Button>
                 </div>
 
-                {blocks.length === 0 ? (
-                  <div className="p-6 text-center border-2 border-dashed rounded-xl space-y-1">
-                    <CalendarOff className="w-5 h-5 text-muted-foreground mx-auto opacity-50" />
-                    <p className="text-xs text-muted-foreground">Nenhum compromisso cadastrado</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {blocks.map(block => {
-                      const isPast = block.date < new Date().toISOString().split("T")[0];
-                      const formattedDate = new Date(`${block.date}T12:00:00`).toLocaleDateString("pt-BR", {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric"
-                      });
+                {/* Conteúdo Retrátil no próprio modal */}
+                {historyCollapsibleOpen && (
+                  <div className="pt-2 border-t space-y-2">
+                    {blocks.length === 0 ? (
+                      <div className="p-4 text-center border border-dashed rounded-lg">
+                        <p className="text-xs text-muted-foreground">Nenhum compromisso cadastrado</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {blocks.map(block => {
+                          const isPast = block.date < new Date().toISOString().split("T")[0];
+                          const formattedDate = new Date(`${block.date}T12:00:00`).toLocaleDateString("pt-BR", {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric"
+                          });
 
-                      return (
-                        <div
-                          key={block.id}
-                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                            isPast ? "bg-muted/30 opacity-60" : "bg-card shadow-sm border-border"
-                          }`}
-                        >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-foreground">{block.title}</span>
-                              <Badge variant={block.all_day ? "destructive" : "outline"} className="text-[10px] px-1.5 py-0">
-                                {block.all_day ? "Dia Inteiro" : `${block.start_time} - ${block.end_time}`}
-                              </Badge>
-                              {isPast && (
-                                <Badge variant="secondary" className="text-[9px] px-1 py-0">
-                                  Passado
-                                </Badge>
-                              )}
+                          return (
+                            <div
+                              key={block.id}
+                              className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 ${
+                                isPast ? "bg-muted/20 opacity-60" : "bg-card shadow-xs"
+                              }`}
+                            >
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold">{block.title}</span>
+                                  <Badge variant={block.all_day ? "destructive" : "outline"} className="text-[9px] px-1.5 py-0">
+                                    {block.all_day ? "Dia Inteiro" : `${block.start_time} - ${block.end_time}`}
+                                  </Badge>
+                                  {isPast && (
+                                    <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                                      Passado
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-primary" /> {formattedDate}
+                                  {block.reason && <span className="italic">({block.reason})</span>}
+                                </p>
+                              </div>
+
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteBlock(block.id)}
+                                className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                                title="Remover"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
-                            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                              <Calendar className="w-3 h-3 text-primary" /> {formattedDate}
-                              {block.reason && <span className="italic">({block.reason})</span>}
-                            </p>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteBlock(block.id)}
-                            className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            title="Remover Bloqueio"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -570,6 +607,131 @@ export function AgendaConfigModal({ open, onOpenChange, onConfigSaved }: AgendaC
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      {/* Pop-up Detalhado de Histórico de Compromissos com Filtros */}
+      <Dialog open={historyModalOpen} onOpenChange={setHistoryModalOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                <History className="w-4 h-4" />
+              </div>
+              <DialogTitle className="text-base font-bold">Histórico de Compromissos</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          {/* Filtros de Busca e Status de Data */}
+          <div className="p-4 pb-2 border-b space-y-3 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar compromisso..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  className="pl-8 h-8 text-xs bg-card"
+                />
+              </div>
+
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border">
+                {(["todos", "futuros", "passados"] as const).map(tab => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setHistoryFilter(tab)}
+                    className={`px-2 py-1 text-[11px] font-semibold rounded-md capitalize transition-colors ${
+                      historyFilter === tab
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Lista Filtrada */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {(() => {
+              const todayStr = new Date().toISOString().split("T")[0];
+              const filtered = blocks.filter(b => {
+                const matchesSearch =
+                  !historySearch ||
+                  b.title.toLowerCase().includes(historySearch.toLowerCase()) ||
+                  (b.reason && b.reason.toLowerCase().includes(historySearch.toLowerCase()));
+                if (!matchesSearch) return false;
+                if (historyFilter === "futuros") return b.date >= todayStr;
+                if (historyFilter === "passados") return b.date < todayStr;
+                return true;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="p-8 text-center border-2 border-dashed rounded-xl">
+                    <p className="text-xs text-muted-foreground">Nenhum compromisso encontrado para este filtro.</p>
+                  </div>
+                );
+              }
+
+              return filtered.map(block => {
+                const isPast = block.date < todayStr;
+                const formattedDate = new Date(`${block.date}T12:00:00`).toLocaleDateString("pt-BR", {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric"
+                });
+
+                return (
+                  <div
+                    key={block.id}
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                      isPast ? "bg-muted/20 opacity-60" : "bg-card shadow-xs"
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold">{block.title}</span>
+                        <Badge variant={block.all_day ? "destructive" : "outline"} className="text-[9px] px-1.5 py-0">
+                          {block.all_day ? "Dia Inteiro" : `${block.start_time} - ${block.end_time}`}
+                        </Badge>
+                        {isPast && (
+                          <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                            Passado
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-primary" /> {formattedDate}
+                        {block.reason && <span className="italic">({block.reason})</span>}
+                      </p>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteBlock(block.id)}
+                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          <DialogFooter className="p-3 border-t bg-muted/20 flex justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setHistoryModalOpen(false)} className="text-xs">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
