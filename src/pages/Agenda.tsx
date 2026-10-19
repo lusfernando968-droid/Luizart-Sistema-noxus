@@ -1251,14 +1251,6 @@ const Agenda = () => {
               </div>
             )}
 
-            {agendaConfig?.assistant_notes && (
-              <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-xs text-muted-foreground flex items-start gap-2">
-                <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                <span className="text-[11px] leading-tight">
-                  <strong className="text-foreground">Recado da Agenda:</strong> {agendaConfig.assistant_notes}
-                </span>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
