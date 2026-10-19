@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { ChevronLeft, ChevronRight, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
@@ -72,6 +72,7 @@ const Agenda = () => {
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [gradeDropdownOpen, setGradeDropdownOpen] = useState(false);
   const [agendaConfig, setAgendaConfig] = useState<AgendaConfig | null>(null);
   const [agendaBlocks, setAgendaBlocks] = useState<AgendaBlock[]>([]);
   const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<AgendaBlock | null>(null);
@@ -880,89 +881,85 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Barra de Disponibilidade & Legenda de Vagas */}
-      <div className="bg-card/90 backdrop-blur-sm rounded-xl border border-border p-3 shadow-xs mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {/* Lado Esquerdo: Resumo dos Dias e Horários Permitidos */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-          <div className="flex items-center gap-2 shrink-0">
+      {/* Barra de Grade de Vagas (Menu Suspenso Retrátil) */}
+      <div className="bg-card/90 backdrop-blur-sm rounded-xl border border-border p-2.5 sm:p-3 shadow-xs mb-4">
+        <div className="flex items-center justify-between gap-2">
+          {/* Botão Retrátil (Menu Suspenso) */}
+          <button
+            type="button"
+            onClick={() => setGradeDropdownOpen(prev => !prev)}
+            className="flex items-center gap-2 text-left py-1 px-1.5 rounded-lg hover:bg-muted/60 transition-colors focus:outline-hidden"
+            title="Clique para expandir ou recolher a grade de horários"
+          >
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <CalendarRange className="w-4 h-4" />
             </div>
-            <span className="text-xs font-bold text-foreground">Grade de Vagas:</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[
-              { key: "1", label: "Seg" },
-              { key: "2", label: "Ter" },
-              { key: "3", label: "Qua" },
-              { key: "4", label: "Qui" },
-              { key: "5", label: "Sex" },
-              { key: "6", label: "Sáb" },
-              { key: "0", label: "Dom" },
-            ].map(d => {
-              const dayConfig = agendaConfig?.weekly_schedule?.[d.key];
-              const isEnabled = dayConfig ? dayConfig.enabled : d.key !== "0";
-              const timeText = dayConfig?.enabled
-                ? `${dayConfig.start}–${dayConfig.end}`
-                : d.key === "6"
-                ? "09:00–14:00"
-                : d.key === "0"
-                ? "Fechado"
-                : "09:00–18:00";
-
-              return (
-                <div
-                  key={d.key}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] border font-medium ${
-                    isEnabled
-                      ? "bg-muted/50 border-border text-foreground"
-                      : "bg-muted/20 border-border/40 text-muted-foreground/60 line-through"
-                  }`}
-                  title={`${d.label}: ${isEnabled ? timeText : "Fechado"}`}
-                >
-                  <span className="font-semibold text-muted-foreground">{d.label}</span>
-                  <span className="text-[10px]">{isEnabled ? timeText : "Off"}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Lado Direito: Legenda Visual Moderna & Ações */}
-        <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/50">
-          <div className="flex items-center gap-3.5 text-[11px]">
-            <div className="flex items-center gap-1.5" title="Horário aberto para agendamentos">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-500/20" />
-              <span className="text-foreground font-medium">Livre</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-foreground">Grade de Vagas</span>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                {gradeDropdownOpen ? "(ocultar horários)" : "(ver horários)"}
+              </span>
             </div>
+            <ChevronDown
+              className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                gradeDropdownOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-            <div className="flex items-center gap-1.5 text-muted-foreground" title="Fora do horário de expediente ou dia fechado">
-              <Ban className="w-3.5 h-3.5 text-muted-foreground/70" />
-              <span>Fechado</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-rose-500 font-semibold" title="Horário bloqueado por compromisso pessoal">
-              <Lock className="w-3.5 h-3.5 text-rose-500" />
-              <span>Bloqueado</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-primary font-medium" title="Sessão marcada com cliente">
-              <UserCheck className="w-3.5 h-3.5 text-primary" />
-              <span>Agendado</span>
-            </div>
-          </div>
-
+          {/* Botão de Ajustar Grade */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setConfigModalOpen(true)}
-            className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-2.5 gap-1.5 rounded-lg border border-border/60"
+            className="h-8 text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-2.5 gap-1.5 rounded-lg border border-border/60"
           >
             <Settings className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ajustar Grade</span>
+            <span>Ajustar Grade</span>
           </Button>
         </div>
+
+        {/* Conteúdo Suspenso da Grade (Aberto sob demanda) */}
+        {gradeDropdownOpen && (
+          <div className="pt-3 mt-2 border-t border-border/50">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { key: "1", label: "Seg" },
+                { key: "2", label: "Ter" },
+                { key: "3", label: "Qua" },
+                { key: "4", label: "Qui" },
+                { key: "5", label: "Sex" },
+                { key: "6", label: "Sáb" },
+                { key: "0", label: "Dom" },
+              ].map(d => {
+                const dayConfig = agendaConfig?.weekly_schedule?.[d.key];
+                const isEnabled = dayConfig ? dayConfig.enabled : d.key !== "0";
+                const timeText = dayConfig?.enabled
+                  ? `${dayConfig.start}–${dayConfig.end}`
+                  : d.key === "6"
+                  ? "09:00–14:00"
+                  : d.key === "0"
+                  ? "Fechado"
+                  : "09:00–18:00";
+
+                return (
+                  <div
+                    key={d.key}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] border font-medium ${
+                      isEnabled
+                        ? "bg-muted/50 border-border text-foreground"
+                        : "bg-muted/20 border-border/40 text-muted-foreground/60 line-through"
+                    }`}
+                    title={`${d.label}: ${isEnabled ? timeText : "Fechado"}`}
+                  >
+                    <span className="font-semibold text-muted-foreground">{d.label}</span>
+                    <span className="text-[10px]">{isEnabled ? timeText : "Off"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {isMobile ? (
