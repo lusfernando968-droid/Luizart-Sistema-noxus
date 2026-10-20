@@ -183,6 +183,7 @@ const Courses = () => {
   const [editingCategory, setEditingCategory] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
   const [editingScript, setEditingScript] = useState("");
+  const [isEditingScriptMode, setIsEditingScriptMode] = useState(false);
 
   const selectedContent = useMemo(
     () => contents.find((c) => c.id === selectedContentId) || null,
@@ -201,7 +202,9 @@ const Courses = () => {
       setEditingModule(selectedContent.module_name || "");
       setEditingCategory(selectedContent.category || "");
       setEditingNotes(selectedContent.idea_notes || "");
-      setEditingScript(selectedContent.script_content || "");
+      const formatted = autoFormatScriptText(selectedContent.script_content || "");
+      setEditingScript(formatted);
+      setIsEditingScriptMode(!formatted.trim());
     }
   }, [selectedContentId]);
 
@@ -629,6 +632,193 @@ const Courses = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // =========================================================================
+  // FORMATADOR INTELIGENTE DE ROTEIRO (COPIAR E COLAR DO GEMINI / IA)
+  // =========================================================================
+
+  function autoFormatScriptText(raw: string): string {
+    if (!raw) return "";
+    let text = raw.replace(/\r\n/g, "\n");
+
+    // 1. Separa frases ou títulos grudados antes de tópicos numerados (ex: "Estúdio)1. Boas-vindas" ou '."   2. O erro')
+    text = text.replace(/([^\n#])\s*(\d+\.\s+[A-ZÀ-Ú])/g, "$1\n\n## $2");
+
+    // 2. Separa início de fala com aspas grudado no título (ex: '(Quebra-gelo)"Fala' ou 'frustração"Qual')
+    text = text.replace(/([^\n\s"“])(["“][A-ZÀ-Ú])/g, "$1\n$2");
+
+    // 3. Transforma múltiplos espaços após pontuação (padrão de cópia do Gemini) em quebra de parágrafo real
+    text = text.replace(/([.!?])\s{2,}(?=[A-ZÀ-Ú"“])/g, "$1\n\n");
+
+    // 4. Destaca título principal se começar com "Roteiro" na primeira linha
+    text = text.replace(/^\s*(Roteiro[^\n#]+)$/m, "# $1");
+
+    // 5. Garante que tópicos numerados em linha própria virem subtítulos ##
+    text = text.replace(/^(\d+\.\s+[^\n"]+)$/gm, "## $1");
+
+    // 6. Limpa excesso de quebras de linha
+    text = text.replace(/\n{3,}/g, "\n\n").trim();
+
+    return text;
+  }
+
+  const handleSmartScriptPaste = (
+    e: React.ClipboardEvent<HTMLTextAreaElement>,
+    currentVal: string,
+    setVal: (v: string) => void,
+    autoSaveAfterPaste = false
+  ) => {
+    const html = e.clipboardData.getData("text/html");
+    const plain = e.clipboardData.getData("text/plain");
+    if (!html && !plain) return;
+
+    e.preventDefault();
+
+    let extracted = "";
+    if (html) {
+      try {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const blocks: string[] = [];
+
+        const walk = (node: Node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            const tag = el.tagName.toLowerCase();
+
+            if (tag === "h1" || tag === "h2" || tag === "h3") {
+              const t = el.innerText.trim();
+              if (t) blocks.push(`# ${t}`);
+              return;
+            }
+            if (tag === "h4" || tag === "h5" || tag === "h6") {
+              const t = el.innerText.trim();
+              if (t) blocks.push(`## ${t}`);
+              return;
+            }
+            if (tag === "blockquote") {
+              const pList = el.querySelectorAll("p");
+              if (pList.length > 0) {
+                pList.forEach((p) => {
+                  const pt = p.innerText.trim();
+                  if (pt) blocks.push(pt);
+                });
+              } else {
+                const bt = el.innerText.trim();
+                if (bt) blocks.push(bt);
+              }
+              return;
+            }
+            if (tag === "p") {
+              const pt = el.innerText.trim();
+              if (pt) blocks.push(pt);
+              return;
+            }
+            if (tag === "li") {
+              const lt = el.innerText.trim();
+              if (lt) blocks.push(`• ${lt}`);
+              return;
+            }
+          }
+          node.childNodes.forEach(walk);
+        };
+
+        walk(doc.body);
+        if (blocks.length > 0) {
+          extracted = blocks.join("\n\n");
+        }
+      } catch {
+        extracted = plain;
+      }
+    }
+
+    const formattedPaste = autoFormatScriptText(extracted || plain);
+    const target = e.currentTarget;
+    const start = target.selectionStart ?? currentVal.length;
+    const end = target.selectionEnd ?? currentVal.length;
+
+    const nextValue = autoFormatScriptText(
+      currentVal.slice(0, start) +
+        (start > 0 && !currentVal.slice(0, start).endsWith("\n") ? "\n\n" : "") +
+        formattedPaste +
+        currentVal.slice(end)
+    );
+
+    setVal(nextValue);
+
+    if (autoSaveAfterPaste && selectedContent) {
+      setContents((prev) =>
+        prev.map((c) =>
+          c.id === selectedContent.id ? { ...c, script_content: nextValue } : c
+        )
+      );
+      supabase
+        .from("content_productions")
+        .update({
+          script_content: nextValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedContent.id)
+        .then();
+      setIsEditingScriptMode(false);
+    }
+  };
+
+  const renderFormattedScript = (scriptText: string) => {
+    const formatted = autoFormatScriptText(scriptText);
+    const blocks = formatted
+      .split(/\n{2,}/)
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+    return (
+      <div className="space-y-3.5">
+        {blocks.map((block, index) => {
+          const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+
+          return (
+            <div key={index} className="space-y-2">
+              {lines.map((line, lIdx) => {
+                // Título Principal (# )
+                if (line.startsWith("# ")) {
+                  return (
+                    <h3
+                      key={lIdx}
+                      className="text-base font-bold text-foreground border-b border-border pb-2"
+                    >
+                      {line.replace(/^#\s+/, "")}
+                    </h3>
+                  );
+                }
+
+                // Subtítulo / Tópico Numerado (## ou 1. )
+                if (line.startsWith("## ") || /^\d+\.\s+/.test(line)) {
+                  return (
+                    <h4
+                      key={lIdx}
+                      className="text-sm font-bold text-foreground pt-2 flex items-center gap-2"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                      {line.replace(/^##\s+/, "")}
+                    </h4>
+                  );
+                }
+
+                // Fala / Citação ou Parágrafo do Roteiro
+                return (
+                  <div
+                    key={lIdx}
+                    className="border-l-2 border-primary/50 pl-3.5 py-1 text-sm leading-relaxed text-foreground/90 bg-background/60 rounded-r-lg"
+                  >
+                    {line}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // =========================================================================
@@ -2333,10 +2523,13 @@ const Courses = () => {
               <div className="space-y-1.5">
                 <Label>Roteiro</Label>
                 <Textarea
-                  rows={3}
-                  placeholder="Estruture o roteiro da aula ou gravação..."
+                  rows={4}
+                  placeholder="Cole aqui o roteiro do Gemini ou escreva os tópicos da gravação..."
                   value={newScriptContent}
                   onChange={(e) => setNewScriptContent(e.target.value)}
+                  onPaste={(e) =>
+                    handleSmartScriptPaste(e, newScriptContent, setNewScriptContent)
+                  }
                 />
               </div>
 
@@ -2657,18 +2850,65 @@ const Courses = () => {
                     </span>
                   </div>
 
-                  <div className="space-y-1.5 bg-muted/20 p-3.5 rounded-xl border">
-                    <Label className="text-xs font-semibold text-foreground">
-                      Roteiro do Conteúdo
-                    </Label>
-                    <Textarea
-                      rows={4}
-                      className="bg-background"
-                      placeholder="Escreva aqui o roteiro estruturado da gravação (abertura, tópicos, demonstração e fechamento)..."
-                      value={editingScript}
-                      onChange={(e) => setEditingScript(e.target.value)}
-                      onBlur={() => handleSaveContentInfo()}
-                    />
+                  <div className="space-y-2.5 bg-muted/20 p-4 rounded-xl border">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-semibold text-foreground">
+                        Roteiro do Conteúdo
+                      </Label>
+                      <div className="flex items-center gap-1.5">
+                        {editingScript.trim().length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2.5 text-[11px]"
+                            onClick={() => {
+                              const formatted = autoFormatScriptText(editingScript);
+                              setEditingScript(formatted);
+                              if (isEditingScriptMode) {
+                                handleSaveContentInfo();
+                              }
+                              setIsEditingScriptMode((prev) => !prev);
+                            }}
+                          >
+                            {isEditingScriptMode ? "Ver Formatado" : "Editar Roteiro"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {!isEditingScriptMode && editingScript.trim().length > 0 ? (
+                      <div
+                        onClick={() => setIsEditingScriptMode(true)}
+                        className="bg-card border rounded-xl p-4 max-h-[340px] overflow-y-auto cursor-pointer hover:border-primary/40 transition-colors"
+                      >
+                        {renderFormattedScript(editingScript)}
+                      </div>
+                    ) : (
+                      <Textarea
+                        rows={7}
+                        className="bg-background leading-relaxed text-sm"
+                        placeholder="Cole aqui o roteiro pronto do Gemini ou escreva os tópicos da gravação..."
+                        value={editingScript}
+                        onChange={(e) => setEditingScript(e.target.value)}
+                        onPaste={(e) =>
+                          handleSmartScriptPaste(
+                            e,
+                            editingScript,
+                            setEditingScript,
+                            true
+                          )
+                        }
+                        onBlur={() => {
+                          const formatted = autoFormatScriptText(editingScript);
+                          setEditingScript(formatted);
+                          handleSaveContentInfo();
+                          if (formatted.trim().length > 0) {
+                            setIsEditingScriptMode(false);
+                          }
+                        }}
+                      />
+                    )}
                   </div>
 
                   <div className="flex gap-2">
