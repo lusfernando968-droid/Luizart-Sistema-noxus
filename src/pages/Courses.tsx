@@ -20,7 +20,10 @@ import {
   BarChart3,
   Lightbulb,
   CheckCircle2,
-  TrendingUp
+  TrendingUp,
+  ExternalLink,
+  FolderOpen,
+  Link as LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -347,6 +350,7 @@ const Courses = () => {
   const [newModule, setNewModule] = useState("");
   const [newIdeaNotes, setNewIdeaNotes] = useState("");
   const [newScriptContent, setNewScriptContent] = useState("");
+  const [newDriveLink, setNewDriveLink] = useState("");
   const [newPreItemText, setNewPreItemText] = useState("");
   const [newPreItems, setNewPreItems] = useState<ChecklistItem[]>([]);
   const [newCaptureItemText, setNewCaptureItemText] = useState("");
@@ -361,6 +365,7 @@ const Courses = () => {
   const [editingCategory, setEditingCategory] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
   const [editingScript, setEditingScript] = useState("");
+  const [editingDriveLink, setEditingDriveLink] = useState("");
 
   const selectedContent = useMemo(
     () => contents.find((c) => c.id === selectedContentId) || null,
@@ -380,6 +385,7 @@ const Courses = () => {
       setEditingCategory(selectedContent.category || "");
       setEditingNotes(selectedContent.idea_notes || "");
       setEditingScript(plainTextToScriptHtml(selectedContent.script_content || ""));
+      setEditingDriveLink(selectedContent.video_link || "");
     }
   }, [selectedContentId]);
 
@@ -843,6 +849,7 @@ const Courses = () => {
             : "Ideia",
         idea_notes: newIdeaNotes.trim(),
         script_content: newScriptContent.trim(),
+        video_link: newDriveLink.trim(),
         pre_production_checklist: newPreItems,
         capture_checklist: newCaptureItems,
         stage_checks: initialChecks
@@ -862,6 +869,7 @@ const Courses = () => {
       setNewModule("");
       setNewIdeaNotes("");
       setNewScriptContent("");
+      setNewDriveLink("");
       setNewPreItems([]);
       setNewCaptureItems([]);
       setNewPreItemText("");
@@ -1160,7 +1168,8 @@ const Courses = () => {
                 module_name: finalModule.trim(),
                 category: finalCategory,
                 idea_notes: editingNotes.trim(),
-                script_content: finalScript.trim()
+                script_content: finalScript.trim(),
+                video_link: editingDriveLink.trim()
               }
             : c
         )
@@ -1174,6 +1183,7 @@ const Courses = () => {
           category: finalCategory,
           idea_notes: editingNotes.trim(),
           script_content: finalScript.trim(),
+          video_link: editingDriveLink.trim(),
           updated_at: new Date().toISOString()
         })
         .eq("id", selectedContent.id);
@@ -1777,6 +1787,24 @@ const Courses = () => {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <div className="flex items-center justify-end gap-1">
+                                    {item.video_link && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-xs gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                                        onClick={() =>
+                                          window.open(
+                                            item.video_link?.startsWith("http")
+                                              ? item.video_link
+                                              : `https://${item.video_link}`,
+                                            "_blank"
+                                          )
+                                        }
+                                      >
+                                        <FolderOpen className="h-3.5 w-3.5" />
+                                        Drive
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -2504,6 +2532,19 @@ const Courses = () => {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label>Link do Google Drive (Pasta / Arquivos)</Label>
+              <div className="relative">
+                <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="h-11 pl-9"
+                  placeholder="https://drive.google.com/..."
+                  value={newDriveLink}
+                  onChange={(e) => setNewDriveLink(e.target.value)}
+                />
+              </div>
+            </div>
+
             {/* Pré-produção inicial */}
             <div className="space-y-3 pt-2 border-t">
               <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
@@ -2817,6 +2858,42 @@ const Courses = () => {
                       onChange={(e) => setEditingNotes(e.target.value)}
                       onBlur={() => handleSaveContentInfo()}
                     />
+                  </div>
+
+                  <div className="space-y-1 pt-1">
+                    <Label className="text-xs">
+                      Link do Google Drive (Pasta ou Arquivos do Conteúdo)
+                    </Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="h-11 pl-9 bg-background"
+                          placeholder="Cole o link da pasta ou arquivo no Google Drive..."
+                          value={editingDriveLink}
+                          onChange={(e) => setEditingDriveLink(e.target.value)}
+                          onBlur={() => handleSaveContentInfo()}
+                        />
+                      </div>
+                      {editingDriveLink.trim() && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 px-4 gap-2 shrink-0 text-primary border-primary/30 hover:bg-primary/10"
+                          onClick={() =>
+                            window.open(
+                              editingDriveLink.trim().startsWith("http")
+                                ? editingDriveLink.trim()
+                                : `https://${editingDriveLink.trim()}`,
+                              "_blank"
+                            )
+                          }
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Abrir Drive
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
