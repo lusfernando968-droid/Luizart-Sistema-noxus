@@ -16,7 +16,11 @@ import {
   FileText,
   Pencil,
   Layers,
-  BookOpen
+  BookOpen,
+  BarChart3,
+  Lightbulb,
+  CheckCircle2,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,6 +52,17 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  Cell
+} from "recharts";
 
 export interface ChecklistItem {
   id: string;
@@ -103,6 +118,8 @@ const STAGES: Array<ContentProduction["stage"]> = [
 
 const Courses = () => {
   const [activeTab, setActiveTab] = useState("producao");
+  const [bastidoresSubTab, setBastidoresSubTab] = useState<"fila" | "dados">("fila");
+
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isRegisterStudentModalOpen, setIsRegisterStudentModalOpen] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -294,6 +311,104 @@ const Courses = () => {
   }, [courseFormats, courseModules, editingCategory]);
 
   // =========================================================================
+  // INDICADORES E DADOS ANALÍTICOS DA SUBPÁGINA DE DADOS (BASTIDORES)
+  // =========================================================================
+
+  const productionMetrics = useMemo(() => {
+    const total = contents.length;
+    const ideasCount = contents.filter((c) => c.stage === "Ideia").length;
+    const preProdCount = contents.filter((c) => c.stage === "Pré-produção").length;
+    const captureCount = contents.filter((c) => c.stage === "Captação").length;
+    const inProductionCount = preProdCount + captureCount;
+    const completedCount = contents.filter((c) => c.stage === "Concluído").length;
+
+    let totalTakes = 0;
+    let doneTakes = 0;
+    let totalPreTasks = 0;
+    let donePreTasks = 0;
+
+    contents.forEach((c) => {
+      const capList = c.capture_checklist || [];
+      totalTakes += capList.length;
+      doneTakes += capList.filter((i) => i.done).length;
+
+      const preList = c.pre_production_checklist || [];
+      totalPreTasks += preList.length;
+      donePreTasks += preList.filter((i) => i.done).length;
+    });
+
+    const takesProgress =
+      totalTakes > 0 ? Math.round((doneTakes / totalTakes) * 100) : 0;
+    const completionRate =
+      total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
+    const stageChartData = [
+      { etapa: "Ideia", quantidade: ideasCount, color: "#64748b" },
+      { etapa: "Pré-produção", quantidade: preProdCount, color: "#f59e0b" },
+      { etapa: "Captação", quantidade: captureCount, color: "hsl(var(--primary))" },
+      { etapa: "Concluído", quantidade: completedCount, color: "#10b981" }
+    ];
+
+    // Agrupamento por Curso / Formato
+    const categoryNames = Array.from(
+      new Set([
+        ...courseFormats.map((f) => f.name),
+        ...contents.map((c) => c.category || "Sem Formato")
+      ])
+    ).filter(Boolean);
+
+    const byCourseData = categoryNames.map((catName) => {
+      const items = contents.filter((c) => (c.category || "Sem Formato") === catName);
+      const catIdeas = items.filter((c) => c.stage === "Ideia").length;
+      const catPre = items.filter((c) => c.stage === "Pré-produção").length;
+      const catCap = items.filter((c) => c.stage === "Captação").length;
+      const catInProd = catPre + catCap;
+      const catDone = items.filter((c) => c.stage === "Concluído").length;
+
+      let catTakesTotal = 0;
+      let catTakesDone = 0;
+      items.forEach((i) => {
+        const list = i.capture_checklist || [];
+        catTakesTotal += list.length;
+        catTakesDone += list.filter((x) => x.done).length;
+      });
+
+      const catTakesPct =
+        catTakesTotal > 0 ? Math.round((catTakesDone / catTakesTotal) * 100) : 0;
+
+      return {
+        curso: catName,
+        total: items.length,
+        ideias: catIdeas,
+        preProducao: catPre,
+        captacao: catCap,
+        emProducao: catInProd,
+        concluidos: catDone,
+        takesDone: catTakesDone,
+        takesTotal: catTakesTotal,
+        takesPct: catTakesPct
+      };
+    });
+
+    return {
+      total,
+      ideasCount,
+      preProdCount,
+      captureCount,
+      inProductionCount,
+      completedCount,
+      totalTakes,
+      doneTakes,
+      takesProgress,
+      totalPreTasks,
+      donePreTasks,
+      completionRate,
+      stageChartData,
+      byCourseData
+    };
+  }, [contents, courseFormats]);
+
+  // =========================================================================
   // GESTÃO DE CURSOS / FORMATOS & MÓDULOS / TEMAS (ABA CONFIGURAÇÕES)
   // =========================================================================
 
@@ -344,7 +459,6 @@ const Courses = () => {
           .eq("id", editingFormatId);
         if (error) throw error;
 
-        // Se mudou o nome do formato, atualiza nos conteúdos vinculados
         if (oldFormat && oldFormat.name !== payload.name) {
           await supabase
             .from("content_productions")
@@ -1085,287 +1199,555 @@ const Courses = () => {
           </TabsContent>
 
           {/* =========================================================
-              ABA 2: BASTIDORES (PRODUÇÃO DE CONTEÚDO)
+              ABA 2: BASTIDORES (PRODUÇÃO DE CONTEÚDO + SUBPÁGINA DE DADOS)
              ========================================================= */}
-          <TabsContent value="producao" className="m-0 space-y-4">
-            {/* Barra de Filtros e Pesquisa */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar ideia, curso ou módulo..."
-                  className="pl-9 h-11"
-                  value={contentSearch}
-                  onChange={(e) => setContentSearch(e.target.value)}
-                />
+          <TabsContent value="producao" className="m-0 space-y-5">
+            {/* Sub-navegação interna de Bastidores */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+              <div className="inline-flex items-center p-1 rounded-xl bg-muted/60 border w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setBastidoresSubTab("fila")}
+                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    bastidoresSubTab === "fila"
+                      ? "bg-card text-foreground shadow-sm border border-border/60"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Fila de Produção
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBastidoresSubTab("dados")}
+                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    bastidoresSubTab === "dados"
+                      ? "bg-card text-foreground shadow-sm border border-border/60"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Análise de Dados & Gráficos
+                </button>
               </div>
 
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                <Button
-                  variant={stageFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  className="h-9 rounded-lg text-xs font-medium shrink-0"
-                  onClick={() => setStageFilter("all")}
-                >
-                  Todos ({contents.length})
-                </Button>
-                {STAGES.map((stage) => {
-                  const count = contents.filter((c) => c.stage === stage).length;
-                  return (
-                    <Button
-                      key={stage}
-                      variant={stageFilter === stage ? "default" : "outline"}
-                      size="sm"
-                      className="h-9 rounded-lg text-xs font-medium shrink-0"
-                      onClick={() => setStageFilter(stage)}
-                    >
-                      {stage} ({count})
-                    </Button>
-                  );
-                })}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 rounded-lg text-xs font-medium shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
-                  onClick={() => setActiveTab("configuracoes")}
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  Cursos & Módulos
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-lg text-xs font-medium shrink-0 gap-1.5 text-muted-foreground hover:text-foreground self-end sm:self-auto"
+                onClick={() => setActiveTab("configuracoes")}
+              >
+                <Settings className="h-3.5 w-3.5" />
+                Cursos & Módulos
+              </Button>
             </div>
 
-            {/* Tabela de Produção de Conteúdo */}
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead className="min-w-[220px]">Conteúdo / Ideia</TableHead>
-                      <TableHead className="min-w-[140px]">Etapa Atual</TableHead>
-                      <TableHead className="min-w-[260px]">Check-in de Etapas</TableHead>
-                      <TableHead className="min-w-[150px]">Pré-produção</TableHead>
-                      <TableHead className="min-w-[160px]">Captação de Material</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loadingContents ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
-                          Carregando conteúdos...
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredContents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-10">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Clapperboard className="h-8 w-8 text-muted-foreground/50" />
-                            <p className="text-sm font-medium text-foreground">
-                              Nenhum conteúdo na lista
-                            </p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-1 h-9 gap-1.5"
-                              onClick={() => setIsNewContentModalOpen(true)}
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                              Criar Conteúdo
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredContents.map((item) => {
-                        const preTotal = item.pre_production_checklist?.length || 0;
-                        const preDone = (item.pre_production_checklist || []).filter(
-                          (i) => i.done
-                        ).length;
+            {bastidoresSubTab === "fila" ? (
+              /* ---------------------------------------------------------
+                 SUBPÁGINA 1: FILA DE PRODUÇÃO (TABELA)
+                 --------------------------------------------------------- */
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar ideia, curso ou módulo..."
+                      className="pl-9 h-11"
+                      value={contentSearch}
+                      onChange={(e) => setContentSearch(e.target.value)}
+                    />
+                  </div>
 
-                        const capTotal = item.capture_checklist?.length || 0;
-                        const capDone = (item.capture_checklist || []).filter(
-                          (i) => i.done
-                        ).length;
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+                    <Button
+                      variant={stageFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      className="h-9 rounded-lg text-xs font-medium shrink-0"
+                      onClick={() => setStageFilter("all")}
+                    >
+                      Todos ({contents.length})
+                    </Button>
+                    {STAGES.map((stage) => {
+                      const count = contents.filter((c) => c.stage === stage).length;
+                      return (
+                        <Button
+                          key={stage}
+                          variant={stageFilter === stage ? "default" : "outline"}
+                          size="sm"
+                          className="h-9 rounded-lg text-xs font-medium shrink-0"
+                          onClick={() => setStageFilter(stage)}
+                        >
+                          {stage} ({count})
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        return (
-                          <TableRow
-                            key={item.id}
-                            className="cursor-pointer hover:bg-muted/30 transition-colors"
-                            onClick={() => setSelectedContentId(item.id)}
-                          >
-                            {/* Coluna 1: Ideia / Conteúdo */}
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-bold text-sm text-foreground leading-snug">
-                                  {item.title}
+                {/* Tabela de Produção de Conteúdo */}
+                <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead className="min-w-[220px]">Conteúdo / Ideia</TableHead>
+                          <TableHead className="min-w-[140px]">Etapa Atual</TableHead>
+                          <TableHead className="min-w-[260px]">Check-in de Etapas</TableHead>
+                          <TableHead className="min-w-[150px]">Pré-produção</TableHead>
+                          <TableHead className="min-w-[160px]">Captação de Material</TableHead>
+                          <TableHead className="text-right min-w-[120px]">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingContents ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                              Carregando conteúdos...
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredContents.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-10">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <Clapperboard className="h-8 w-8 text-muted-foreground/50" />
+                                <p className="text-sm font-medium text-foreground">
+                                  Nenhum conteúdo na lista
                                 </p>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {item.category && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px] font-medium px-2 py-0"
-                                    >
-                                      {item.category}
-                                    </Badge>
-                                  )}
-                                  {item.module_name && (
-                                    <span className="text-xs text-muted-foreground">
-                                      • {item.module_name}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            {/* Coluna 2: Etapa Atual */}
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <Select
-                                value={item.stage}
-                                onValueChange={(val) =>
-                                  handleStageSelectChange(
-                                    item,
-                                    val as ContentProduction["stage"]
-                                  )
-                                }
-                              >
-                                <SelectTrigger
-                                  className={`h-8 text-xs font-semibold w-[135px] border ${getStageBadgeClass(
-                                    item.stage
-                                  )}`}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {STAGES.map((st) => (
-                                    <SelectItem key={st} value={st} className="text-xs">
-                                      {st}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-
-                            {/* Coluna 3: Botões de Check-in Rápido por Etapa */}
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {(
-                                  [
-                                    { key: "ideia", label: "Ideia" },
-                                    { key: "pre_producao", label: "Pré-prod." },
-                                    { key: "captacao", label: "Captação" },
-                                    { key: "concluido", label: "Pronto" }
-                                  ] as const
-                                ).map((st) => {
-                                  const checked = !!item.stage_checks?.[st.key];
-                                  return (
-                                    <button
-                                      key={st.key}
-                                      type="button"
-                                      onClick={(e) =>
-                                        handleToggleStageCheck(item, st.key, e)
-                                      }
-                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all ${
-                                        checked
-                                          ? "bg-primary/10 text-primary border-primary/30"
-                                          : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-                                      }`}
-                                    >
-                                      <div
-                                        className={`h-3.5 w-3.5 rounded-sm flex items-center justify-center ${
-                                          checked
-                                            ? "bg-primary text-primary-foreground"
-                                            : "border border-muted-foreground/40"
-                                        }`}
-                                      >
-                                        {checked && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-                                      </div>
-                                      {st.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </TableCell>
-
-                            {/* Coluna 4: Progresso Pré-produção */}
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all"
-                                    style={{
-                                      width: `${
-                                        preTotal > 0
-                                          ? Math.round((preDone / preTotal) * 100)
-                                          : item.stage_checks?.pre_producao
-                                          ? 100
-                                          : 0
-                                      }%`
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {preDone}/{preTotal}
-                                </span>
-                              </div>
-                            </TableCell>
-
-                            {/* Coluna 5: Progresso Lista de Captação */}
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all"
-                                    style={{
-                                      width: `${
-                                        capTotal > 0
-                                          ? Math.round((capDone / capTotal) * 100)
-                                          : item.stage_checks?.captacao
-                                          ? 100
-                                          : 0
-                                      }%`
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs font-semibold text-foreground">
-                                  {capDone}/{capTotal} takes
-                                </span>
-                              </div>
-                            </TableCell>
-
-                            {/* Coluna 6: Ações */}
-                            <TableCell
-                              className="text-right"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 text-xs gap-1.5"
-                                  onClick={() => setSelectedContentId(item.id)}
+                                  className="mt-1 h-9 gap-1.5"
+                                  onClick={() => setIsNewContentModalOpen(true)}
                                 >
-                                  <ListChecks className="h-3.5 w-3.5" />
-                                  Check-in
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  onClick={(e) => handleDeleteContent(item.id, e)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Plus className="h-3.5 w-3.5" />
+                                  Criar Conteúdo
                                 </Button>
                               </div>
                             </TableCell>
                           </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                        ) : (
+                          filteredContents.map((item) => {
+                            const preTotal = item.pre_production_checklist?.length || 0;
+                            const preDone = (item.pre_production_checklist || []).filter(
+                              (i) => i.done
+                            ).length;
+
+                            const capTotal = item.capture_checklist?.length || 0;
+                            const capDone = (item.capture_checklist || []).filter(
+                              (i) => i.done
+                            ).length;
+
+                            return (
+                              <TableRow
+                                key={item.id}
+                                className="cursor-pointer hover:bg-muted/30 transition-colors"
+                                onClick={() => setSelectedContentId(item.id)}
+                              >
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <p className="font-bold text-sm text-foreground leading-snug">
+                                      {item.title}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {item.category && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] font-medium px-2 py-0"
+                                        >
+                                          {item.category}
+                                        </Badge>
+                                      )}
+                                      {item.module_name && (
+                                        <span className="text-xs text-muted-foreground">
+                                          • {item.module_name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <Select
+                                    value={item.stage}
+                                    onValueChange={(val) =>
+                                      handleStageSelectChange(
+                                        item,
+                                        val as ContentProduction["stage"]
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      className={`h-8 text-xs font-semibold w-[135px] border ${getStageBadgeClass(
+                                        item.stage
+                                      )}`}
+                                    >
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {STAGES.map((st) => (
+                                        <SelectItem key={st} value={st} className="text-xs">
+                                          {st}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {(
+                                      [
+                                        { key: "ideia", label: "Ideia" },
+                                        { key: "pre_producao", label: "Pré-prod." },
+                                        { key: "captacao", label: "Captação" },
+                                        { key: "concluido", label: "Pronto" }
+                                      ] as const
+                                    ).map((st) => {
+                                      const checked = !!item.stage_checks?.[st.key];
+                                      return (
+                                        <button
+                                          key={st.key}
+                                          type="button"
+                                          onClick={(e) =>
+                                            handleToggleStageCheck(item, st.key, e)
+                                          }
+                                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all ${
+                                            checked
+                                              ? "bg-primary/10 text-primary border-primary/30"
+                                              : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                                          }`}
+                                        >
+                                          <div
+                                            className={`h-3.5 w-3.5 rounded-sm flex items-center justify-center ${
+                                              checked
+                                                ? "bg-primary text-primary-foreground"
+                                                : "border border-muted-foreground/40"
+                                            }`}
+                                          >
+                                            {checked && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                                          </div>
+                                          {st.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </TableCell>
+
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-primary transition-all"
+                                        style={{
+                                          width: `${
+                                            preTotal > 0
+                                              ? Math.round((preDone / preTotal) * 100)
+                                              : item.stage_checks?.pre_producao
+                                              ? 100
+                                              : 0
+                                          }%`
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      {preDone}/{preTotal}
+                                    </span>
+                                  </div>
+                                </TableCell>
+
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-primary transition-all"
+                                        style={{
+                                          width: `${
+                                            capTotal > 0
+                                              ? Math.round((capDone / capTotal) * 100)
+                                              : item.stage_checks?.captacao
+                                              ? 100
+                                              : 0
+                                          }%`
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-xs font-semibold text-foreground">
+                                      {capDone}/{capTotal} takes
+                                    </span>
+                                  </div>
+                                </TableCell>
+
+                                <TableCell
+                                  className="text-right"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 text-xs gap-1.5"
+                                      onClick={() => setSelectedContentId(item.id)}
+                                    >
+                                      <ListChecks className="h-3.5 w-3.5" />
+                                      Check-in
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      onClick={(e) => handleDeleteContent(item.id, e)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* ---------------------------------------------------------
+                 SUBPÁGINA 2: ANÁLISE DE DADOS & GRÁFICOS DE PRODUÇÃO
+                 --------------------------------------------------------- */
+              <div className="space-y-6">
+                {/* Cards de Indicadores (KPIs) */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div
+                    onClick={() => {
+                      setStageFilter("Ideia");
+                      setBastidoresSubTab("fila");
+                    }}
+                    className="stat-card cursor-pointer hover:border-primary/40"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Ideias no Banco
+                      </span>
+                      <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">
+                      {productionMetrics.ideasCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      de {productionMetrics.total} conteúdos criados
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setStageFilter("Captação");
+                      setBastidoresSubTab("fila");
+                    }}
+                    className="stat-card cursor-pointer hover:border-primary/40"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Trabalhos em Produção
+                      </span>
+                      <Clapperboard className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {productionMetrics.inProductionCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {productionMetrics.preProdCount} pré-prod. •{" "}
+                      {productionMetrics.captureCount} captação
+                    </p>
+                  </div>
+
+                  <div className="stat-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Captação de Material
+                      </span>
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">
+                      {productionMetrics.doneTakes}/{productionMetrics.totalTakes}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {productionMetrics.takesProgress}% dos takes gravados
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setStageFilter("Concluído");
+                      setBastidoresSubTab("fila");
+                    }}
+                    className="stat-card cursor-pointer hover:border-primary/40"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Conteúdos Concluídos
+                      </span>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {productionMetrics.completedCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {productionMetrics.completionRate}% da fila finalizada
+                    </p>
+                  </div>
+                </div>
+
+                {/* Gráficos Analíticos */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Gráfico 1: Volume por Etapa do Funil de Produção */}
+                  <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
+                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-primary" />
+                      Volume por Etapa de Produção
+                    </h3>
+                    <div className="h-[260px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={productionMetrics.stageChartData}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="etapa" tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <RechartsTooltip />
+                          <Bar
+                            dataKey="quantidade"
+                            name="Conteúdos"
+                            radius={[6, 6, 0, 0]}
+                          >
+                            {productionMetrics.stageChartData.map((entry, idx) => (
+                              <Cell key={`cell-${idx}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Gráfico 2: Comparativo de Produção por Curso / Formato */}
+                  <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
+                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-primary" />
+                      Produção por Curso / Formato
+                    </h3>
+                    <div className="h-[260px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={productionMetrics.byCourseData}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="curso" tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <RechartsTooltip />
+                          <Legend />
+                          <Bar
+                            dataKey="ideias"
+                            name="Ideias"
+                            fill="#64748b"
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Bar
+                            dataKey="emProducao"
+                            name="Em Produção"
+                            fill="hsl(var(--primary))"
+                            radius={[4, 4, 0, 0]}
+                          />
+                          <Bar
+                            dataKey="concluidos"
+                            name="Concluídos"
+                            fill="#10b981"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabela de Administração dos Dados por Curso / Formato */}
+                <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-foreground">
+                      Quadro Geral de Produção por Curso / Formato
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead>Curso / Formato</TableHead>
+                          <TableHead>Ideias</TableHead>
+                          <TableHead>Em Pré-produção</TableHead>
+                          <TableHead>Em Captação</TableHead>
+                          <TableHead>Concluídos</TableHead>
+                          <TableHead>Execução de Takes</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {productionMetrics.byCourseData.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={7}
+                              className="text-center py-8 text-muted-foreground text-sm"
+                            >
+                              Nenhum dado de produção registrado.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          productionMetrics.byCourseData.map((row) => (
+                            <TableRow key={row.curso}>
+                              <TableCell className="font-bold text-sm text-foreground">
+                                {row.curso}
+                              </TableCell>
+                              <TableCell className="text-xs font-medium text-muted-foreground">
+                                {row.ideias}
+                              </TableCell>
+                              <TableCell className="text-xs font-medium text-amber-600">
+                                {row.preProducao}
+                              </TableCell>
+                              <TableCell className="text-xs font-bold text-primary">
+                                {row.captacao}
+                              </TableCell>
+                              <TableCell className="text-xs font-bold text-emerald-600">
+                                {row.concluidos}/{row.total}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all"
+                                      style={{ width: `${row.takesPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs font-semibold">
+                                    {row.takesDone}/{row.takesTotal} ({row.takesPct}%)
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs"
+                                  onClick={() => {
+                                    setContentSearch(row.curso);
+                                    setStageFilter("all");
+                                    setBastidoresSubTab("fila");
+                                  }}
+                                >
+                                  Ver Conteúdos
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* =========================================================
