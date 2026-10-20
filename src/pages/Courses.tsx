@@ -158,6 +158,8 @@ const Courses = () => {
   const [loadingContents, setLoadingContents] = useState(false);
   const [contentSearch, setContentSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [courseFilter, setCourseFilter] = useState<string>("all");
+  const [moduleFilter, setModuleFilter] = useState<string>("all");
 
   // Modal Novo Conteúdo
   const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
@@ -991,17 +993,56 @@ const Courses = () => {
     }
   };
 
-  const filteredContents = useMemo(() => {
+  // Opções de Cursos e Módulos para os Filtros da Tabela
+  const filterCourseOptions = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...courseFormats.map((f) => f.name),
+        ...contents.map((c) => c.category).filter(Boolean)
+      ])
+    );
+  }, [courseFormats, contents]);
+
+  const filterModuleOptions = useMemo(() => {
+    const selectedCourseObj = courseFormats.find((f) => f.name === courseFilter);
+    const registeredMods =
+      courseFilter === "all" || !selectedCourseObj
+        ? courseModules.map((m) => m.name)
+        : courseModules
+            .filter((m) => !m.course_id || m.course_id === selectedCourseObj.id)
+            .map((m) => m.name);
+
+    const contentMods = contents
+      .filter((c) => courseFilter === "all" || c.category === courseFilter)
+      .map((c) => c.module_name)
+      .filter(Boolean);
+
+    return Array.from(new Set([...registeredMods, ...contentMods]));
+  }, [courseFormats, courseModules, contents, courseFilter]);
+
+  const contentsMatchingCourseAndModule = useMemo(() => {
     return contents.filter((c) => {
-      const matchesStage =
-        stageFilter === "all" || c.stage === stageFilter;
+      const matchesCourse =
+        courseFilter === "all" || c.category === courseFilter;
+      const matchesModule =
+        moduleFilter === "all"
+          ? true
+          : moduleFilter === "none"
+          ? !c.module_name
+          : c.module_name === moduleFilter;
       const matchesSearch =
         c.title.toLowerCase().includes(contentSearch.toLowerCase()) ||
         (c.module_name || "").toLowerCase().includes(contentSearch.toLowerCase()) ||
         (c.category || "").toLowerCase().includes(contentSearch.toLowerCase());
-      return matchesStage && matchesSearch;
+      return matchesCourse && matchesModule && matchesSearch;
     });
-  }, [contents, stageFilter, contentSearch]);
+  }, [contents, courseFilter, moduleFilter, contentSearch]);
+
+  const filteredContents = useMemo(() => {
+    return contentsMatchingCourseAndModule.filter((c) => {
+      return stageFilter === "all" || c.stage === stageFilter;
+    });
+  }, [contentsMatchingCourseAndModule, stageFilter]);
 
   const getStageBadgeClass = (stage: ContentProduction["stage"]) => {
     switch (stage) {
@@ -1247,41 +1288,103 @@ const Courses = () => {
                  SUBPÁGINA 1: FILA DE PRODUÇÃO (TABELA)
                  --------------------------------------------------------- */
               <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="relative flex-1 max-w-md">
+                {/* Linha 1 de Filtros: Busca + Filtro por Curso + Filtro por Módulo */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="relative sm:col-span-5">
                     <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar ideia, curso ou módulo..."
+                      placeholder="Buscar ideia ou conteúdo..."
                       className="pl-9 h-11"
                       value={contentSearch}
                       onChange={(e) => setContentSearch(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                    <Button
-                      variant={stageFilter === "all" ? "default" : "outline"}
-                      size="sm"
-                      className="h-9 rounded-lg text-xs font-medium shrink-0"
-                      onClick={() => setStageFilter("all")}
+                  <div className="sm:col-span-3">
+                    <Select
+                      value={courseFilter}
+                      onValueChange={(val) => {
+                        setCourseFilter(val);
+                        setModuleFilter("all");
+                      }}
                     >
-                      Todos ({contents.length})
-                    </Button>
-                    {STAGES.map((stage) => {
-                      const count = contents.filter((c) => c.stage === stage).length;
-                      return (
-                        <Button
-                          key={stage}
-                          variant={stageFilter === stage ? "default" : "outline"}
-                          size="sm"
-                          className="h-9 rounded-lg text-xs font-medium shrink-0"
-                          onClick={() => setStageFilter(stage)}
-                        >
-                          {stage} ({count})
-                        </Button>
-                      );
-                    })}
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Filtrar por Curso" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Cursos</SelectItem>
+                        {filterCourseOptions.map((cName) => (
+                          <SelectItem key={cName} value={cName}>
+                            {cName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  <div className="sm:col-span-4 flex gap-2">
+                    <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                      <SelectTrigger className="h-11 flex-1">
+                        <SelectValue placeholder="Filtrar por Módulo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Módulos</SelectItem>
+                        {filterModuleOptions.map((mName) => (
+                          <SelectItem key={mName} value={mName}>
+                            {mName}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="none">Sem módulo específico</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {(courseFilter !== "all" ||
+                      moduleFilter !== "all" ||
+                      stageFilter !== "all" ||
+                      contentSearch.trim() !== "") && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 px-3 text-xs shrink-0"
+                        onClick={() => {
+                          setCourseFilter("all");
+                          setModuleFilter("all");
+                          setStageFilter("all");
+                          setContentSearch("");
+                        }}
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linha 2 de Filtros: Etapas de Produção */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+                  <Button
+                    variant={stageFilter === "all" ? "default" : "outline"}
+                    size="sm"
+                    className="h-9 rounded-lg text-xs font-medium shrink-0"
+                    onClick={() => setStageFilter("all")}
+                  >
+                    Todos ({contentsMatchingCourseAndModule.length})
+                  </Button>
+                  {STAGES.map((stage) => {
+                    const count = contentsMatchingCourseAndModule.filter(
+                      (c) => c.stage === stage
+                    ).length;
+                    return (
+                      <Button
+                        key={stage}
+                        variant={stageFilter === stage ? "default" : "outline"}
+                        size="sm"
+                        className="h-9 rounded-lg text-xs font-medium shrink-0"
+                        onClick={() => setStageFilter(stage)}
+                      >
+                        {stage} ({count})
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 {/* Tabela de Produção de Conteúdo */}
@@ -1731,7 +1834,8 @@ const Courses = () => {
                                   size="sm"
                                   className="h-8 text-xs"
                                   onClick={() => {
-                                    setContentSearch(row.curso);
+                                    setCourseFilter(row.curso);
+                                    setModuleFilter("all");
                                     setStageFilter("all");
                                     setBastidoresSubTab("fila");
                                   }}
