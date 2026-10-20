@@ -292,7 +292,7 @@ const RichScriptEditor = ({
           if (onBlur) onBlur(html);
         }}
         onPaste={handlePaste}
-        className="min-h-[160px] max-h-[380px] overflow-y-auto w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mb-3 [&_h3]:pb-1.5 [&_h3]:border-b [&_h3]:border-border [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-foreground [&_h4]:mt-4 [&_h4]:mb-2 [&_p]:mb-3 [&_p]:leading-relaxed [&_blockquote]:border-l-2 [&_blockquote]:border-primary/60 [&_blockquote]:pl-3.5 [&_blockquote]:py-1 [&_blockquote]:my-2.5 [&_blockquote]:bg-muted/20 [&_blockquote]:rounded-r-lg [&_blockquote_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1"
+        className="min-h-[220px] w-full rounded-xl border border-input bg-background px-5 py-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mb-3 [&_h3]:pb-2 [&_h3]:border-b [&_h3]:border-border [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-foreground [&_h4]:mt-4 [&_h4]:mb-2 [&_p]:mb-3 [&_p]:leading-relaxed [&_blockquote]:border-l-2 [&_blockquote]:border-primary/60 [&_blockquote]:pl-4 [&_blockquote]:py-1.5 [&_blockquote]:my-3 [&_blockquote]:bg-muted/20 [&_blockquote]:rounded-r-lg [&_blockquote_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1"
       />
     </div>
   );
@@ -358,6 +358,7 @@ const Courses = () => {
 
   // Modal Detalhes / Check-in de Conteúdo Selecionado
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const [contentModalTab, setContentModalTab] = useState<"ideia" | "pre_producao" | "captacao">("ideia");
   const [detailPreInput, setDetailPreInput] = useState("");
   const [detailCaptureInput, setDetailCaptureInput] = useState("");
   const [editingTitle, setEditingTitle] = useState("");
@@ -386,6 +387,13 @@ const Courses = () => {
       setEditingNotes(selectedContent.idea_notes || "");
       setEditingScript(plainTextToScriptHtml(selectedContent.script_content || ""));
       setEditingDriveLink(selectedContent.video_link || "");
+      if (selectedContent.stage === "Captação") {
+        setContentModalTab("captacao");
+      } else if (selectedContent.stage === "Pré-produção") {
+        setContentModalTab("pre_producao");
+      } else {
+        setContentModalTab("ideia");
+      }
     }
   }, [selectedContentId]);
 
@@ -1223,21 +1231,28 @@ const Courses = () => {
   }, [courseFormats, courseModules, contents, courseFilter]);
 
   const contentsMatchingCourseAndModule = useMemo(() => {
-    return contents.filter((c) => {
-      const matchesCourse =
-        courseFilter === "all" || c.category === courseFilter;
-      const matchesModule =
-        moduleFilter === "all"
-          ? true
-          : moduleFilter === "none"
-          ? !c.module_name
-          : c.module_name === moduleFilter;
-      const matchesSearch =
-        c.title.toLowerCase().includes(contentSearch.toLowerCase()) ||
-        (c.module_name || "").toLowerCase().includes(contentSearch.toLowerCase()) ||
-        (c.category || "").toLowerCase().includes(contentSearch.toLowerCase());
-      return matchesCourse && matchesModule && matchesSearch;
-    });
+    return contents
+      .filter((c) => {
+        const matchesCourse =
+          courseFilter === "all" || c.category === courseFilter;
+        const matchesModule =
+          moduleFilter === "all"
+            ? true
+            : moduleFilter === "none"
+            ? !c.module_name
+            : c.module_name === moduleFilter;
+        const matchesSearch =
+          c.title.toLowerCase().includes(contentSearch.toLowerCase()) ||
+          (c.module_name || "").toLowerCase().includes(contentSearch.toLowerCase()) ||
+          (c.category || "").toLowerCase().includes(contentSearch.toLowerCase());
+        return matchesCourse && matchesModule && matchesSearch;
+      })
+      .sort((a, b) =>
+        a.title.localeCompare(b.title, "pt-BR", {
+          numeric: true,
+          sensitivity: "base"
+        })
+      );
   }, [contents, courseFilter, moduleFilter, contentSearch]);
 
   const filteredContents = useMemo(() => {
@@ -2732,25 +2747,60 @@ const Courses = () => {
         open={!!selectedContent}
         onOpenChange={(open) => !open && setSelectedContentId(null)}
       >
-        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[820px] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           {selectedContent && (
             <>
-              <DialogHeader>
-                <div className="flex items-center justify-between gap-2 pr-6">
-                  <DialogTitle className="text-lg font-bold">
-                    Produção & Check-in de Material
-                  </DialogTitle>
-                  <Badge
-                    variant="outline"
-                    className={getStageBadgeClass(selectedContent.stage)}
-                  >
-                    {selectedContent.stage}
-                  </Badge>
-                </div>
-              </DialogHeader>
+              {/* TOPO FIXO DO MODAL: TÍTULO + CHECK-IN DE ETAPAS + ABAS INTERNAS */}
+              <div className="p-5 pb-0 border-b bg-muted/20 space-y-4 shrink-0">
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-3 pr-6">
+                    <div className="space-y-1 text-left">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={getStageBadgeClass(selectedContent.stage)}
+                        >
+                          {selectedContent.stage}
+                        </Badge>
+                        {selectedContent.category && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedContent.category}
+                          </Badge>
+                        )}
+                        {selectedContent.module_name && (
+                          <span className="text-xs text-muted-foreground">
+                            • {selectedContent.module_name}
+                          </span>
+                        )}
+                      </div>
+                      <DialogTitle className="text-lg font-bold text-foreground leading-snug">
+                        {editingTitle || selectedContent.title}
+                      </DialogTitle>
+                    </div>
 
-              <div className="space-y-5 py-2">
-                {/* Check-in Geral de Etapas */}
+                    {editingDriveLink.trim() && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 gap-1.5 shrink-0 text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() =>
+                          window.open(
+                            editingDriveLink.trim().startsWith("http")
+                              ? editingDriveLink.trim()
+                              : `https://${editingDriveLink.trim()}`,
+                            "_blank"
+                          )
+                        }
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Abrir Drive
+                      </Button>
+                    )}
+                  </div>
+                </DialogHeader>
+
+                {/* Trilha de Check-in das 4 Etapas */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {(
                     [
@@ -2768,371 +2818,442 @@ const Courses = () => {
                         onClick={() =>
                           handleToggleStageCheck(selectedContent, st.key)
                         }
-                        className={`h-11 px-3 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all ${
+                        className={`h-10 px-3 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all ${
                           isChecked
                             ? "bg-primary/10 border-primary text-primary"
-                            : "bg-muted/20 border-border text-muted-foreground hover:border-foreground/30"
+                            : "bg-background border-border text-muted-foreground hover:border-foreground/30"
                         }`}
                       >
                         <span>{st.label}</span>
                         <div
-                          className={`h-5 w-5 rounded-md flex items-center justify-center ${
+                          className={`h-4 w-4 rounded flex items-center justify-center ${
                             isChecked
                               ? "bg-primary text-primary-foreground"
                               : "border border-muted-foreground/40 bg-background"
                           }`}
                         >
-                          {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                          {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
                         </div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Dados da Ideia / Conteúdo */}
-                <div className="space-y-3 bg-muted/20 p-4 rounded-xl border">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Título / Ideia</Label>
-                    <Input
-                      className="h-11 bg-background"
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      onBlur={() => handleSaveContentInfo()}
-                    />
-                  </div>
+                {/* Navegação por Abas Internas da Ficha (Sem rolagens acumuladas) */}
+                <div className="flex items-center gap-1 pt-1 overflow-x-auto hide-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("ideia")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "ideia"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Lightbulb className="h-3.5 w-3.5" />
+                    1. Ideia & Drive
+                  </button>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Curso / Formato</Label>
-                      <Select
-                        value={editingCategory}
-                        onValueChange={(val) => {
-                          setEditingCategory(val);
-                          handleSaveContentInfo(val, editingModule);
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-background">
-                          <SelectValue placeholder="Selecione o curso/formato" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {courseFormats.map((f) => (
-                            <SelectItem key={f.id} value={f.name}>
-                              {f.name} ({f.is_paid ? "Pago" : "Gratuito"})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Módulo / Tema</Label>
-                      <Select
-                        value={editingModule || "none"}
-                        onValueChange={(val) => {
-                          setEditingModule(val === "none" ? "" : val);
-                          handleSaveContentInfo(editingCategory, val);
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-background">
-                          <SelectValue placeholder="Selecione o módulo/tema" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem módulo específico</SelectItem>
-                          {availableModulesForEditingContent.map((m) => (
-                            <SelectItem key={m.id} value={m.name}>
-                              {m.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Rascunho Inicial da Ideia</Label>
-                    <Textarea
-                      rows={2}
-                      className="bg-background"
-                      placeholder="Rascunho inicial sobre o que é este conteúdo..."
-                      value={editingNotes}
-                      onChange={(e) => setEditingNotes(e.target.value)}
-                      onBlur={() => handleSaveContentInfo()}
-                    />
-                  </div>
-
-                  <div className="space-y-1 pt-1">
-                    <Label className="text-xs">
-                      Link do Google Drive (Pasta ou Arquivos do Conteúdo)
-                    </Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          className="h-11 pl-9 bg-background"
-                          placeholder="Cole o link da pasta ou arquivo no Google Drive..."
-                          value={editingDriveLink}
-                          onChange={(e) => setEditingDriveLink(e.target.value)}
-                          onBlur={() => handleSaveContentInfo()}
-                        />
-                      </div>
-                      {editingDriveLink.trim() && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-11 px-4 gap-2 shrink-0 text-primary border-primary/30 hover:bg-primary/10"
-                          onClick={() =>
-                            window.open(
-                              editingDriveLink.trim().startsWith("http")
-                                ? editingDriveLink.trim()
-                                : `https://${editingDriveLink.trim()}`,
-                              "_blank"
-                            )
-                          }
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Abrir Drive
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ETAPA: PRÉ-PRODUÇÃO (ROTEIRO + CHECKLIST) */}
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      Etapa de Pré-produção
-                    </h4>
-                    <span className="text-xs font-semibold text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("pre_producao")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "pre_producao"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    2. Roteiro & Pré-produção
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                       {
                         (selectedContent.pre_production_checklist || []).filter(
                           (i) => i.done
                         ).length
                       }
-                      /{selectedContent.pre_production_checklist?.length || 0} concluídos
-                    </span>
-                  </div>
+                      /{selectedContent.pre_production_checklist?.length || 0}
+                    </Badge>
+                  </button>
 
-                  <div className="space-y-2 bg-muted/20 p-3.5 rounded-xl border">
-                    <Label className="text-xs font-semibold text-foreground">
-                      Roteiro do Conteúdo
-                    </Label>
-                    <RichScriptEditor
-                      value={editingScript}
-                      onChange={setEditingScript}
-                      onBlur={(latestHtml) =>
-                        handleSaveContentInfo(undefined, undefined, latestHtml)
-                      }
-                      placeholder="Cole aqui o roteiro pronto ou escreva os tópicos da gravação..."
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      className="h-11"
-                      placeholder="Adicionar item de pré-produção..."
-                      value={detailPreInput}
-                      onChange={(e) => setDetailPreInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddChecklistItem(
-                            selectedContent,
-                            "pre_production_checklist",
-                            detailPreInput
-                          );
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      className="h-11 px-4 shrink-0"
-                      onClick={() =>
-                        handleAddChecklistItem(
-                          selectedContent,
-                          "pre_production_checklist",
-                          detailPreInput
-                        )
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {(selectedContent.pre_production_checklist || []).map(
-                      (checkItem) => (
-                        <div
-                          key={checkItem.id}
-                          onClick={() =>
-                            handleToggleChecklistItem(
-                              selectedContent,
-                              "pre_production_checklist",
-                              checkItem.id
-                            )
-                          }
-                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                            checkItem.done
-                              ? "bg-muted/40 border-border text-muted-foreground"
-                              : "bg-card border-border hover:border-primary/40 text-foreground"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                                checkItem.done
-                                  ? "bg-primary text-primary-foreground"
-                                  : "border-2 border-muted-foreground/40"
-                              }`}
-                            >
-                              {checkItem.done && (
-                                <Check className="h-3.5 w-3.5 stroke-[3]" />
-                              )}
-                            </div>
-                            <span
-                              className={`text-sm font-medium ${
-                                checkItem.done ? "line-through" : ""
-                              }`}
-                            >
-                              {checkItem.text}
-                            </span>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveChecklistItem(
-                                selectedContent,
-                                "pre_production_checklist",
-                                checkItem.id
-                              );
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                {/* ETAPA: LISTA DE CAPTAÇÃO DE MATERIAL */}
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <Clapperboard className="h-4 w-4 text-primary" />
-                      Lista de Captação de Material (Takes / Gravações)
-                    </h4>
-                    <span className="text-xs font-semibold text-primary">
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("captacao")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "captacao"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Clapperboard className="h-3.5 w-3.5" />
+                    3. Lista de Captação (Takes)
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                       {
                         (selectedContent.capture_checklist || []).filter(
                           (i) => i.done
                         ).length
                       }
-                      /{selectedContent.capture_checklist?.length || 0} captados
-                    </span>
-                  </div>
+                      /{selectedContent.capture_checklist?.length || 0}
+                    </Badge>
+                  </button>
+                </div>
+              </div>
 
-                  <div className="flex gap-2">
-                    <Input
-                      className="h-11"
-                      placeholder="Ex: Gravar de cima aplicando o decalque..."
-                      value={detailCaptureInput}
-                      onChange={(e) => setDetailCaptureInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
+              {/* CORPO DO MODAL (UMA ÚNICA ÁREA DE LEITURA AMPLA E LIMPA) */}
+              <div className="p-5 overflow-y-auto flex-1">
+                {contentModalTab === "ideia" && (
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Título / Ideia da Aula</Label>
+                      <Input
+                        className="h-11"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveContentInfo()}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Curso / Formato</Label>
+                        <Select
+                          value={editingCategory}
+                          onValueChange={(val) => {
+                            setEditingCategory(val);
+                            handleSaveContentInfo(val, editingModule);
+                          }}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Selecione o curso/formato" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {courseFormats.map((f) => (
+                              <SelectItem key={f.id} value={f.name}>
+                                {f.name} ({f.is_paid ? "Pago" : "Gratuito"})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Módulo / Tema</Label>
+                        <Select
+                          value={editingModule || "none"}
+                          onValueChange={(val) => {
+                            setEditingModule(val === "none" ? "" : val);
+                            handleSaveContentInfo(editingCategory, val);
+                          }}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Selecione o módulo/tema" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem módulo específico</SelectItem>
+                            {availableModulesForEditingContent.map((m) => (
+                              <SelectItem key={m.id} value={m.name}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">
+                        Rascunho Inicial da Ideia
+                      </Label>
+                      <Textarea
+                        rows={4}
+                        className="leading-relaxed"
+                        placeholder="Resumo inicial sobre o que é este conteúdo..."
+                        value={editingNotes}
+                        onChange={(e) => setEditingNotes(e.target.value)}
+                        onBlur={() => handleSaveContentInfo()}
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
+                      <Label className="text-xs font-semibold flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4 text-primary" />
+                        Pasta / Arquivos no Google Drive
+                      </Label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="h-11 pl-9 bg-background"
+                            placeholder="Cole o link da pasta ou arquivo no Google Drive..."
+                            value={editingDriveLink}
+                            onChange={(e) => setEditingDriveLink(e.target.value)}
+                            onBlur={() => handleSaveContentInfo()}
+                          />
+                        </div>
+                        {editingDriveLink.trim() && (
+                          <Button
+                            type="button"
+                            className="h-11 px-4 gap-2 shrink-0"
+                            onClick={() =>
+                              window.open(
+                                editingDriveLink.trim().startsWith("http")
+                                  ? editingDriveLink.trim()
+                                  : `https://${editingDriveLink.trim()}`,
+                                "_blank"
+                              )
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir Pasta no Drive
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {contentModalTab === "pre_producao" && (
+                  <div className="space-y-6">
+                    {/* Bloco 1: Roteiro amplo e limpo */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Roteiro do Conteúdo
+                      </Label>
+                      <RichScriptEditor
+                        value={editingScript}
+                        onChange={setEditingScript}
+                        onBlur={(latestHtml) =>
+                          handleSaveContentInfo(undefined, undefined, latestHtml)
+                        }
+                        placeholder="Cole aqui o roteiro pronto ou escreva os tópicos da gravação..."
+                      />
+                    </div>
+
+                    {/* Bloco 2: Checklist de Pré-produção */}
+                    <div className="space-y-3 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Checklist de Pré-produção
+                        </Label>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {
+                            (selectedContent.pre_production_checklist || []).filter(
+                              (i) => i.done
+                            ).length
+                          }
+                          /{selectedContent.pre_production_checklist?.length || 0}{" "}
+                          concluídos
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          className="h-11"
+                          placeholder="Adicionar tarefa de pré-produção (ex: separar bancada, imprimir referência)..."
+                          value={detailPreInput}
+                          onChange={(e) => setDetailPreInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddChecklistItem(
+                                selectedContent,
+                                "pre_production_checklist",
+                                detailPreInput
+                              );
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          className="h-11 px-4 shrink-0"
+                          onClick={() =>
+                            handleAddChecklistItem(
+                              selectedContent,
+                              "pre_production_checklist",
+                              detailPreInput
+                            )
+                          }
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {(selectedContent.pre_production_checklist || []).map(
+                          (checkItem) => (
+                            <div
+                              key={checkItem.id}
+                              onClick={() =>
+                                handleToggleChecklistItem(
+                                  selectedContent,
+                                  "pre_production_checklist",
+                                  checkItem.id
+                                )
+                              }
+                              className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                checkItem.done
+                                  ? "bg-muted/40 border-border text-muted-foreground"
+                                  : "bg-card border-border hover:border-primary/40 text-foreground"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                    checkItem.done
+                                      ? "bg-primary text-primary-foreground"
+                                      : "border-2 border-muted-foreground/40"
+                                  }`}
+                                >
+                                  {checkItem.done && (
+                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                  )}
+                                </div>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    checkItem.done ? "line-through" : ""
+                                  }`}
+                                >
+                                  {checkItem.text}
+                                </span>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveChecklistItem(
+                                    selectedContent,
+                                    "pre_production_checklist",
+                                    checkItem.id
+                                  );
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {contentModalTab === "captacao" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between bg-muted/20 p-3.5 rounded-xl border">
+                      <span className="text-xs font-semibold text-foreground">
+                        Progresso da Captação de Material
+                      </span>
+                      <span className="text-xs font-bold text-primary">
+                        {
+                          (selectedContent.capture_checklist || []).filter(
+                            (i) => i.done
+                          ).length
+                        }{" "}
+                        de {selectedContent.capture_checklist?.length || 0} takes
+                        gravados
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Input
+                        className="h-11"
+                        placeholder="Ex: Gravar de cima aplicando o decalque..."
+                        value={detailCaptureInput}
+                        onChange={(e) => setDetailCaptureInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddChecklistItem(
+                              selectedContent,
+                              "capture_checklist",
+                              detailCaptureInput
+                            );
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        className="h-11 px-4 shrink-0"
+                        onClick={() =>
                           handleAddChecklistItem(
                             selectedContent,
                             "capture_checklist",
                             detailCaptureInput
-                          );
+                          )
                         }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      className="h-11 px-4 shrink-0"
-                      onClick={() =>
-                        handleAddChecklistItem(
-                          selectedContent,
-                          "capture_checklist",
-                          detailCaptureInput
-                        )
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    {(selectedContent.capture_checklist || []).map(
-                      (capItem) => (
-                        <div
-                          key={capItem.id}
-                          onClick={() =>
-                            handleToggleChecklistItem(
-                              selectedContent,
-                              "capture_checklist",
-                              capItem.id
-                            )
-                          }
-                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                            capItem.done
-                              ? "bg-primary/5 border-primary/20 text-muted-foreground"
-                              : "bg-card border-border hover:border-primary/40 text-foreground"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                                capItem.done
-                                  ? "bg-primary text-primary-foreground"
-                                  : "border-2 border-muted-foreground/40"
-                              }`}
-                            >
-                              {capItem.done && (
-                                <Check className="h-3.5 w-3.5 stroke-[3]" />
-                              )}
-                            </div>
-                            <span
-                              className={`text-sm font-medium ${
-                                capItem.done ? "line-through" : ""
-                              }`}
-                            >
-                              {capItem.text}
-                            </span>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveChecklistItem(
+                    <div className="space-y-2">
+                      {(selectedContent.capture_checklist || []).map(
+                        (capItem) => (
+                          <div
+                            key={capItem.id}
+                            onClick={() =>
+                              handleToggleChecklistItem(
                                 selectedContent,
                                 "capture_checklist",
                                 capItem.id
-                              );
-                            }}
+                              )
+                            }
+                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                              capItem.done
+                                ? "bg-primary/5 border-primary/20 text-muted-foreground"
+                                : "bg-card border-border hover:border-primary/40 text-foreground"
+                            }`}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )
-                    )}
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                  capItem.done
+                                    ? "bg-primary text-primary-foreground"
+                                    : "border-2 border-muted-foreground/40"
+                                }`}
+                              >
+                                {capItem.done && (
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                )}
+                              </div>
+                              <span
+                                className={`text-sm font-medium ${
+                                  capItem.done ? "line-through" : ""
+                                }`}
+                              >
+                                {capItem.text}
+                              </span>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveChecklistItem(
+                                  selectedContent,
+                                  "capture_checklist",
+                                  capItem.id
+                                );
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 pt-2 border-t">
+              {/* RODAPÉ FIXO DO MODAL */}
+              <DialogFooter className="p-4 border-t bg-muted/10 flex-col sm:flex-row sm:justify-between gap-2 shrink-0">
                 <Button
                   type="button"
                   variant="ghost"
@@ -3144,7 +3265,7 @@ const Courses = () => {
                 </Button>
                 <Button
                   type="button"
-                  className="h-11"
+                  className="h-11 px-6"
                   onClick={() => {
                     handleSaveContentInfo();
                     setSelectedContentId(null);
