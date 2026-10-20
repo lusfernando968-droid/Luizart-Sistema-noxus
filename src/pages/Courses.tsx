@@ -6,9 +6,6 @@ import {
   UserMinus,
   Globe,
   Hammer,
-  CheckCircle2,
-  ChevronRight,
-  Video,
   Calendar as CalendarIcon,
   Clock,
   Search,
@@ -16,9 +13,10 @@ import {
   Check,
   Clapperboard,
   ListChecks,
-  Lightbulb,
   FileText,
-  Sparkles
+  Pencil,
+  Layers,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,18 +76,29 @@ export interface ContentProduction {
   created_at?: string;
 }
 
+export interface CourseFormat {
+  id: string;
+  name: string;
+  target_audience: string;
+  is_paid: boolean;
+  base_price: number;
+  description: string;
+  created_at?: string;
+}
+
+export interface CourseModule {
+  id: string;
+  course_id: string | null;
+  name: string;
+  description: string;
+  created_at?: string;
+}
+
 const STAGES: Array<ContentProduction["stage"]> = [
   "Ideia",
   "Pré-produção",
   "Captação",
   "Concluído"
-];
-
-const CATEGORIES = [
-  "Aula do Curso",
-  "Módulo Prático",
-  "Reels / Corte",
-  "Material Bônus"
 ];
 
 const Courses = () => {
@@ -107,6 +116,26 @@ const Courses = () => {
   const [duration, setDuration] = useState("1");
   const pricePerHour = 50;
 
+  // State - Configuração de Cursos/Formatos e Módulos/Temas
+  const [courseFormats, setCourseFormats] = useState<CourseFormat[]>([]);
+  const [courseModules, setCourseModules] = useState<CourseModule[]>([]);
+
+  // Modal Curso / Formato
+  const [isFormatModalOpen, setIsFormatModalOpen] = useState(false);
+  const [editingFormatId, setEditingFormatId] = useState<string | null>(null);
+  const [formatName, setFormatName] = useState("");
+  const [formatAudience, setFormatAudience] = useState("");
+  const [formatIsPaid, setFormatIsPaid] = useState<"paid" | "free">("paid");
+  const [formatPrice, setFormatPrice] = useState("");
+  const [formatDescription, setFormatDescription] = useState("");
+
+  // Modal Módulo / Tema
+  const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [moduleCourseId, setModuleCourseId] = useState<string>("all");
+  const [moduleName, setModuleName] = useState("");
+  const [moduleDescription, setModuleDescription] = useState("");
+
   // State - Bastidores (Produção de Conteúdo)
   const [contents, setContents] = useState<ContentProduction[]>([]);
   const [loadingContents, setLoadingContents] = useState(false);
@@ -116,8 +145,8 @@ const Courses = () => {
   // Modal Novo Conteúdo
   const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState("");
   const [newModule, setNewModule] = useState("");
-  const [newCategory, setNewCategory] = useState("Aula do Curso");
   const [newIdeaNotes, setNewIdeaNotes] = useState("");
   const [newPreItemText, setNewPreItemText] = useState("");
   const [newPreItems, setNewPreItems] = useState<ChecklistItem[]>([]);
@@ -130,7 +159,7 @@ const Courses = () => {
   const [detailCaptureInput, setDetailCaptureInput] = useState("");
   const [editingTitle, setEditingTitle] = useState("");
   const [editingModule, setEditingModule] = useState("");
-  const [editingCategory, setEditingCategory] = useState("Aula do Curso");
+  const [editingCategory, setEditingCategory] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
 
   const selectedContent = useMemo(
@@ -140,6 +169,7 @@ const Courses = () => {
 
   useEffect(() => {
     fetchClients();
+    fetchCoursesAndModules();
     fetchContents();
   }, []);
 
@@ -147,7 +177,7 @@ const Courses = () => {
     if (selectedContent) {
       setEditingTitle(selectedContent.title);
       setEditingModule(selectedContent.module_name || "");
-      setEditingCategory(selectedContent.category || "Aula do Curso");
+      setEditingCategory(selectedContent.category || "");
       setEditingNotes(selectedContent.idea_notes || "");
     }
   }, [selectedContentId]);
@@ -165,6 +195,45 @@ const Courses = () => {
     }
   };
 
+  const fetchCoursesAndModules = async () => {
+    try {
+      const [coursesRes, modulesRes] = await Promise.all([
+        supabase.from("courses").select("*").order("created_at", { ascending: true }),
+        supabase.from("course_modules").select("*").order("created_at", { ascending: true })
+      ]);
+
+      if (coursesRes.error) throw coursesRes.error;
+      if (modulesRes.error) throw modulesRes.error;
+
+      const loadedFormats: CourseFormat[] = (coursesRes.data || []).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        target_audience: r.target_audience || "",
+        is_paid: r.is_paid !== undefined ? Boolean(r.is_paid) : true,
+        base_price: Number(r.base_price || 0),
+        description: r.description || "",
+        created_at: r.created_at
+      }));
+
+      const loadedModules: CourseModule[] = (modulesRes.data || []).map((m: any) => ({
+        id: m.id,
+        course_id: m.course_id || null,
+        name: m.name,
+        description: m.description || "",
+        created_at: m.created_at
+      }));
+
+      setCourseFormats(loadedFormats);
+      setCourseModules(loadedModules);
+
+      if (loadedFormats.length > 0 && !newCategory) {
+        setNewCategory(loadedFormats[0].name);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar cursos e módulos:", error);
+    }
+  };
+
   const fetchContents = async () => {
     try {
       setLoadingContents(true);
@@ -178,7 +247,7 @@ const Courses = () => {
         id: row.id,
         title: row.title,
         module_name: row.module_name || "",
-        category: row.category || "Aula do Curso",
+        category: row.category || "",
         stage: row.stage || "Ideia",
         idea_notes: row.idea_notes || "",
         pre_production_checklist: Array.isArray(row.pre_production_checklist)
@@ -205,6 +274,195 @@ const Courses = () => {
       setLoadingContents(false);
     }
   };
+
+  // Módulos filtrados conforme o Curso/Formato escolhido no modal de Novo Conteúdo
+  const availableModulesForNewContent = useMemo(() => {
+    const selectedFormat = courseFormats.find((f) => f.name === newCategory);
+    if (!selectedFormat) return courseModules;
+    return courseModules.filter(
+      (m) => !m.course_id || m.course_id === selectedFormat.id
+    );
+  }, [courseFormats, courseModules, newCategory]);
+
+  // Módulos filtrados conforme o Curso/Formato escolhido no modal de Edição de Conteúdo
+  const availableModulesForEditingContent = useMemo(() => {
+    const selectedFormat = courseFormats.find((f) => f.name === editingCategory);
+    if (!selectedFormat) return courseModules;
+    return courseModules.filter(
+      (m) => !m.course_id || m.course_id === selectedFormat.id
+    );
+  }, [courseFormats, courseModules, editingCategory]);
+
+  // =========================================================================
+  // GESTÃO DE CURSOS / FORMATOS & MÓDULOS / TEMAS (ABA CONFIGURAÇÕES)
+  // =========================================================================
+
+  const openNewFormatModal = () => {
+    setEditingFormatId(null);
+    setFormatName("");
+    setFormatAudience("");
+    setFormatIsPaid("paid");
+    setFormatPrice("");
+    setFormatDescription("");
+    setIsFormatModalOpen(true);
+  };
+
+  const openEditFormatModal = (format: CourseFormat) => {
+    setEditingFormatId(format.id);
+    setFormatName(format.name);
+    setFormatAudience(format.target_audience || "");
+    setFormatIsPaid(format.is_paid ? "paid" : "free");
+    setFormatPrice(format.base_price > 0 ? String(format.base_price) : "");
+    setFormatDescription(format.description || "");
+    setIsFormatModalOpen(true);
+  };
+
+  const handleSaveFormat = async () => {
+    if (!formatName.trim()) {
+      toast.error("Digite o nome do curso ou formato");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const isPaidBool = formatIsPaid === "paid";
+      const numericPrice = isPaidBool && formatPrice ? Number(formatPrice) : 0;
+
+      const payload = {
+        name: formatName.trim(),
+        target_audience: formatAudience.trim(),
+        is_paid: isPaidBool,
+        base_price: numericPrice,
+        description: formatDescription.trim()
+      };
+
+      if (editingFormatId) {
+        const oldFormat = courseFormats.find((f) => f.id === editingFormatId);
+        const { error } = await supabase
+          .from("courses")
+          .update(payload)
+          .eq("id", editingFormatId);
+        if (error) throw error;
+
+        // Se mudou o nome do formato, atualiza nos conteúdos vinculados
+        if (oldFormat && oldFormat.name !== payload.name) {
+          await supabase
+            .from("content_productions")
+            .update({ category: payload.name })
+            .eq("category", oldFormat.name);
+          fetchContents();
+        }
+
+        toast.success("Curso / Formato atualizado!");
+      } else {
+        const { error } = await supabase.from("courses").insert(payload);
+        if (error) throw error;
+        toast.success("Curso / Formato cadastrado!");
+      }
+
+      setIsFormatModalOpen(false);
+      fetchCoursesAndModules();
+    } catch (error) {
+      console.error("Erro ao salvar formato:", error);
+      toast.error("Erro ao salvar curso/formato");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteFormat = async (id: string) => {
+    try {
+      const { error } = await supabase.from("courses").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Curso / Formato excluído");
+      fetchCoursesAndModules();
+    } catch (error) {
+      console.error("Erro ao excluir curso:", error);
+      toast.error("Erro ao excluir curso/formato");
+    }
+  };
+
+  const openNewModuleModal = () => {
+    setEditingModuleId(null);
+    setModuleCourseId(courseFormats[0]?.id || "all");
+    setModuleName("");
+    setModuleDescription("");
+    setIsModuleModalOpen(true);
+  };
+
+  const openEditModuleModal = (mod: CourseModule) => {
+    setEditingModuleId(mod.id);
+    setModuleCourseId(mod.course_id || "all");
+    setModuleName(mod.name);
+    setModuleDescription(mod.description || "");
+    setIsModuleModalOpen(true);
+  };
+
+  const handleSaveModule = async () => {
+    if (!moduleName.trim()) {
+      toast.error("Digite o nome do módulo ou tema");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = {
+        course_id: moduleCourseId === "all" ? null : moduleCourseId,
+        name: moduleName.trim(),
+        description: moduleDescription.trim()
+      };
+
+      if (editingModuleId) {
+        const oldMod = courseModules.find((m) => m.id === editingModuleId);
+        const { error } = await supabase
+          .from("course_modules")
+          .update(payload)
+          .eq("id", editingModuleId);
+        if (error) throw error;
+
+        if (oldMod && oldMod.name !== payload.name) {
+          await supabase
+            .from("content_productions")
+            .update({ module_name: payload.name })
+            .eq("module_name", oldMod.name);
+          fetchContents();
+        }
+
+        toast.success("Módulo / Tema atualizado!");
+      } else {
+        const { error } = await supabase.from("course_modules").insert(payload);
+        if (error) throw error;
+        toast.success("Módulo / Tema cadastrado!");
+      }
+
+      setIsModuleModalOpen(false);
+      fetchCoursesAndModules();
+    } catch (error) {
+      console.error("Erro ao salvar módulo:", error);
+      toast.error("Erro ao salvar módulo/tema");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteModule = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("course_modules")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Módulo / Tema excluído");
+      fetchCoursesAndModules();
+    } catch (error) {
+      console.error("Erro ao excluir módulo:", error);
+      toast.error("Erro ao excluir módulo/tema");
+    }
+  };
+
+  // =========================================================================
+  // FUNÇÕES DE AULAS PRESENCIAIS
+  // =========================================================================
 
   const calculateEndTime = (start: string, hours: number) => {
     if (!start) return "";
@@ -256,13 +514,6 @@ const Courses = () => {
   // FUNÇÕES DE PRODUÇÃO DE CONTEÚDO (CRIAR, EXCLUIR, CHECK-IN, LISTAS)
   // =========================================================================
 
-  const computeStageFromChecks = (checks: StageChecks): ContentProduction["stage"] => {
-    if (checks.concluido) return "Concluído";
-    if (checks.captacao) return "Concluído";
-    if (checks.pre_producao) return "Captação";
-    return "Pré-produção";
-  };
-
   const handleCreateContent = async () => {
     if (!newTitle.trim()) {
       toast.error("Informe o título ou ideia do conteúdo");
@@ -278,11 +529,17 @@ const Courses = () => {
         concluido: false
       };
 
+      const selectedCat =
+        newCategory || courseFormats[0]?.name || "Curso Básico";
+
       const payload = {
         title: newTitle.trim(),
-        module_name: newModule.trim(),
-        category: newCategory,
-        stage: (newCaptureItems.length > 0 || newPreItems.length > 0) ? "Pré-produção" : "Ideia",
+        module_name: newModule === "none" ? "" : newModule.trim(),
+        category: selectedCat,
+        stage:
+          newCaptureItems.length > 0 || newPreItems.length > 0
+            ? "Pré-produção"
+            : "Ideia",
         idea_notes: newIdeaNotes.trim(),
         pre_production_checklist: newPreItems,
         capture_checklist: newCaptureItems,
@@ -301,7 +558,6 @@ const Courses = () => {
       setIsNewContentModalOpen(false);
       setNewTitle("");
       setNewModule("");
-      setNewCategory("Aula do Curso");
       setNewIdeaNotes("");
       setNewPreItems([]);
       setNewCaptureItems([]);
@@ -351,7 +607,6 @@ const Courses = () => {
       [key]: !item.stage_checks[key]
     };
 
-    // Sincroniza etapa principal de forma inteligente com o check-in dado
     let nextStage: ContentProduction["stage"] = item.stage;
     if (key === "concluido" && updatedChecks.concluido) {
       updatedChecks.ideia = true;
@@ -364,7 +619,7 @@ const Courses = () => {
       nextStage = updatedChecks.concluido ? "Concluído" : "Captação";
     } else if (key === "pre_producao" && updatedChecks.pre_producao) {
       updatedChecks.ideia = true;
-      nextStage = updatedChecks.captacao ? "Captação" : "Captação";
+      nextStage = "Captação";
     } else {
       if (updatedChecks.concluido) nextStage = "Concluído";
       else if (updatedChecks.captacao) nextStage = "Captação";
@@ -452,7 +707,6 @@ const Courses = () => {
       entry.id === checkId ? { ...entry, done: !entry.done } : entry
     );
 
-    // Se concluiu todos os itens da lista, marca o check da etapa correspondente automaticamente
     const allDone =
       updatedList.length > 0 && updatedList.every((entry) => entry.done);
     const updatedStageChecks = { ...item.stage_checks };
@@ -573,8 +827,22 @@ const Courses = () => {
     }
   };
 
-  const handleSaveContentInfo = async () => {
+  const handleSaveContentInfo = async (
+    overrideCategory?: string,
+    overrideModule?: string
+  ) => {
     if (!selectedContent || !editingTitle.trim()) return;
+
+    const finalCategory =
+      overrideCategory !== undefined ? overrideCategory : editingCategory;
+    const finalModule =
+      overrideModule !== undefined
+        ? overrideModule === "none"
+          ? ""
+          : overrideModule
+        : editingModule === "none"
+        ? ""
+        : editingModule;
 
     try {
       setContents((prev) =>
@@ -583,8 +851,8 @@ const Courses = () => {
             ? {
                 ...c,
                 title: editingTitle.trim(),
-                module_name: editingModule.trim(),
-                category: editingCategory,
+                module_name: finalModule.trim(),
+                category: finalCategory,
                 idea_notes: editingNotes.trim()
               }
             : c
@@ -595,15 +863,14 @@ const Courses = () => {
         .from("content_productions")
         .update({
           title: editingTitle.trim(),
-          module_name: editingModule.trim(),
-          category: editingCategory,
+          module_name: finalModule.trim(),
+          category: finalCategory,
           idea_notes: editingNotes.trim(),
           updated_at: new Date().toISOString()
         })
         .eq("id", selectedContent.id);
 
       if (error) throw error;
-      toast.success("Alterações salvas");
     } catch (error) {
       console.error("Erro ao salvar detalhes:", error);
       toast.error("Erro ao salvar alterações");
@@ -651,11 +918,36 @@ const Courses = () => {
         {activeTab === "producao" && (
           <Button
             className="h-11 gap-2 px-5 shadow-sm"
-            onClick={() => setIsNewContentModalOpen(true)}
+            onClick={() => {
+              if (!newCategory && courseFormats.length > 0) {
+                setNewCategory(courseFormats[0].name);
+              }
+              setIsNewContentModalOpen(true);
+            }}
           >
             <Plus className="h-4 w-4" />
             Novo Conteúdo
           </Button>
+        )}
+
+        {activeTab === "configuracoes" && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="h-11 gap-2 px-4"
+              onClick={openNewModuleModal}
+            >
+              <Plus className="h-4 w-4" />
+              Novo Módulo / Tema
+            </Button>
+            <Button
+              className="h-11 gap-2 px-5 shadow-sm"
+              onClick={openNewFormatModal}
+            >
+              <Plus className="h-4 w-4" />
+              Novo Curso / Formato
+            </Button>
+          </div>
         )}
 
         {activeTab === "presencial" && (
@@ -686,6 +978,13 @@ const Courses = () => {
             >
               <Clapperboard className="w-4 h-4 mr-2" />
               Bastidores (Produção)
+            </TabsTrigger>
+            <TabsTrigger
+              value="configuracoes"
+              className="rounded-full px-4 sm:px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground bg-accent/50 text-foreground border shadow-sm transition-all text-sm font-medium whitespace-nowrap"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configurações
             </TabsTrigger>
             <TabsTrigger
               value="online"
@@ -794,7 +1093,7 @@ const Courses = () => {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar ideia, aula ou módulo..."
+                  placeholder="Buscar ideia, curso ou módulo..."
                   className="pl-9 h-11"
                   value={contentSearch}
                   onChange={(e) => setContentSearch(e.target.value)}
@@ -824,6 +1123,15 @@ const Courses = () => {
                     </Button>
                   );
                 })}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-lg text-xs font-medium shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setActiveTab("configuracoes")}
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Cursos & Módulos
+                </Button>
               </div>
             </div>
 
@@ -893,12 +1201,14 @@ const Courses = () => {
                                   {item.title}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] font-medium px-2 py-0"
-                                  >
-                                    {item.category}
-                                  </Badge>
+                                  {item.category && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] font-medium px-2 py-0"
+                                    >
+                                      {item.category}
+                                    </Badge>
+                                  )}
                                   {item.module_name && (
                                     <span className="text-xs text-muted-foreground">
                                       • {item.module_name}
@@ -1059,7 +1369,194 @@ const Courses = () => {
           </TabsContent>
 
           {/* =========================================================
-              ABA 3: PLATAFORMA ONLINE
+              ABA 3: CONFIGURAÇÕES (CURSOS / FORMATOS & MÓDULOS / TEMAS)
+             ========================================================= */}
+          <TabsContent value="configuracoes" className="m-0 space-y-6">
+            {/* Bloco 1: Cursos / Formatos */}
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <h3 className="font-bold text-sm text-foreground">
+                    Cursos & Formatos
+                  </h3>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5 text-xs"
+                  onClick={openNewFormatModal}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Cadastrar Curso / Formato
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="min-w-[180px]">Curso / Formato</TableHead>
+                      <TableHead className="min-w-[120px]">Acesso</TableHead>
+                      <TableHead className="min-w-[220px]">Público-Alvo (Para quem é)</TableHead>
+                      <TableHead className="min-w-[260px]">Funcionalidade / Descrição</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {courseFormats.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                          Nenhum curso ou formato cadastrado.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      courseFormats.map((format) => (
+                        <TableRow key={format.id}>
+                          <TableCell className="font-bold text-sm text-foreground">
+                            {format.name}
+                          </TableCell>
+                          <TableCell>
+                            {format.is_paid ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-primary/10 text-primary border-primary/20 text-xs"
+                              >
+                                Pago
+                                {format.base_price > 0
+                                  ? ` • R$ ${format.base_price.toFixed(0)}`
+                                  : ""}
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                Gratuito
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground">
+                            {format.target_audience || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {format.description || "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                onClick={() => openEditFormatModal(format)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteFormat(format.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Bloco 2: Módulos e Temas */}
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <h3 className="font-bold text-sm text-foreground">
+                    Módulos & Temas
+                  </h3>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5 text-xs"
+                  onClick={openNewModuleModal}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Cadastrar Módulo / Tema
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="min-w-[200px]">Módulo / Tema</TableHead>
+                      <TableHead className="min-w-[180px]">Curso / Formato Vinculado</TableHead>
+                      <TableHead className="min-w-[280px]">Descrição</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {courseModules.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground text-sm">
+                          Nenhum módulo ou tema cadastrado.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      courseModules.map((mod) => {
+                        const linkedCourse = courseFormats.find(
+                          (f) => f.id === mod.course_id
+                        );
+                        return (
+                          <TableRow key={mod.id}>
+                            <TableCell className="font-bold text-sm text-foreground">
+                              {mod.name}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-xs">
+                                {linkedCourse ? linkedCourse.name : "Geral / Todos"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {mod.description || "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => openEditModuleModal(mod)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeleteModule(mod.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* =========================================================
+              ABA 4: PLATAFORMA ONLINE
              ========================================================= */}
           <TabsContent value="online" className="m-0 space-y-6">
             <div className="bg-card rounded-2xl border shadow-sm p-12 text-center space-y-5">
@@ -1079,7 +1576,169 @@ const Courses = () => {
       </Tabs>
 
       {/* =========================================================
-          MODAL 1: CRIAR NOVO CONTEÚDO (DESDE A IDEIA ATÉ CAPTAÇÃO)
+          MODAL: CADASTRAR / EDITAR CURSO OU FORMATO
+         ========================================================= */}
+      <Dialog open={isFormatModalOpen} onOpenChange={setIsFormatModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingFormatId ? "Editar Curso / Formato" : "Novo Curso / Formato"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Nome do Curso / Formato</Label>
+              <Input
+                className="h-11"
+                placeholder="Ex: Curso Básico"
+                value={formatName}
+                onChange={(e) => setFormatName(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Acesso</Label>
+                <Select
+                  value={formatIsPaid}
+                  onValueChange={(v) => setFormatIsPaid(v as "paid" | "free")}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="free">Gratuito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formatIsPaid === "paid" && (
+                <div className="space-y-1.5">
+                  <Label>Valor Base (R$)</Label>
+                  <Input
+                    type="number"
+                    className="h-11"
+                    placeholder="Ex: 497"
+                    value={formatPrice}
+                    onChange={(e) => setFormatPrice(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Para quem é (Público-Alvo)</Label>
+              <Input
+                className="h-11"
+                placeholder="Ex: Iniciantes do zero que buscam dominar a máquina"
+                value={formatAudience}
+                onChange={(e) => setFormatAudience(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descrição / Funcionalidade do Curso</Label>
+              <Textarea
+                rows={3}
+                placeholder="Descreva a proposta, entregas e funcionamento deste curso..."
+                value={formatDescription}
+                onChange={(e) => setFormatDescription(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={() => setIsFormatModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="h-11"
+              onClick={handleSaveFormat}
+              disabled={loading}
+            >
+              {loading ? "Salvando..." : "Salvar Curso / Formato"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================
+          MODAL: CADASTRAR / EDITAR MÓDULO OU TEMA
+         ========================================================= */}
+      <Dialog open={isModuleModalOpen} onOpenChange={setIsModuleModalOpen}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingModuleId ? "Editar Módulo / Tema" : "Novo Módulo / Tema"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Curso / Formato Vinculado</Label>
+              <Select value={moduleCourseId} onValueChange={setModuleCourseId}>
+                <SelectTrigger className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Geral (Todos os Cursos)</SelectItem>
+                  {courseFormats.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Nome do Módulo / Tema</Label>
+              <Input
+                className="h-11"
+                placeholder="Ex: Módulo 01 - Fundamentos"
+                value={moduleName}
+                onChange={(e) => setModuleName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descrição do Módulo</Label>
+              <Textarea
+                rows={3}
+                placeholder="O que será abordado neste módulo ou tema..."
+                value={moduleDescription}
+                onChange={(e) => setModuleDescription(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={() => setIsModuleModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="h-11"
+              onClick={handleSaveModule}
+              disabled={loading}
+            >
+              {loading ? "Salvando..." : "Salvar Módulo / Tema"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================
+          MODAL: CRIAR NOVO CONTEÚDO (DESDE A IDEIA ATÉ CAPTAÇÃO)
          ========================================================= */}
       <Dialog open={isNewContentModalOpen} onOpenChange={setIsNewContentModalOpen}>
         <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
@@ -1100,15 +1759,30 @@ const Courses = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Formato</Label>
-                <Select value={newCategory} onValueChange={setNewCategory}>
+                <div className="flex items-center justify-between">
+                  <Label>Curso / Formato</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary font-medium hover:underline"
+                    onClick={openNewFormatModal}
+                  >
+                    + Cadastrar
+                  </button>
+                </div>
+                <Select
+                  value={newCategory}
+                  onValueChange={(val) => {
+                    setNewCategory(val);
+                    setNewModule("");
+                  }}
+                >
                   <SelectTrigger className="h-11">
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione o curso/formato" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
+                    {courseFormats.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name} ({cat.is_paid ? "Pago" : "Gratuito"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1116,13 +1790,29 @@ const Courses = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Módulo / Tema</Label>
-                <Input
-                  className="h-11"
-                  placeholder="Ex: Módulo 01 - Fundamentos"
-                  value={newModule}
-                  onChange={(e) => setNewModule(e.target.value)}
-                />
+                <div className="flex items-center justify-between">
+                  <Label>Módulo / Tema</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary font-medium hover:underline"
+                    onClick={openNewModuleModal}
+                  >
+                    + Cadastrar
+                  </button>
+                </div>
+                <Select value={newModule || "none"} onValueChange={setNewModule}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Selecione o módulo/tema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem módulo específico</SelectItem>
+                    {availableModulesForNewContent.map((mod) => (
+                      <SelectItem key={mod.id} value={mod.name}>
+                        {mod.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1301,7 +1991,7 @@ const Courses = () => {
       </Dialog>
 
       {/* =========================================================
-          MODAL 2: GERENCIAR CONTEÚDO, PRÉ-PRODUÇÃO E CHECK-IN DE CAPTAÇÃO
+          MODAL: GERENCIAR CONTEÚDO, PRÉ-PRODUÇÃO E CHECK-IN DE CAPTAÇÃO
          ========================================================= */}
       <Dialog
         open={!!selectedContent}
@@ -1366,25 +2056,60 @@ const Courses = () => {
 
                 {/* Dados da Ideia / Conteúdo */}
                 <div className="space-y-3 bg-muted/20 p-4 rounded-xl border">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2 space-y-1">
-                      <Label className="text-xs">Título / Ideia</Label>
-                      <Input
-                        className="h-11 bg-background"
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        onBlur={handleSaveContentInfo}
-                      />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Título / Ideia</Label>
+                    <Input
+                      className="h-11 bg-background"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => handleSaveContentInfo()}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Curso / Formato</Label>
+                      <Select
+                        value={editingCategory}
+                        onValueChange={(val) => {
+                          setEditingCategory(val);
+                          handleSaveContentInfo(val, editingModule);
+                        }}
+                      >
+                        <SelectTrigger className="h-11 bg-background">
+                          <SelectValue placeholder="Selecione o curso/formato" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courseFormats.map((f) => (
+                            <SelectItem key={f.id} value={f.name}>
+                              {f.name} ({f.is_paid ? "Pago" : "Gratuito"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+
                     <div className="space-y-1">
                       <Label className="text-xs">Módulo / Tema</Label>
-                      <Input
-                        className="h-11 bg-background"
-                        placeholder="Ex: Módulo 01"
-                        value={editingModule}
-                        onChange={(e) => setEditingModule(e.target.value)}
-                        onBlur={handleSaveContentInfo}
-                      />
+                      <Select
+                        value={editingModule || "none"}
+                        onValueChange={(val) => {
+                          setEditingModule(val === "none" ? "" : val);
+                          handleSaveContentInfo(editingCategory, val);
+                        }}
+                      >
+                        <SelectTrigger className="h-11 bg-background">
+                          <SelectValue placeholder="Selecione o módulo/tema" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem módulo específico</SelectItem>
+                          {availableModulesForEditingContent.map((m) => (
+                            <SelectItem key={m.id} value={m.name}>
+                              {m.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -1396,7 +2121,7 @@ const Courses = () => {
                       placeholder="Anotações do roteiro..."
                       value={editingNotes}
                       onChange={(e) => setEditingNotes(e.target.value)}
-                      onBlur={handleSaveContentInfo}
+                      onBlur={() => handleSaveContentInfo()}
                     />
                   </div>
                 </div>
@@ -1649,7 +2374,7 @@ const Courses = () => {
       </Dialog>
 
       {/* =========================================================
-          MODAL 3: REGISTRAR ALUNO PRESENCIAL
+          MODAL: REGISTRAR ALUNO PRESENCIAL
          ========================================================= */}
       <Dialog
         open={isRegisterStudentModalOpen}
@@ -1717,7 +2442,7 @@ const Courses = () => {
       </Dialog>
 
       {/* =========================================================
-          MODAL 4: AGENDAR AULA INDIVIDUAL
+          MODAL: AGENDAR AULA INDIVIDUAL
          ========================================================= */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
