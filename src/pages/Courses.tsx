@@ -361,6 +361,7 @@ const Courses = () => {
 
   // Modal Detalhes / Check-in de Conteúdo Selecionado
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const [contentModalTab, setContentModalTab] = useState<"ideia" | "pre_producao" | "captacao">("ideia");
   const [isScriptOpen, setIsScriptOpen] = useState(false);
   const [detailPreInput, setDetailPreInput] = useState("");
   const [detailCaptureInput, setDetailCaptureInput] = useState("");
@@ -401,6 +402,13 @@ const Courses = () => {
       setEditingDriveLink(selectedContent.video_link || "");
       // Inicia sempre com o roteiro fechado para não ocupar toda a janela
       setIsScriptOpen(false);
+      if (selectedContent.stage === "Captação") {
+        setContentModalTab("captacao");
+      } else if (selectedContent.stage === "Pré-produção") {
+        setContentModalTab("pre_producao");
+      } else {
+        setContentModalTab("ideia");
+      }
     }
   }, [selectedContentId]);
 
@@ -2814,8 +2822,8 @@ const Courses = () => {
         <DialogContent className="sm:max-w-[820px] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           {selectedContent && (
             <>
-              {/* TOPO FIXO DO MODAL: TÍTULO + CHECK-IN DE ETAPAS */}
-              <div className="p-5 pb-4 border-b bg-muted/20 space-y-4 shrink-0">
+              {/* TOPO FIXO DO MODAL: TÍTULO + CHECK-IN DE ETAPAS + ABAS INTERNAS */}
+              <div className="p-5 pb-0 border-b bg-muted/20 space-y-4 shrink-0">
                 <DialogHeader>
                   <div className="flex items-start justify-between gap-3 pr-6">
                     <div className="space-y-1 text-left">
@@ -2902,246 +2910,412 @@ const Courses = () => {
                     );
                   })}
                 </div>
+
+                {/* Navegação por Abas Internas da Ficha */}
+                <div className="flex items-center gap-1 pt-1 overflow-x-auto hide-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("ideia")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "ideia"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Lightbulb className="h-3.5 w-3.5" />
+                    1. Ideia & Drive
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("pre_producao")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "pre_producao"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    2. Pré-produção & Roteiro
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {
+                        (selectedContent.pre_production_checklist || []).filter(
+                          (i) => i.done
+                        ).length
+                      }
+                      /{selectedContent.pre_production_checklist?.length || 0}
+                    </Badge>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setContentModalTab("captacao")}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
+                      contentModalTab === "captacao"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Clapperboard className="h-3.5 w-3.5" />
+                    3. Lista de Captação (Takes)
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {
+                        (selectedContent.capture_checklist || []).filter(
+                          (i) => i.done
+                        ).length
+                      }
+                      /{selectedContent.capture_checklist?.length || 0}
+                    </Badge>
+                  </button>
+                </div>
               </div>
 
-              {/* CORPO DO MODAL: TODAS AS ETAPAS ORGANIZADAS EM CARTÕES + ROTEIRO RETRÁTIL */}
-              <div className="p-5 overflow-y-auto flex-1 space-y-6">
-                {/* 1. DADOS DA IDEIA E GOOGLE DRIVE */}
-                <div className="space-y-3 p-4 rounded-xl border bg-muted/10">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1 sm:col-span-2">
+              {/* CORPO DO MODAL DIVIDIDO NAS 3 ABAS + ROTEIRO COM ABRIR/FECHAR */}
+              <div className="p-5 overflow-y-auto flex-1">
+                {contentModalTab === "ideia" && (
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
                       <Label className="text-xs font-semibold">Título / Ideia da Aula</Label>
                       <Input
-                        className="h-11 bg-background"
+                        className="h-11"
                         value={editingTitle}
                         onChange={(e) => setEditingTitle(e.target.value)}
                         onBlur={() => handleSaveContentInfo()}
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Curso / Formato</Label>
-                      <Select
-                        value={editingCategory}
-                        onValueChange={(val) => {
-                          setEditingCategory(val);
-                          handleSaveContentInfo(val, editingModule);
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-background">
-                          <SelectValue placeholder="Selecione o curso/formato" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {courseFormats.map((f) => (
-                            <SelectItem key={f.id} value={f.name}>
-                              {f.name} ({f.is_paid ? "Pago" : "Gratuito"})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Módulo / Tema</Label>
-                      <Select
-                        value={editingModule || "none"}
-                        onValueChange={(val) => {
-                          setEditingModule(val === "none" ? "" : val);
-                          handleSaveContentInfo(editingCategory, val);
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-background">
-                          <SelectValue placeholder="Selecione o módulo/tema" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem módulo específico</SelectItem>
-                          {availableModulesForEditingContent.map((m) => (
-                            <SelectItem key={m.id} value={m.name}>
-                              {m.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">
-                      Rascunho Inicial da Ideia
-                    </Label>
-                    <Textarea
-                      rows={3}
-                      className="bg-background leading-relaxed"
-                      placeholder="Resumo inicial sobre o que é este conteúdo..."
-                      value={editingNotes}
-                      onChange={(e) => setEditingNotes(e.target.value)}
-                      onBlur={() => handleSaveContentInfo()}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">
-                      Pasta / Arquivos no Google Drive
-                    </Label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="relative flex-1">
-                        <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          className="h-11 pl-9 bg-background"
-                          placeholder="Cole o link da pasta ou arquivo no Google Drive..."
-                          value={editingDriveLink}
-                          onChange={(e) => setEditingDriveLink(e.target.value)}
-                          onBlur={() => handleSaveContentInfo()}
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Curso / Formato</Label>
+                        <Select
+                          value={editingCategory}
+                          onValueChange={(val) => {
+                            setEditingCategory(val);
+                            handleSaveContentInfo(val, editingModule);
+                          }}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Selecione o curso/formato" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {courseFormats.map((f) => (
+                              <SelectItem key={f.id} value={f.name}>
+                                {f.name} ({f.is_paid ? "Pago" : "Gratuito"})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      {editingDriveLink.trim() && (
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold">Módulo / Tema</Label>
+                        <Select
+                          value={editingModule || "none"}
+                          onValueChange={(val) => {
+                            setEditingModule(val === "none" ? "" : val);
+                            handleSaveContentInfo(editingCategory, val);
+                          }}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Selecione o módulo/tema" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem módulo específico</SelectItem>
+                            {availableModulesForEditingContent.map((m) => (
+                              <SelectItem key={m.id} value={m.name}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">
+                        Rascunho Inicial da Ideia
+                      </Label>
+                      <Textarea
+                        rows={4}
+                        className="leading-relaxed"
+                        placeholder="Resumo inicial sobre o que é este conteúdo..."
+                        value={editingNotes}
+                        onChange={(e) => setEditingNotes(e.target.value)}
+                        onBlur={() => handleSaveContentInfo()}
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
+                      <Label className="text-xs font-semibold flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4 text-primary" />
+                        Pasta / Arquivos no Google Drive
+                      </Label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <LinkIcon className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="h-11 pl-9 bg-background"
+                            placeholder="Cole o link da pasta ou arquivo no Google Drive..."
+                            value={editingDriveLink}
+                            onChange={(e) => setEditingDriveLink(e.target.value)}
+                            onBlur={() => handleSaveContentInfo()}
+                          />
+                        </div>
+                        {editingDriveLink.trim() && (
+                          <Button
+                            type="button"
+                            className="h-11 px-4 gap-2 shrink-0"
+                            onClick={() =>
+                              window.open(
+                                editingDriveLink.trim().startsWith("http")
+                                  ? editingDriveLink.trim()
+                                  : `https://${editingDriveLink.trim()}`,
+                                "_blank"
+                              )
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir Pasta no Drive
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {contentModalTab === "pre_producao" && (
+                  <div className="space-y-4">
+                    {/* Cartão do Roteiro com Função de Abrir e Fechar */}
+                    <div className="rounded-xl border bg-card overflow-hidden">
+                      <div
+                        onClick={() => setIsScriptOpen((prev) => !prev)}
+                        className="p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary shrink-0" />
+                            <span className="text-xs font-bold text-foreground">
+                              Roteiro do Conteúdo
+                            </span>
+                            {getScriptPreviewText(editingScript) ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] px-1.5 py-0"
+                              >
+                                Roteiro salvo
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                Sem roteiro
+                              </Badge>
+                            )}
+                          </div>
+                          {!isScriptOpen && getScriptPreviewText(editingScript) && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">
+                              {getScriptPreviewText(editingScript)}
+                            </p>
+                          )}
+                        </div>
+
                         <Button
                           type="button"
-                          variant="outline"
-                          className="h-11 px-4 gap-2 shrink-0 text-primary border-primary/30 hover:bg-primary/10"
+                          variant={isScriptOpen ? "secondary" : "outline"}
+                          size="sm"
+                          className="h-9 px-3 text-xs font-semibold gap-1.5 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsScriptOpen((prev) => !prev);
+                          }}
+                        >
+                          {isScriptOpen ? (
+                            <>
+                              <ChevronUp className="h-4 w-4" />
+                              Fechar Roteiro
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4" />
+                              Abrir Roteiro
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {isScriptOpen && (
+                        <div className="p-3.5 border-t bg-background space-y-3">
+                          <RichScriptEditor
+                            value={editingScript}
+                            onChange={setEditingScript}
+                            onBlur={(latestHtml) =>
+                              handleSaveContentInfo(
+                                undefined,
+                                undefined,
+                                latestHtml
+                              )
+                            }
+                            placeholder="Cole aqui o roteiro pronto ou escreva os tópicos da gravação..."
+                          />
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                              onClick={() => setIsScriptOpen(false)}
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                              Fechar Roteiro
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Checklist de Pré-produção */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Checklist de Pré-produção
+                        </Label>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {
+                            (selectedContent.pre_production_checklist || []).filter(
+                              (i) => i.done
+                            ).length
+                          }
+                          /{selectedContent.pre_production_checklist?.length || 0}{" "}
+                          concluídos
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          className="h-11"
+                          placeholder="Adicionar tarefa de pré-produção (ex: separar bancada, imprimir referência)..."
+                          value={detailPreInput}
+                          onChange={(e) => setDetailPreInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddChecklistItem(
+                                selectedContent,
+                                "pre_production_checklist",
+                                detailPreInput
+                              );
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          className="h-11 px-4 shrink-0"
                           onClick={() =>
-                            window.open(
-                              editingDriveLink.trim().startsWith("http")
-                                ? editingDriveLink.trim()
-                                : `https://${editingDriveLink.trim()}`,
-                              "_blank"
+                            handleAddChecklistItem(
+                              selectedContent,
+                              "pre_production_checklist",
+                              detailPreInput
                             )
                           }
                         >
-                          <FolderOpen className="h-4 w-4" />
-                          Abrir Drive
-                          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                          <Plus className="h-4 w-4" />
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. ETAPA DE PRÉ-PRODUÇÃO (COM ROTEIRO QUE ABRE E FECHA) */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      Etapa de Pré-produção
-                    </h4>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {
-                        (selectedContent.pre_production_checklist || []).filter(
-                          (i) => i.done
-                        ).length
-                      }
-                      /{selectedContent.pre_production_checklist?.length || 0}{" "}
-                      concluídos
-                    </span>
-                  </div>
-
-                  {/* Cartão do Roteiro com Função de Abrir e Fechar */}
-                  <div className="rounded-xl border bg-card overflow-hidden">
-                    <div
-                      onClick={() => setIsScriptOpen((prev) => !prev)}
-                      className="p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-xs font-bold text-foreground">
-                            Roteiro do Conteúdo
-                          </span>
-                          {getScriptPreviewText(editingScript) ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] px-1.5 py-0"
-                            >
-                              Roteiro salvo
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] px-1.5 py-0"
-                            >
-                              Sem roteiro
-                            </Badge>
-                          )}
-                        </div>
-                        {!isScriptOpen && getScriptPreviewText(editingScript) && (
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            {getScriptPreviewText(editingScript)}
-                          </p>
-                        )}
                       </div>
 
-                      <Button
-                        type="button"
-                        variant={isScriptOpen ? "secondary" : "outline"}
-                        size="sm"
-                        className="h-9 px-3 text-xs font-semibold gap-1.5 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsScriptOpen((prev) => !prev);
-                        }}
-                      >
-                        {isScriptOpen ? (
-                          <>
-                            <ChevronUp className="h-4 w-4" />
-                            Fechar Roteiro
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-4 w-4" />
-                            Abrir Roteiro
-                          </>
+                      <div className="space-y-2">
+                        {(selectedContent.pre_production_checklist || []).map(
+                          (checkItem) => (
+                            <div
+                              key={checkItem.id}
+                              onClick={() =>
+                                handleToggleChecklistItem(
+                                  selectedContent,
+                                  "pre_production_checklist",
+                                  checkItem.id
+                                )
+                              }
+                              className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                checkItem.done
+                                  ? "bg-muted/40 border-border text-muted-foreground"
+                                  : "bg-card border-border hover:border-primary/40 text-foreground"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                    checkItem.done
+                                      ? "bg-primary text-primary-foreground"
+                                      : "border-2 border-muted-foreground/40"
+                                  }`}
+                                >
+                                  {checkItem.done && (
+                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                  )}
+                                </div>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    checkItem.done ? "line-through" : ""
+                                  }`}
+                                >
+                                  {checkItem.text}
+                                </span>
+                              </div>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveChecklistItem(
+                                    selectedContent,
+                                    "pre_production_checklist",
+                                    checkItem.id
+                                  );
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )
                         )}
-                      </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {contentModalTab === "captacao" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between bg-muted/20 p-3.5 rounded-xl border">
+                      <span className="text-xs font-semibold text-foreground">
+                        Progresso da Captação de Material
+                      </span>
+                      <span className="text-xs font-bold text-primary">
+                        {
+                          (selectedContent.capture_checklist || []).filter(
+                            (i) => i.done
+                          ).length
+                        }{" "}
+                        de {selectedContent.capture_checklist?.length || 0} takes
+                        gravados
+                      </span>
                     </div>
 
-                    {isScriptOpen && (
-                      <div className="p-3.5 border-t bg-background space-y-3">
-                        <RichScriptEditor
-                          value={editingScript}
-                          onChange={setEditingScript}
-                          onBlur={(latestHtml) =>
-                            handleSaveContentInfo(
-                              undefined,
-                              undefined,
-                              latestHtml
-                            )
-                          }
-                          placeholder="Cole aqui o roteiro pronto ou escreva os tópicos da gravação..."
-                        />
-                        <div className="flex justify-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-                            onClick={() => setIsScriptOpen(false)}
-                          >
-                            <ChevronUp className="h-3.5 w-3.5" />
-                            Fechar Roteiro
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Checklist de Pré-produção */}
-                  <div className="space-y-2 pt-1">
-                    <Label className="text-xs font-semibold text-muted-foreground">
-                      Checklist de Pré-produção
-                    </Label>
                     <div className="flex gap-2">
                       <Input
                         className="h-11"
-                        placeholder="Adicionar tarefa de pré-produção (ex: separar bancada, imprimir referência)..."
-                        value={detailPreInput}
-                        onChange={(e) => setDetailPreInput(e.target.value)}
+                        placeholder="Ex: Gravar de cima aplicando o decalque..."
+                        value={detailCaptureInput}
+                        onChange={(e) => setDetailCaptureInput(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
                             handleAddChecklistItem(
                               selectedContent,
-                              "pre_production_checklist",
-                              detailPreInput
+                              "capture_checklist",
+                              detailCaptureInput
                             );
                           }
                         }}
@@ -3152,8 +3326,8 @@ const Courses = () => {
                         onClick={() =>
                           handleAddChecklistItem(
                             selectedContent,
-                            "pre_production_checklist",
-                            detailPreInput
+                            "capture_checklist",
+                            detailCaptureInput
                           )
                         }
                       >
@@ -3162,41 +3336,41 @@ const Courses = () => {
                     </div>
 
                     <div className="space-y-2">
-                      {(selectedContent.pre_production_checklist || []).map(
-                        (checkItem) => (
+                      {(selectedContent.capture_checklist || []).map(
+                        (capItem) => (
                           <div
-                            key={checkItem.id}
+                            key={capItem.id}
                             onClick={() =>
                               handleToggleChecklistItem(
                                 selectedContent,
-                                "pre_production_checklist",
-                                checkItem.id
+                                "capture_checklist",
+                                capItem.id
                               )
                             }
-                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                              checkItem.done
-                                ? "bg-muted/40 border-border text-muted-foreground"
+                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                              capItem.done
+                                ? "bg-primary/5 border-primary/20 text-muted-foreground"
                                 : "bg-card border-border hover:border-primary/40 text-foreground"
                             }`}
                           >
                             <div className="flex items-center gap-3">
                               <div
                                 className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                                  checkItem.done
+                                  capItem.done
                                     ? "bg-primary text-primary-foreground"
                                     : "border-2 border-muted-foreground/40"
                                 }`}
                               >
-                                {checkItem.done && (
+                                {capItem.done && (
                                   <Check className="h-3.5 w-3.5 stroke-[3]" />
                                 )}
                               </div>
                               <span
                                 className={`text-sm font-medium ${
-                                  checkItem.done ? "line-through" : ""
+                                  capItem.done ? "line-through" : ""
                                 }`}
                               >
-                                {checkItem.text}
+                                {capItem.text}
                               </span>
                             </div>
 
@@ -3209,8 +3383,8 @@ const Courses = () => {
                                 e.stopPropagation();
                                 handleRemoveChecklistItem(
                                   selectedContent,
-                                  "pre_production_checklist",
-                                  checkItem.id
+                                  "capture_checklist",
+                                  capItem.id
                                 );
                               }}
                             >
@@ -3221,118 +3395,7 @@ const Courses = () => {
                       )}
                     </div>
                   </div>
-                </div>
-
-                {/* 3. ETAPA DE CAPTAÇÃO DE MATERIAL (TAKES) */}
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <Clapperboard className="h-4 w-4 text-primary" />
-                      Etapa de Captação de Material (Lista de Gravação)
-                    </h4>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {
-                        (selectedContent.capture_checklist || []).filter(
-                          (i) => i.done
-                        ).length
-                      }
-                      /{selectedContent.capture_checklist?.length || 0} takes
-                      concluídos
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      className="h-11"
-                      placeholder="Ex: Gravar de cima aplicando o decalque..."
-                      value={detailCaptureInput}
-                      onChange={(e) => setDetailCaptureInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddChecklistItem(
-                            selectedContent,
-                            "capture_checklist",
-                            detailCaptureInput
-                          );
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      className="h-11 px-4 shrink-0"
-                      onClick={() =>
-                        handleAddChecklistItem(
-                          selectedContent,
-                          "capture_checklist",
-                          detailCaptureInput
-                        )
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {(selectedContent.capture_checklist || []).map(
-                      (capItem) => (
-                        <div
-                          key={capItem.id}
-                          onClick={() =>
-                            handleToggleChecklistItem(
-                              selectedContent,
-                              "capture_checklist",
-                              capItem.id
-                            )
-                          }
-                          className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
-                            capItem.done
-                              ? "bg-primary/5 border-primary/20 text-muted-foreground"
-                              : "bg-card border-border hover:border-primary/40 text-foreground"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                                capItem.done
-                                  ? "bg-primary text-primary-foreground"
-                                  : "border-2 border-muted-foreground/40"
-                              }`}
-                            >
-                              {capItem.done && (
-                                <Check className="h-3.5 w-3.5 stroke-[3]" />
-                              )}
-                            </div>
-                            <span
-                              className={`text-sm font-medium ${
-                                capItem.done ? "line-through" : ""
-                              }`}
-                            >
-                              {capItem.text}
-                            </span>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveChecklistItem(
-                                selectedContent,
-                                "capture_checklist",
-                                capItem.id
-                              );
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* RODAPÉ FIXO DO MODAL */}
