@@ -84,6 +84,7 @@ export interface ContentProduction {
   category: string;
   stage: "Ideia" | "Pré-produção" | "Captação" | "Concluído";
   idea_notes: string;
+  script_content: string;
   pre_production_checklist: ChecklistItem[];
   capture_checklist: ChecklistItem[];
   stage_checks: StageChecks;
@@ -167,6 +168,7 @@ const Courses = () => {
   const [newCategory, setNewCategory] = useState("");
   const [newModule, setNewModule] = useState("");
   const [newIdeaNotes, setNewIdeaNotes] = useState("");
+  const [newScriptContent, setNewScriptContent] = useState("");
   const [newPreItemText, setNewPreItemText] = useState("");
   const [newPreItems, setNewPreItems] = useState<ChecklistItem[]>([]);
   const [newCaptureItemText, setNewCaptureItemText] = useState("");
@@ -180,6 +182,7 @@ const Courses = () => {
   const [editingModule, setEditingModule] = useState("");
   const [editingCategory, setEditingCategory] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
+  const [editingScript, setEditingScript] = useState("");
 
   const selectedContent = useMemo(
     () => contents.find((c) => c.id === selectedContentId) || null,
@@ -198,6 +201,7 @@ const Courses = () => {
       setEditingModule(selectedContent.module_name || "");
       setEditingCategory(selectedContent.category || "");
       setEditingNotes(selectedContent.idea_notes || "");
+      setEditingScript(selectedContent.script_content || "");
     }
   }, [selectedContentId]);
 
@@ -269,6 +273,7 @@ const Courses = () => {
         category: row.category || "",
         stage: row.stage || "Ideia",
         idea_notes: row.idea_notes || "",
+        script_content: row.script_content || "",
         pre_production_checklist: Array.isArray(row.pre_production_checklist)
           ? row.pre_production_checklist
           : [],
@@ -653,10 +658,13 @@ const Courses = () => {
         module_name: newModule === "none" ? "" : newModule.trim(),
         category: selectedCat,
         stage:
-          newCaptureItems.length > 0 || newPreItems.length > 0
+          newCaptureItems.length > 0 ||
+          newPreItems.length > 0 ||
+          newScriptContent.trim().length > 0
             ? "Pré-produção"
             : "Ideia",
         idea_notes: newIdeaNotes.trim(),
+        script_content: newScriptContent.trim(),
         pre_production_checklist: newPreItems,
         capture_checklist: newCaptureItems,
         stage_checks: initialChecks
@@ -675,6 +683,7 @@ const Courses = () => {
       setNewTitle("");
       setNewModule("");
       setNewIdeaNotes("");
+      setNewScriptContent("");
       setNewPreItems([]);
       setNewCaptureItems([]);
       setNewPreItemText("");
@@ -969,7 +978,8 @@ const Courses = () => {
                 title: editingTitle.trim(),
                 module_name: finalModule.trim(),
                 category: finalCategory,
-                idea_notes: editingNotes.trim()
+                idea_notes: editingNotes.trim(),
+                script_content: editingScript.trim()
               }
             : c
         )
@@ -982,6 +992,7 @@ const Courses = () => {
           module_name: finalModule.trim(),
           category: finalCategory,
           idea_notes: editingNotes.trim(),
+          script_content: editingScript.trim(),
           updated_at: new Date().toISOString()
         })
         .eq("id", selectedContent.id);
@@ -2303,18 +2314,34 @@ const Courses = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Rascunho da Ideia / Roteiro</Label>
+              <Label>Rascunho Inicial da Ideia</Label>
               <Textarea
                 rows={2}
-                placeholder="Pontos principais que precisam ser falados neste conteúdo..."
+                placeholder="Descreva o rascunho ou a ideia central deste conteúdo..."
                 value={newIdeaNotes}
                 onChange={(e) => setNewIdeaNotes(e.target.value)}
               />
             </div>
 
             {/* Pré-produção inicial */}
-            <div className="space-y-2 pt-1 border-t">
-              <Label>Checklist de Pré-produção</Label>
+            <div className="space-y-3 pt-2 border-t">
+              <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Etapa de Pré-produção
+              </h4>
+
+              <div className="space-y-1.5">
+                <Label>Roteiro</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Estruture o roteiro da aula ou gravação..."
+                  value={newScriptContent}
+                  onChange={(e) => setNewScriptContent(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Checklist de Pré-produção</Label>
               <div className="flex gap-2">
                 <Input
                   className="h-11"
@@ -2382,6 +2409,7 @@ const Courses = () => {
                   ))}
                 </div>
               )}
+              </div>
             </div>
 
             {/* Lista de Captação de Material inicial */}
@@ -2600,11 +2628,11 @@ const Courses = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">Roteiro / Rascunho da Ideia</Label>
+                    <Label className="text-xs">Rascunho Inicial da Ideia</Label>
                     <Textarea
                       rows={2}
                       className="bg-background"
-                      placeholder="Anotações do roteiro..."
+                      placeholder="Rascunho inicial sobre o que é este conteúdo..."
                       value={editingNotes}
                       onChange={(e) => setEditingNotes(e.target.value)}
                       onBlur={() => handleSaveContentInfo()}
@@ -2612,8 +2640,8 @@ const Courses = () => {
                   </div>
                 </div>
 
-                {/* ETAPA: PRÉ-PRODUÇÃO */}
-                <div className="space-y-3">
+                {/* ETAPA: PRÉ-PRODUÇÃO (ROTEIRO + CHECKLIST) */}
+                <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
                     <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
                       <FileText className="h-4 w-4 text-primary" />
@@ -2627,6 +2655,20 @@ const Courses = () => {
                       }
                       /{selectedContent.pre_production_checklist?.length || 0} concluídos
                     </span>
+                  </div>
+
+                  <div className="space-y-1.5 bg-muted/20 p-3.5 rounded-xl border">
+                    <Label className="text-xs font-semibold text-foreground">
+                      Roteiro do Conteúdo
+                    </Label>
+                    <Textarea
+                      rows={4}
+                      className="bg-background"
+                      placeholder="Escreva aqui o roteiro estruturado da gravação (abertura, tópicos, demonstração e fechamento)..."
+                      value={editingScript}
+                      onChange={(e) => setEditingScript(e.target.value)}
+                      onBlur={() => handleSaveContentInfo()}
+                    />
                   </div>
 
                   <div className="flex gap-2">
