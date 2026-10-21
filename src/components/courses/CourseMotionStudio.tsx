@@ -675,7 +675,7 @@ export function CourseMotionStudio({
   const [bigWord, setBigWord] = useState("");
 
   // Estado para Gráfico animado
-  const [chartType, setChartType] = useState<"bars" | "line" | "exponential">("bars");
+  const [chartType, setChartType] = useState<"bars" | "line" | "exponential" | "pie">("bars");
   const [chartTitle, setChartTitle] = useState("Crescimento");
   const [chartRows, setChartRows] = useState<Array<{ label: string; value: string }>>([
     { label: "Jan", value: "20" },
@@ -781,7 +781,7 @@ export function CourseMotionStudio({
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
     } else if (item.modelo === "chart") {
-      setChartType(d.type === "exponential" ? "exponential" : d.type === "line" ? "line" : "bars");
+      setChartType(d.type === "pie" ? "pie" : d.type === "exponential" ? "exponential" : d.type === "line" ? "line" : "bars");
       setChartTitle(d.title || "");
       const arr: Array<{ label: string; value: string }> = Array.isArray(d.rows) ? d.rows : [];
       setChartRows(
@@ -3699,6 +3699,121 @@ export function CourseMotionStudio({
               ctx.globalAlpha = 1;
             }
           });
+        } else if (chartType === "pie") {
+          const totalVal = pts.reduce((sum, p) => sum + Math.max(p.num, 0), 0) || 1;
+          const PIE_COLORS = [
+            "#3b82f6",
+            "#60a5fa",
+            "#1d4ed8",
+            "#93c5fd",
+            "#38bdf8",
+            "#818cf8"
+          ];
+
+          const cx = isVert ? W / 2 : left + (right - left) * 0.32;
+          const cy = isVert ? (top + baseY) * 0.44 : (top + baseY) / 2 + 10;
+          const R = isVert ? 260 : 250;
+          const r = isVert ? 145 : 140;
+
+          const animProg = easeOutCubic(clamp01((t - 0.25) / 1.5));
+          const maxSweep = animProg * Math.PI * 2;
+
+          let startAngle = -Math.PI / 2;
+
+          ctx.save();
+          // Brilho neon azul sob o Donut
+          if (bgTheme !== "transparent") {
+            const donutGlow = ctx.createRadialGradient(cx, cy, r, cx, cy, R * 1.25);
+            donutGlow.addColorStop(0, "rgba(59, 130, 246, 0.22)");
+            donutGlow.addColorStop(1, "rgba(59, 130, 246, 0)");
+            ctx.fillStyle = donutGlow;
+            ctx.beginPath();
+            ctx.arc(cx, cy, R * 1.25, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Fatias do Donut
+          let currentAngle = startAngle;
+          pts.forEach((p, i) => {
+            const slicePortion = Math.max(p.num, 0) / totalVal;
+            const fullSliceAngle = slicePortion * Math.PI * 2;
+            const availableAngle = Math.max(0, maxSweep - (currentAngle - startAngle));
+            const actualSliceAngle = Math.min(fullSliceAngle, availableAngle);
+
+            if (actualSliceAngle > 0.001) {
+              const sliceEndAngle = currentAngle + actualSliceAngle;
+              const color = PIE_COLORS[i % PIE_COLORS.length];
+
+              ctx.fillStyle = color;
+              ctx.strokeStyle = bgTheme === "light" ? "#ffffff" : "#090d16";
+              ctx.lineWidth = 4;
+
+              ctx.beginPath();
+              ctx.arc(cx, cy, R, currentAngle, sliceEndAngle);
+              ctx.arc(cx, cy, r, sliceEndAngle, currentAngle, true);
+              ctx.closePath();
+              ctx.fill();
+              if (bgTheme !== "transparent") {
+                ctx.stroke();
+              }
+            }
+            currentAngle += fullSliceAngle;
+          });
+
+          // Centro do Donut
+          ctx.textAlign = "center";
+          ctx.fillStyle = colors.muted;
+          ctx.font = `700 ${isVert ? 20 : 22}px Inter, system-ui, sans-serif`;
+          ctx.fillText("TOTAL", cx, cy - 14);
+
+          ctx.fillStyle = colors.text;
+          ctx.font = `900 ${isVert ? 44 : 46}px Inter, system-ui, sans-serif`;
+          const displayTotal = totalVal >= 1000 ? `${(totalVal / 1000).toFixed(1)}k` : `${Math.round(totalVal)}`;
+          ctx.fillText(displayTotal, cx, cy + 34);
+
+          // Legendas e Percentuais ao lado (ou abaixo no vertical)
+          const legLeft = isVert ? left : cx + R + (isVert ? 40 : 80);
+          const legTop = isVert ? (top + baseY) * 0.72 : cy - (n * 74) / 2;
+          const legW = isVert ? right - left : right - legLeft;
+
+          pts.forEach((p, i) => {
+            const slicePct = Math.round((Math.max(p.num, 0) / totalVal) * 100);
+            const legA = easeOutCubic(clamp01((t - 0.4 - i * 0.15) / 0.6));
+            if (legA <= 0) return;
+
+            const ly = legTop + i * (isVert ? 66 : 76);
+            const color = PIE_COLORS[i % PIE_COLORS.length];
+
+            ctx.save();
+            ctx.globalAlpha = legA;
+            ctx.translate((1 - legA) * (isVert ? -20 : 40), 0);
+
+            // Chip de cor
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(legLeft, ly + 8, 22, 22, 6);
+            ctx.fill();
+
+            // Nome da categoria
+            ctx.textAlign = "left";
+            ctx.fillStyle = colors.text;
+            ctx.font = `700 ${isVert ? 30 : 32}px Inter, system-ui, sans-serif`;
+            ctx.fillText(p.label || `Item ${i + 1}`, legLeft + 36, ly + 28);
+
+            // Percentual e valor
+            ctx.textAlign = "right";
+            ctx.fillStyle = color;
+            ctx.font = `900 ${isVert ? 32 : 34}px Inter, system-ui, sans-serif`;
+            ctx.fillText(`${slicePct}%`, legLeft + legW, ly + 28);
+
+            ctx.fillStyle = colors.muted;
+            ctx.font = `600 ${isVert ? 22 : 24}px Inter, system-ui, sans-serif`;
+            ctx.fillText(fmt(p, 1), legLeft + legW - (isVert ? 85 : 95), ly + 28);
+
+            ctx.restore();
+          });
+
+          ctx.restore();
         } else if (chartType === "bars") {
           const bw = Math.min(slot * 0.56, 180);
           pts.forEach((p, i) => {
@@ -4530,18 +4645,21 @@ export function CourseMotionStudio({
                 {/* Editor do Gráfico */}
                 {sceneMode === "chart" && (
                   <div className="space-y-2.5">
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                       {([
                         { id: "bars", label: "Barras" },
                         { id: "line", label: "Linha" },
-                        { id: "exponential", label: "Exponencial" }
+                        { id: "exponential", label: "Exponencial" },
+                        { id: "pie", label: "Pizza" }
                       ] as const).map((o) => (
                         <button
                           key={o.id}
                           type="button"
                           onClick={() => {
                             setChartType(o.id);
-                            if (o.id === "exponential" && chartTitle === "Crescimento") {
+                            if (o.id === "pie" && (chartTitle === "Crescimento" || chartTitle === "Crescimento Exponencial")) {
+                              setChartTitle("Distribuição");
+                            } else if (o.id === "exponential" && chartTitle === "Crescimento") {
                               setChartTitle("Crescimento Exponencial");
                             }
                             setCurrentTime(0);
