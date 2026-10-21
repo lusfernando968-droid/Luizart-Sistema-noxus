@@ -2956,7 +2956,7 @@ export function CourseMotionStudio({
 
       wrappedLines.forEach((line, idx) => {
         const curLineY = descY + idx * (isVert ? 48 : 54);
-        if (curLineY > cardY + cardH - 70) return; // proteção de altura
+        if (curLineY > cardY + cardH - 40) return; // proteção de altura
 
         const lineStart = charsAccum;
         charsAccum += line.length + 1;
@@ -2969,23 +2969,6 @@ export function CourseMotionStudio({
           ctx.fillText(visibleText, cardX + 68, curLineY);
         }
       });
-
-      // Rodapé do Card: Marca e Contexto
-      const footY = cardY + cardH - 36;
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "600 19px Inter, system-ui, sans-serif";
-      ctx.fillText(
-        `${selectedCourse} • Luizart Tattoo`,
-        cardX + 68,
-        footY
-      );
-
-      // Selo do lado direito
-      ctx.fillStyle = "rgba(59, 130, 246, 0.9)";
-      ctx.font = "700 17px Inter, system-ui, sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText("GLOSSÁRIO OFICIAL", cardX + cardW - 64, footY);
-      ctx.textAlign = "left";
 
       ctx.restore();
     }
