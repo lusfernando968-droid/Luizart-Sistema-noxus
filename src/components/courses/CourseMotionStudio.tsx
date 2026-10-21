@@ -16,7 +16,10 @@ import {
   Layers,
   Bookmark,
   Volume2,
-  VolumeX
+  VolumeX,
+  ListChecks,
+  Save,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +34,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import type { ContentProduction, CourseFormat } from "@/pages/Courses";
 
 interface CourseMotionStudioProps {
@@ -45,7 +49,8 @@ type SceneMode =
   | "topics"
   | "quote"
   | "lower_third"
-  | "term";
+  | "term"
+  | "steps";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -554,6 +559,96 @@ export function CourseMotionStudio({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const hasPlayedChimeRef = useRef(false);
 
+  // Estado para Passo a Passo numerado
+  const [stepsTitle, setStepsTitle] = useState("Como fazer");
+  const [stepsItems, setStepsItems] = useState<string[]>(["", "", "", ""]);
+  const lastStepChimeRef = useRef(-1);
+
+  // Biblioteca de Motions salvos (Supabase: luizart.motion_biblioteca)
+  type LibraryItem = {
+    id: string;
+    nome: string;
+    modelo: string;
+    formato: string;
+    fundo: string;
+    duracao: number;
+    dados: Record<string, unknown>;
+  };
+  const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [saveName, setSaveName] = useState("");
+
+  const loadLibrary = async () => {
+    const { data, error } = await supabase
+      .from("motion_biblioteca")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Erro ao carregar biblioteca:", error);
+      return;
+    }
+    setLibrary((data as LibraryItem[]) || []);
+  };
+
+  useEffect(() => {
+    loadLibrary();
+  }, []);
+
+  const saveToLibrary = async () => {
+    const nome = saveName.trim();
+    if (!nome) {
+      toast.error("Dê um nome para salvar o motion.");
+      return;
+    }
+    const dados =
+      sceneMode === "term"
+        ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
+        : { title: stepsTitle, steps: stepsItems.filter((s) => s.trim()) };
+    const { error } = await supabase.from("motion_biblioteca").insert({
+      nome,
+      modelo: sceneMode,
+      formato: aspectRatio,
+      fundo: bgTheme,
+      duracao: durationSec,
+      dados
+    });
+    if (error) {
+      console.error(error);
+      toast.error("Não consegui salvar. Tente de novo.");
+      return;
+    }
+    setSaveName("");
+    toast.success("Motion salvo na biblioteca!");
+    loadLibrary();
+  };
+
+  const applyLibraryItem = (item: LibraryItem) => {
+    const d = item.dados as Record<string, any>;
+    if (item.modelo === "term") {
+      setCustomTermWord(d.word || "");
+      setCustomTermMeaning(d.meaning || "");
+      setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "steps") {
+      setStepsTitle(d.title || "");
+      const arr: string[] = Array.isArray(d.steps) ? d.steps : [];
+      setStepsItems([0, 1, 2, 3, 4].map((i) => arr[i] || ""));
+    }
+    setSceneMode(item.modelo as SceneMode);
+    setAspectRatio(item.formato as AspectRatioType);
+    setBgTheme(item.fundo as BgThemeType);
+    setDurationSec(item.duracao);
+    setCurrentTime(0);
+    setIsPlaying(true);
+  };
+
+  const deleteLibraryItem = async (id: string) => {
+    const { error } = await supabase.from("motion_biblioteca").delete().eq("id", id);
+    if (error) {
+      toast.error("Não consegui apagar.");
+      return;
+    }
+    loadLibrary();
+  };
+
   // Player
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -632,6 +727,19 @@ export function CourseMotionStudio({
     setCurrentTime(0);
     setIsPlaying(true);
   }, [selectedLessonId, extractedData, selectedLesson, selectedCourse, lessonMeta]);
+
+  // Som a cada passo que aparece no Passo a Passo
+  useEffect(() => {
+    if (currentTime < 0.1) lastStepChimeRef.current = -1;
+    if (sceneMode !== "steps" || !soundEnabled || !isPlaying) return;
+    const n = stepsItems.filter((s) => s.trim()).length;
+    for (let i = 0; i < n; i++) {
+      if (currentTime >= 0.5 + i * 0.8 && lastStepChimeRef.current < i) {
+        lastStepChimeRef.current = i;
+        playPodcastChime();
+      }
+    }
+  }, [currentTime, sceneMode, soundEnabled, isPlaying, stepsItems]);
 
   // Disparo automático do efeito sonoro do Podcast quando o vídeo atinge a entrada do motion
   useEffect(() => {
@@ -2820,6 +2928,74 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 7: PASSO A PASSO NUMERADO (REELS / YOUTUBE)
+    // =========================================================================
+    else if (sceneMode === "steps") {
+      const items = stepsItems.filter((s) => s.trim());
+      const n = Math.max(items.length, 1);
+      const titleAnim = easeOutCubic(clamp01(t / 0.5));
+
+      ctx.save();
+      ctx.globalAlpha = titleAnim;
+      ctx.translate(0, (1 - titleAnim) * -30);
+      ctx.fillStyle = "#3b82f6";
+      ctx.font = "800 24px Inter, system-ui, sans-serif";
+      ctx.fillText("✦ PASSO A PASSO", padX, isVert ? 300 : 110);
+      ctx.fillStyle = colors.text;
+      ctx.font = `900 ${isVert ? 62 : 58}px Inter, system-ui, sans-serif`;
+      const tLines = wrapCanvasText(ctx, stepsTitle || "Passo a passo", totalW);
+      tLines.slice(0, 2).forEach((ln, i) => {
+        ctx.fillText(ln, padX, (isVert ? 380 : 180) + i * 72);
+      });
+      ctx.restore();
+
+      const startY = isVert ? 560 : 290;
+      const availH = isVert ? H - startY - 380 : H - startY - 90;
+      const gap = 26;
+      const rowH = Math.min(isVert ? 190 : 140, (availH - gap * (n - 1)) / n);
+
+      items.forEach((text, i) => {
+        const a = easeOutCubic(clamp01((t - 0.5 - i * 0.8) / 0.5));
+        if (a <= 0) return;
+        const y = startY + i * (rowH + gap);
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.translate((1 - a) * -90, 0);
+
+        ctx.fillStyle = colors.card;
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(padX, y, totalW, rowH, 24);
+        ctx.fill();
+        ctx.stroke();
+
+        const r = Math.min(40, rowH / 2 - 18);
+        const cx = padX + 28 + r;
+        const cy = y + rowH / 2;
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `900 ${Math.round(r * 1.1)}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(String(i + 1), cx, cy + r * 0.38);
+        ctx.textAlign = "left";
+
+        ctx.fillStyle = colors.text;
+        ctx.font = `700 ${isVert ? 36 : 34}px Inter, system-ui, sans-serif`;
+        const sLines = wrapCanvasText(ctx, text, totalW - r * 2 - 100).slice(0, 2);
+        const lh = isVert ? 46 : 44;
+        const textTop = cy - ((sLines.length - 1) * lh) / 2 + 12;
+        sLines.forEach((ln, li) => {
+          ctx.fillText(ln, cx + r + 28, textTop + li * lh);
+        });
+        ctx.restore();
+      });
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -2995,6 +3171,8 @@ export function CourseMotionStudio({
     customTermWord,
     customTermMeaning,
     customTermCategory,
+    stepsTitle,
+    stepsItems,
     selectedCourse
   ]);
 
@@ -3029,7 +3207,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if (sceneMode === "term" && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -3037,7 +3215,14 @@ export function CourseMotionStudio({
           if (AudioCtxClass) {
             recordAudioCtx = new AudioCtxClass();
             const dest = recordAudioCtx.createMediaStreamDestination();
-            playPodcastChime(dest, recordAudioCtx.currentTime + 0.18);
+            if (sceneMode === "steps") {
+              const n = stepsItems.filter((s) => s.trim()).length;
+              for (let i = 0; i < n; i++) {
+                playPodcastChime(dest, recordAudioCtx.currentTime + 0.5 + i * 0.8);
+              }
+            } else {
+              playPodcastChime(dest, recordAudioCtx.currentTime + 0.18);
+            }
             const aTracks = dest.stream.getAudioTracks();
             if (aTracks.length > 0) {
               audioTrack = aTracks[0];
@@ -3084,6 +3269,8 @@ export function CourseMotionStudio({
         const safeBase =
           sceneMode === "term"
             ? `termo-${customTermWord || "glossario"}`
+            : sceneMode === "steps"
+            ? `passos-${stepsTitle || "passo-a-passo"}`
             : customTitle || `aula-${lessonNumber}`;
         const safeName = safeBase
           .toLowerCase()
@@ -3123,6 +3310,7 @@ export function CourseMotionStudio({
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
     { id: "term", label: "Termo & Significado", icon: Bookmark },
+    { id: "steps", label: "Passo a Passo", icon: ListChecks },
     { id: "lower_third", label: "Tarja (CapCut)", icon: Tv }
   ];
 
@@ -3316,7 +3504,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -3484,6 +3672,111 @@ export function CourseMotionStudio({
                     </div>
                   </div>
                 )}
+
+                {/* Editor do Passo a Passo */}
+                {sceneMode === "steps" && (
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Título</Label>
+                      <Input
+                        value={stepsTitle}
+                        onChange={(e) => setStepsTitle(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Ex: Como esticar a pele"
+                      />
+                    </div>
+                    {stepsItems.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="h-6 w-6 shrink-0 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        <Input
+                          value={s}
+                          onChange={(e) =>
+                            setStepsItems((prev) =>
+                              prev.map((p, idx) => (idx === i ? e.target.value : p))
+                            )
+                          }
+                          className="h-9 text-xs"
+                          placeholder={`Passo ${i + 1}`}
+                        />
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som a cada passo</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Biblioteca de Motions salvos */}
+                {(sceneMode === "term" || sceneMode === "steps") && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={saveName}
+                        onChange={(e) => setSaveName(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Nome do motion"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-9 gap-1.5 text-xs shrink-0"
+                        onClick={saveToLibrary}
+                      >
+                        <Save className="h-3.5 w-3.5" />
+                        Salvar
+                      </Button>
+                    </div>
+                    {library.length > 0 && (
+                      <div className="max-h-[180px] overflow-y-auto space-y-1.5 pr-1">
+                        {library.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2 p-2 rounded-lg border bg-background"
+                          >
+                            <button
+                              type="button"
+                              className="flex-1 min-w-0 text-left"
+                              onClick={() => applyLibraryItem(item)}
+                            >
+                              <p className="text-xs font-bold truncate">{item.nome}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {item.modelo === "steps" ? "Passo a Passo" : "Termo"} • {item.formato}
+                              </p>
+                            </button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => deleteLibraryItem(item.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3503,6 +3796,8 @@ export function CourseMotionStudio({
                   <p className="text-sm font-bold text-foreground truncate">
                     {sceneMode === "term"
                       ? `Termo: ${customTermWord || "Palavra"}`
+                      : sceneMode === "steps"
+                      ? `Passo a passo: ${stepsTitle || ""}`
                       : lessonMeta.diagramTitle}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
