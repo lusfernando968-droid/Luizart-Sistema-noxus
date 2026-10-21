@@ -13,12 +13,16 @@ import {
   Monitor,
   Check,
   BookOpen,
-  Layers
+  Layers,
+  Bookmark,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -35,7 +39,13 @@ interface CourseMotionStudioProps {
   initialContentId?: string | null;
 }
 
-type SceneMode = "diagram" | "intro" | "topics" | "quote" | "lower_third";
+type SceneMode =
+  | "diagram"
+  | "intro"
+  | "topics"
+  | "quote"
+  | "lower_third"
+  | "term";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma";
 
@@ -63,6 +73,73 @@ function detectLessonNumber(title: string): number {
   return 1;
 }
 
+// Síntese de Áudio Web (Efeito Sonoro / Chime estilo Podcast de Alta Produção)
+function playPodcastChime(
+  ctxOrDestination?: AudioContext | AudioNode,
+  scheduleTime?: number
+) {
+  try {
+    let ctx: AudioContext;
+    let destination: AudioNode;
+
+    if (ctxOrDestination instanceof AudioContext) {
+      ctx = ctxOrDestination;
+      destination = ctx.destination;
+    } else if (ctxOrDestination && "context" in ctxOrDestination) {
+      destination = ctxOrDestination as AudioNode;
+      ctx = destination.context as AudioContext;
+    } else {
+      const AudioCtxClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtxClass) return;
+      ctx = new AudioCtxClass();
+      destination = ctx.destination;
+    }
+
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    const t0 = scheduleTime !== undefined ? scheduleTime : ctx.currentTime;
+
+    // Tom 1: Sino Cristalino (Harmônico Podcast - E5 -> B5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(659.25, t0);
+    osc1.frequency.exponentialRampToValueAtTime(987.77, t0 + 0.12);
+
+    gain1.gain.setValueAtTime(0.0001, t0);
+    gain1.gain.linearRampToValueAtTime(0.24, t0 + 0.02);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+
+    osc1.connect(gain1);
+    gain1.connect(destination);
+
+    osc1.start(t0);
+    osc1.stop(t0 + 0.6);
+
+    // Tom 2: Pop Suave (Impacto e Presença)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(420, t0);
+    osc2.frequency.exponentialRampToValueAtTime(180, t0 + 0.08);
+
+    gain2.gain.setValueAtTime(0.18, t0);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+
+    osc2.connect(gain2);
+    gain2.connect(destination);
+
+    osc2.start(t0);
+    osc2.stop(t0 + 0.12);
+  } catch (err) {
+    console.warn("Áudio chime não disponível:", err);
+  }
+}
+
 const LESSON_DIAGRAM_METADATA: Record<
   number,
   {
@@ -70,6 +147,11 @@ const LESSON_DIAGRAM_METADATA: Record<
     diagramTitle: string;
     defaultTopics: string[];
     defaultQuote: string;
+    defaultTerm: {
+      word: string;
+      meaning: string;
+      category?: string;
+    };
   }
 > = {
   1: {
@@ -82,7 +164,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Dominar a base simples antes de soltar a criatividade"
     ],
     defaultQuote:
-      "Não dá pra construir uma casa começando pelo telhado: aqui a gente foca 100% em deixar a sua base forte."
+      "Não dá pra construir uma casa começando pelo telhado: aqui a gente foca 100% em deixar a sua base forte.",
+    defaultTerm: {
+      word: "Base Técnica",
+      meaning: "Domínio de agulha, profundidade e velocidade da mão antes de tentar qualquer desenho complexo.",
+      category: "CONCEITO-CHAVE"
+    }
   },
   2: {
     badge: "AULA 2 • MENTALIDADE & POSTURA",
@@ -94,7 +181,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Postura profissional começa já no treino no EVA"
     ],
     defaultQuote:
-      "Não adianta treinar três horas num domingo e ficar duas semanas sem encostar na máquina. Tatuagem é memória muscular."
+      "Não adianta treinar três horas num domingo e ficar duas semanas sem encostar na máquina. Tatuagem é memória muscular.",
+    defaultTerm: {
+      word: "Memória Muscular",
+      meaning: "Repetição mecânica diária no EVA para a mão destravar e traçar linhas firmes sem hesitação.",
+      category: "TREINO"
+    }
   },
   3: {
     badge: "AULA 3 • HISTÓRIA & EVOLUÇÃO",
@@ -106,7 +198,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. O papel do tatuador hoje: Arte e autoestima na pele"
     ],
     defaultQuote:
-      "Entender de onde a tatuagem veio faz você respeitar cada traço que coloca na pele do seu cliente hoje."
+      "Entender de onde a tatuagem veio faz você respeitar cada traço que coloca na pele do seu cliente hoje.",
+    defaultTerm: {
+      word: "Máquina Pen",
+      meaning: "Equipamento rotativo em formato de caneta acionado por motor elétrico de corrente contínua.",
+      category: "EQUIPAMENTO"
+    }
   },
   4: {
     badge: "AULA 4 • ESTRUTURA DO ESTÚDIO",
@@ -118,7 +215,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Separação clara entre área limpa e área de lavagem"
     ],
     defaultQuote:
-      "Um estúdio funcional não precisa de luxo: precisa de iluminação certa, postura ergonômica e higiene impecável."
+      "Um estúdio funcional não precisa de luxo: precisa de iluminação certa, postura ergonômica e higiene impecável.",
+    defaultTerm: {
+      word: "Ergonomia",
+      meaning: "Ajuste de mocho, maca e apoio de braço para tatuar por horas sem dores ou tremores na mão.",
+      category: "POSTURA"
+    }
   },
   5: {
     badge: "AULA 5 • IMPRESSORA TÉRMICA & DECALQUE",
@@ -130,7 +232,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Folha Amarela (Base): Sustentação na impressora"
     ],
     defaultQuote:
-      "Um decalque nítido e bem impresso é 50% do caminho para um traço seguro sem se perder no meio da sessão."
+      "Um decalque nítido e bem impresso é 50% do caminho para um traço seguro sem se perder no meio da sessão.",
+    defaultTerm: {
+      word: "Papel Hectográfico",
+      meaning: "Papel térmico de alta transferência que fixa o traço espelhado com precisão milimétrica na pele.",
+      category: "DECALQUE"
+    }
   },
   6: {
     badge: "AULA 6 • MÁQUINAS, FONTES & CABOS",
@@ -142,7 +249,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Cuidado com cabos RCA e estabilidade de corrente"
     ],
     defaultQuote:
-      "Não existe voltagem mágica universal: o segredo é casar a batida da fonte com a velocidade da sua mão."
+      "Não existe voltagem mágica universal: o segredo é casar a batida da fonte com a velocidade da sua mão.",
+    defaultTerm: {
+      word: "Velocidade da Mão",
+      meaning: "Sincronia exata entre a voltagem da fonte e o movimento linear da sua mão sobre a pele.",
+      category: "PARÂMETRO"
+    }
   },
   7: {
     badge: "AULA 7 • AGULHAS, CARTUCHOS & TINTAS",
@@ -154,7 +266,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Batoques e tintas: Organização e validade na bancada"
     ],
     defaultQuote:
-      "Use exatamente a mesma numeração de cartucho da aula para conseguir comparar o seu traço com o meu."
+      "Use exatamente a mesma numeração de cartucho da aula para conseguir comparar o seu traço com o meu.",
+    defaultTerm: {
+      word: "Round Liner (RL)",
+      meaning: "Agulhas com pinos soldados em círculo fechado, ideais para traços finos, limpos e contornos sólidos.",
+      category: "AGULHAS"
+    }
   },
   8: {
     badge: "AULA 8 • BIOSSEGURANÇA & PROTEÇÃO",
@@ -166,7 +283,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Descarte imediato do cartucho no coletor Descarpack"
     ],
     defaultQuote:
-      "Biossegurança é inegociável: se tocou com a luva suja em qualquer objeto fora da bancada, troque a luva na hora."
+      "Biossegurança é inegociável: se tocou com a luva suja em qualquer objeto fora da bancada, troque a luva na hora.",
+    defaultTerm: {
+      word: "Contaminação Cruzada",
+      meaning: "Transferência acidental de microrganismos de uma superfície contaminada para a pele ou agulha estéril.",
+      category: "BIOSSEGURANÇA"
+    }
   },
   9: {
     badge: "AULA 9 • MONTANDO A BANCADA",
@@ -178,7 +300,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Papel toalha dobrado na zona seca sem cruzar a agulha"
     ],
     defaultQuote:
-      "Na bancada organizada, a agulha suja nunca passa por cima do papel limpo nem da vaselina."
+      "Na bancada organizada, a agulha suja nunca passa por cima do papel limpo nem da vaselina.",
+    defaultTerm: {
+      word: "Zona Úmida vs. Seca",
+      meaning: "Divisão física da bancada para impedir que respingos de água e sabão atinjam as tintas e materiais esterilizados.",
+      category: "BANCADA"
+    }
   },
   10: {
     badge: "AULA 10 • PREPARAÇÃO DA PELE & DECALQUE",
@@ -190,7 +317,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Evitar o Efeito Trampolim antes de encostar a agulha"
     ],
     defaultQuote:
-      "Primeiro você trava o triângulo com os 3 dedos e deixa a pele 100% firme; só depois a agulha desce."
+      "Primeiro você trava o triângulo com os 3 dedos e deixa a pele 100% firme; só depois a agulha desce.",
+    defaultTerm: {
+      word: "Triângulo de Tensão",
+      meaning: "Técnica dos 3 dedos esticando a pele firme como um tambor antes da agulha encostar.",
+      category: "TÉCNICA"
+    }
   },
   11: {
     badge: "AULA 11 • TÉCNICA DE TRAÇO",
@@ -202,7 +334,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Apoio firme do punho e limpeza suave sem esfregar o decalque"
     ],
     defaultQuote:
-      "Traço perfeito não é força na mão: é manter exatamente entre 1.5mm e 2mm na camada da Derme do início ao fim."
+      "Traço perfeito não é força na mão: é manter exatamente entre 1.5mm e 2mm na camada da Derme do início ao fim.",
+    defaultTerm: {
+      word: "Derme Papilar",
+      meaning: "Camada intermediária da pele (1.5mm a 2.0mm) onde o pigmento se fixa sem estourar nem desbotar.",
+      category: "ANATOMIA"
+    }
   },
   12: {
     badge: "AULA 12 • TÉCNICA DE SOMBRA",
@@ -214,7 +351,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Controle de pressão para não saturar nem machucar a pele"
     ],
     defaultQuote:
-      "No pêndulo, a agulha entra na pele, deposita o pigmento e sai no ar antes da mão parar — criando degradê sem marca."
+      "No pêndulo, a agulha entra na pele, deposita o pigmento e sai no ar antes da mão parar — criando degradê sem marca.",
+    defaultTerm: {
+      word: "Movimento de Pêndulo",
+      meaning: "Varredura suave em arco com a agulha entrando e saindo da pele para criar degradês aveludados.",
+      category: "SOMBREAMENTO"
+    }
   },
   13: {
     badge: "AULA 13 • FINALIZAÇÃO & AFTERCARE",
@@ -226,7 +368,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Dia 28+: Pele regenerada e uso contínuo de protetor solar"
     ],
     defaultQuote:
-      "50% do resultado final depende da sua execução na bancada; os outros 50% dependem da orientação clara de pós-cuidado."
+      "50% do resultado final depende da sua execução na bancada; os outros 50% dependem da orientação clara de pós-cuidado.",
+    defaultTerm: {
+      word: "Aftercare (Pós-Tattoo)",
+      meaning: "Conjunto de cuidados de higienização, hidratação e proteção solar nos 28 dias de cicatrização.",
+      category: "CUIDADOS"
+    }
   },
   14: {
     badge: "AULA 14 • INSTAGRAM VITRINE",
@@ -238,7 +385,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Reels de bastidores da bancada gerando confiança e desejo"
     ],
     defaultQuote:
-      "O cliente compra primeiro a confiança na sua higiene e organização pelo Instagram antes de orçar no WhatsApp."
+      "O cliente compra primeiro a confiança na sua higiene e organização pelo Instagram antes de orçar no WhatsApp.",
+    defaultTerm: {
+      word: "Luz Polarizada",
+      meaning: "Iluminação técnica especial que elimina o reflexo da vaselina e revela o contraste real da tattoo.",
+      category: "FOTOGRAFIA"
+    }
   },
   15: {
     badge: "AULA 15 • CAPTAÇÃO DOS PRIMEIROS CLIENTES",
@@ -250,7 +402,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Experiência memorável na 1ª sessão gerando indicações"
     ],
     defaultQuote:
-      "Quem está começando não espera o cliente cair do céu: cria projetos irresistíveis e conduz o atendimento com segurança."
+      "Quem está começando não espera o cliente cair do céu: cria projetos irresistíveis e conduz o atendimento com segurança.",
+    defaultTerm: {
+      word: "Qualificação de Lead",
+      meaning: "Triagem ágil no WhatsApp para entender a ideia do cliente, local do corpo e capacidade de investimento.",
+      category: "ATENDIMENTO"
+    }
   },
   16: {
     badge: "AULA 16 • GESTÃO FINANCEIRA & SINAL",
@@ -262,7 +419,12 @@ const LESSON_DIAGRAM_METADATA: Record<
       "4. Regra de Ouro: Horário na agenda só é travado mediante Sinal"
     ],
     defaultQuote:
-      "Separar o dinheiro do material do seu lucro pessoal desde a primeira tattoo é o que mantém você crescendo na profissão."
+      "Separar o dinheiro do material do seu lucro pessoal desde a primeira tattoo é o que mantém você crescendo na profissão.",
+    defaultTerm: {
+      word: "Sinal de Reserva",
+      meaning: "Taxa antecipada obrigatória que valida o compromisso do cliente e confirma a data na agenda.",
+      category: "FINANCEIRO"
+    }
   }
 };
 
@@ -385,6 +547,13 @@ export function CourseMotionStudio({
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [customTopics, setCustomTopics] = useState<string[]>(["", "", "", ""]);
 
+  // Estado para Termo & Significado (Motion estilo Podcast)
+  const [customTermWord, setCustomTermWord] = useState("");
+  const [customTermMeaning, setCustomTermMeaning] = useState("");
+  const [customTermCategory, setCustomTermCategory] = useState("TERMO TÉCNICO");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const hasPlayedChimeRef = useRef(false);
+
   // Player
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -450,9 +619,36 @@ export function CourseMotionStudio({
     ]);
     setQuoteIndex(0);
     setCustomQuote(extractedData.quotes[0] || "");
+
+    const termData = lessonMeta.defaultTerm || {
+      word: "Termo Técnico",
+      meaning: "Explicação prática e objetiva aplicada na aula.",
+      category: "CONCEITO"
+    };
+    setCustomTermWord(termData.word);
+    setCustomTermMeaning(termData.meaning);
+    setCustomTermCategory(termData.category || "TERMO TÉCNICO");
+
     setCurrentTime(0);
     setIsPlaying(true);
-  }, [selectedLessonId, extractedData, selectedLesson, selectedCourse]);
+  }, [selectedLessonId, extractedData, selectedLesson, selectedCourse, lessonMeta]);
+
+  // Disparo automático do efeito sonoro do Podcast quando o vídeo atinge a entrada do motion
+  useEffect(() => {
+    if (currentTime < 0.1) {
+      hasPlayedChimeRef.current = false;
+    }
+    if (
+      sceneMode === "term" &&
+      soundEnabled &&
+      isPlaying &&
+      currentTime >= 0.18 &&
+      !hasPlayedChimeRef.current
+    ) {
+      hasPlayedChimeRef.current = true;
+      playPodcastChime();
+    }
+  }, [currentTime, sceneMode, soundEnabled, isPlaying]);
 
   // Loop de animação 60fps
   useEffect(() => {
@@ -2620,6 +2816,177 @@ export function CourseMotionStudio({
       ctx.restore();
     }
 
+    // =========================================================================
+    // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
+    // =========================================================================
+    else if (sceneMode === "term") {
+      const enterAnim = easeOutBack(clamp01(t / 0.55));
+      const wordAnim = easeOutBack(clamp01((t - 0.14) / 0.45));
+      const textAnim = clamp01((t - 0.28) / 0.75);
+
+      const cardW = isVert ? W - 120 : 1440;
+      const cardH = isVert ? 740 : 540;
+      const cardX = isVert ? 60 : (W - cardW) / 2;
+      const cardY = isVert ? 560 : (H - cardH) / 2;
+
+      ctx.save();
+      // Entrada com escala e slide suave
+      ctx.translate(cardX + cardW / 2, cardY + cardH / 2);
+      ctx.scale(0.88 + enterAnim * 0.12, 0.88 + enterAnim * 0.12);
+      ctx.translate(-(cardX + cardW / 2), -(cardY + cardH / 2));
+      ctx.globalAlpha = clamp01(t / 0.3);
+
+      // Brilho azul neon ambiente no fundo (quando não for Chroma Key verde)
+      if (bgTheme !== "chroma") {
+        const glow = ctx.createRadialGradient(
+          cardX + cardW / 2,
+          cardY + cardH / 2,
+          40,
+          cardX + cardW / 2,
+          cardY + cardH / 2,
+          cardW * 0.7
+        );
+        glow.addColorStop(0, "rgba(59, 130, 246, 0.2)");
+        glow.addColorStop(1, "rgba(59, 130, 246, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(cardX - 120, cardY - 120, cardW + 240, cardH + 240);
+      }
+
+      // Card Principal
+      ctx.fillStyle =
+        bgTheme === "light"
+          ? "rgba(255, 255, 255, 0.98)"
+          : "rgba(11, 18, 33, 0.94)";
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(cardX, cardY, cardW, cardH, 32);
+      ctx.fill();
+      ctx.stroke();
+
+      // Barra de Destaque Vertical Azul (Identidade Noxus)
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.roundRect(cardX + 28, cardY + 36, 8, cardH - 72, 4);
+      ctx.fill();
+
+      // Badge / Categoria Superior (ex: "✦ TERMO TÉCNICO")
+      const badgeText = `✦ ${(customTermCategory || "TERMO TÉCNICO").toUpperCase()}`;
+      ctx.font = "800 20px Inter, system-ui, sans-serif";
+      const badgeMetrics = ctx.measureText(badgeText);
+      const badgeW = badgeMetrics.width + 42;
+      const badgeH = 40;
+      const badgeX = cardX + 64;
+      const badgeY = cardY + 44;
+
+      ctx.fillStyle = "rgba(59, 130, 246, 0.16)";
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#60a5fa";
+      ctx.fillText(badgeText, badgeX + 20, badgeY + 27);
+
+      // Ícone dinâmico de áudio / onda de voz ao lado da badge
+      const waveX = badgeX + badgeW + 20;
+      const waveY = badgeY + 20;
+      for (let i = 0; i < 4; i++) {
+        const barH = 10 + Math.sin(t * 8 + i * 1.2) * 8;
+        ctx.fillStyle = "#3b82f6";
+        ctx.fillRect(waveX + i * 8, waveY - barH / 2, 4, barH);
+      }
+
+      // Palavra / Termo em Destaque Colorido com Animação Punch
+      ctx.save();
+      const termScale = 0.9 + wordAnim * 0.1;
+      const termY = badgeY + 110;
+      ctx.translate(cardX + 64, termY);
+      ctx.scale(termScale, termScale);
+
+      const displayWord = customTermWord || "Termo Técnico";
+      ctx.font = `900 ${isVert ? "52px" : "62px"} Inter, system-ui, sans-serif`;
+
+      // Tag de Fundo da Palavra com Glow Azul
+      const wordMetrics = ctx.measureText(displayWord);
+      const tagPadX = 24;
+      const tagH = isVert ? 74 : 84;
+      ctx.fillStyle = "rgba(37, 99, 235, 0.18)";
+      ctx.strokeStyle = "rgba(96, 165, 250, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(0, -tagH + 18, wordMetrics.width + tagPadX * 2, tagH, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Texto da Palavra em Azul Vibrante
+      ctx.fillStyle = "#60a5fa";
+      ctx.fillText(displayWord, tagPadX, 0);
+      ctx.restore();
+
+      // Linha Divisória de Luz Azul
+      const lineY = cardY + (isVert ? 260 : 210);
+      const lineGrad = ctx.createLinearGradient(cardX + 64, lineY, cardX + cardW - 64, lineY);
+      lineGrad.addColorStop(0, "#3b82f6");
+      lineGrad.addColorStop(0.7, "rgba(59, 130, 246, 0.4)");
+      lineGrad.addColorStop(1, "rgba(59, 130, 246, 0)");
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cardX + 64, lineY);
+      ctx.lineTo(cardX + cardW - 64, lineY);
+      ctx.stroke();
+
+      // Descrição / O que significa com Revelação Suave
+      const descY = lineY + 65;
+      ctx.font = `600 ${isVert ? "30px" : "36px"} Inter, system-ui, sans-serif`;
+      const maxTextW = cardW - 140;
+      const fullText = customTermMeaning || "Explicação clara e assertiva do termo.";
+      const wrappedLines = wrapCanvasText(ctx, fullText, maxTextW);
+
+      // Efeito de revelação progressiva dos caracteres
+      const totalChars = fullText.length;
+      const visibleChars = Math.floor(totalChars * easeOutCubic(textAnim));
+      let charsAccum = 0;
+
+      wrappedLines.forEach((line, idx) => {
+        const curLineY = descY + idx * (isVert ? 48 : 54);
+        if (curLineY > cardY + cardH - 70) return; // proteção de altura
+
+        const lineStart = charsAccum;
+        charsAccum += line.length + 1;
+
+        if (visibleChars > lineStart) {
+          const charsToShow = Math.min(line.length, visibleChars - lineStart);
+          const visibleText = line.substring(0, charsToShow);
+
+          ctx.fillStyle = bgTheme === "light" ? "#1e293b" : "#f8fafc";
+          ctx.fillText(visibleText, cardX + 68, curLineY);
+        }
+      });
+
+      // Rodapé do Card: Marca e Contexto
+      const footY = cardY + cardH - 36;
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "600 19px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        `${selectedCourse} • Luizart Tattoo`,
+        cardX + 68,
+        footY
+      );
+
+      // Selo do lado direito
+      ctx.fillStyle = "rgba(59, 130, 246, 0.9)";
+      ctx.font = "700 17px Inter, system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("GLOSSÁRIO OFICIAL", cardX + cardW - 64, footY);
+      ctx.textAlign = "left";
+
+      ctx.restore();
+    }
+
     // Barra de Progresso do Vídeo no rodapé
     ctx.fillStyle = "rgba(59, 130, 246, 0.85)";
     ctx.fillRect(0, H - 8, W * progress, 8);
@@ -2637,6 +3004,9 @@ export function CourseMotionStudio({
     customSubtitle,
     customQuote,
     customTopics,
+    customTermWord,
+    customTermMeaning,
+    customTermCategory,
     selectedCourse
   ]);
 
@@ -2660,7 +3030,35 @@ export function CourseMotionStudio({
     if (!canvas || isRecording) return;
 
     try {
-      const stream = canvas.captureStream(60);
+      const canvasStream = canvas.captureStream(60);
+      let audioTrack: MediaStreamTrack | null = null;
+      let recordAudioCtx: AudioContext | null = null;
+
+      if (sceneMode === "term" && soundEnabled) {
+        try {
+          const AudioCtxClass =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (AudioCtxClass) {
+            recordAudioCtx = new AudioCtxClass();
+            const dest = recordAudioCtx.createMediaStreamDestination();
+            playPodcastChime(dest, recordAudioCtx.currentTime + 0.18);
+            const aTracks = dest.stream.getAudioTracks();
+            if (aTracks.length > 0) {
+              audioTrack = aTracks[0];
+            }
+          }
+        } catch (e) {
+          console.warn("Não foi possível capturar áudio para gravação:", e);
+        }
+      }
+
+      const streamTracks = [...canvasStream.getVideoTracks()];
+      if (audioTrack) {
+        streamTracks.push(audioTrack);
+      }
+      const combinedStream = new MediaStream(streamTracks);
+
       let mimeType = pickMimeType(format);
       let extension: "mp4" | "webm" = format;
 
@@ -2673,7 +3071,7 @@ export function CourseMotionStudio({
       }
       if (!mimeType) throw new Error("Nenhum formato de vídeo suportado");
 
-      const recorder = new MediaRecorder(stream, {
+      const recorder = new MediaRecorder(combinedStream, {
         mimeType,
         videoBitsPerSecond: 8_000_000
       });
@@ -2684,10 +3082,15 @@ export function CourseMotionStudio({
       };
 
       recorder.onstop = () => {
+        recordAudioCtx?.close().catch(() => {});
         const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        const safeName = (customTitle || `aula-${lessonNumber}`)
+        const safeBase =
+          sceneMode === "term"
+            ? `termo-${customTermWord || "glossario"}`
+            : customTitle || `aula-${lessonNumber}`;
+        const safeName = safeBase
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "");
@@ -2724,6 +3127,7 @@ export function CourseMotionStudio({
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
+    { id: "term", label: "Termo & Significado", icon: Bookmark },
     { id: "lower_third", label: "Tarja (CapCut)", icon: Tv }
   ];
 
@@ -2913,17 +3317,19 @@ export function CourseMotionStudio({
               </div>
             </div>
 
-            {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja */}
+            {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Título</Label>
-                  <Input
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    className="h-9 text-xs"
-                  />
-                </div>
+                {sceneMode !== "term" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Título</Label>
+                    <Input
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                )}
                 {sceneMode === "quote" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Frase</Label>
@@ -2932,6 +3338,154 @@ export function CourseMotionStudio({
                       onChange={(e) => setCustomQuote(e.target.value)}
                       className="h-9 text-xs"
                     />
+                  </div>
+                )}
+
+                {/* Editor do Termo & Significado (Podcast Motion) */}
+                {sceneMode === "term" && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Palavra / Termo</Label>
+                        <Input
+                          value={customTermWord}
+                          onChange={(e) => setCustomTermWord(e.target.value)}
+                          className="h-9 text-xs font-semibold text-primary"
+                          placeholder="Ex: Triângulo de Tensão"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Categoria / Tag</Label>
+                        <Input
+                          value={customTermCategory}
+                          onChange={(e) => setCustomTermCategory(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: TERMO TÉCNICO"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Significado (Descrição)</Label>
+                      <Textarea
+                        value={customTermMeaning}
+                        onChange={(e) => setCustomTermMeaning(e.target.value)}
+                        rows={3}
+                        className="text-xs resize-none"
+                        placeholder="Ex: Os 3 dedos esticando a pele firme antes da agulha entrar..."
+                      />
+                    </div>
+
+                    {/* Controle de Áudio / Barulhinho do Podcast */}
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Barulho do Podcast (Chime)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-[11px]"
+                          onClick={() => playPodcastChime()}
+                        >
+                          Testar som
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={soundEnabled ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 px-2.5 text-[11px]"
+                          onClick={() => setSoundEnabled((v) => !v)}
+                        >
+                          {soundEnabled ? "Ligado" : "Mudo"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Sugestões Rápidas da Aula */}
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        Sugestões da Aula {lessonNumber}:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {lessonMeta.defaultTerm && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 text-[11px] font-normal"
+                            onClick={() => {
+                              setCustomTermWord(lessonMeta.defaultTerm.word);
+                              setCustomTermMeaning(lessonMeta.defaultTerm.meaning);
+                              setCustomTermCategory(
+                                lessonMeta.defaultTerm.category || "TERMO TÉCNICO"
+                              );
+                              setCurrentTime(0);
+                              setIsPlaying(true);
+                            }}
+                          >
+                            {lessonMeta.defaultTerm.word}
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[11px] font-normal"
+                          onClick={() => {
+                            setCustomTermWord("Round Liner (RL)");
+                            setCustomTermMeaning(
+                              "Agulhas soldadas em círculo fechado, ideais para traços finos e nítidos."
+                            );
+                            setCustomTermCategory("EQUIPAMENTO");
+                            setCurrentTime(0);
+                            setIsPlaying(true);
+                          }}
+                        >
+                          Round Liner
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[11px] font-normal"
+                          onClick={() => {
+                            setCustomTermWord("Derme Papilar");
+                            setCustomTermMeaning(
+                              "Camada ideal (1.5mm - 2mm) onde a tinta se fixa sem estourar."
+                            );
+                            setCustomTermCategory("ANATOMIA");
+                            setCurrentTime(0);
+                            setIsPlaying(true);
+                          }}
+                        >
+                          Derme Papilar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[11px] font-normal"
+                          onClick={() => {
+                            setCustomTermWord("Triângulo de Tensão");
+                            setCustomTermMeaning(
+                              "Técnica dos 3 dedos esticando a pele firme como um tambor."
+                            );
+                            setCustomTermCategory("MÉTODO");
+                            setCurrentTime(0);
+                            setIsPlaying(true);
+                          }}
+                        >
+                          Triângulo de Tensão
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2951,7 +3505,9 @@ export function CourseMotionStudio({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {lessonMeta.diagramTitle}
+                    {sceneMode === "term"
+                      ? `Termo: ${customTermWord || "Palavra"}`
+                      : lessonMeta.diagramTitle}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {selectedCourse} • {selectedLesson?.title}
