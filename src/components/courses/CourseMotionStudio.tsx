@@ -20,6 +20,7 @@ import {
   ListChecks,
   Smile,
   PanelLeft,
+  Hash,
   Save,
   Trash2
 } from "lucide-react";
@@ -54,7 +55,8 @@ type SceneMode =
   | "term"
   | "steps"
   | "emoji"
-  | "split";
+  | "split"
+  | "number";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -666,9 +668,13 @@ export function CourseMotionStudio({
     ""
   ]);
 
+  // Estado para Número em destaque
+  const [bigNumber, setBigNumber] = useState("150%");
+  const [bigWord, setBigWord] = useState("");
+
   // Abas do Estúdio: Cursos (aulas) ou YouTube (motions livres)
   const [studioTab, setStudioTab] = useState<"cursos" | "youtube">("cursos");
-  const YOUTUBE_MODES: SceneMode[] = ["split", "term", "steps", "emoji"];
+  const YOUTUBE_MODES: SceneMode[] = ["number", "split", "term", "steps", "emoji"];
   const changeStudioTab = (tab: "cursos" | "youtube") => {
     setStudioTab(tab);
     if (tab === "youtube") {
@@ -720,6 +726,8 @@ export function CourseMotionStudio({
         ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
         : sceneMode === "emoji"
         ? { emoji: emojiChar, caption: emojiCaption }
+        : sceneMode === "number"
+        ? { number: bigNumber, word: bigWord }
         : sceneMode === "split"
         ? {
           title: splitTitle,
@@ -752,6 +760,9 @@ export function CourseMotionStudio({
       setCustomTermWord(d.word || "");
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "number") {
+      setBigNumber(d.number || "");
+      setBigWord(d.word || "");
     } else if (item.modelo === "split") {
       if (d.number !== undefined || d.name !== undefined) {
         setSplitNumber(d.number || "");
@@ -899,7 +910,7 @@ export function CourseMotionStudio({
       hasPlayedChimeRef.current = false;
     }
     if (
-      (sceneMode === "term" || sceneMode === "emoji") &&
+      (sceneMode === "term" || sceneMode === "emoji" || sceneMode === "number") &&
       soundEnabled &&
       isPlaying &&
       currentTime >= 0.18 &&
@@ -3394,6 +3405,67 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 10: NÚMERO EM DESTAQUE (CONTAGEM SIMPLES)
+    // =========================================================================
+    else if (sceneMode === "number") {
+      const raw = bigNumber || "0";
+      const m = raw.match(/^(\D*?)(\d+(?:[.,]\d+)?)(.*)$/);
+      let shown = raw;
+      if (m) {
+        const numStr = m[2];
+        const sepMatch = numStr.match(/[.,]/);
+        const decimals = sepMatch ? numStr.length - 1 - numStr.indexOf(sepMatch[0]) : 0;
+        const target = parseFloat(numStr.replace(",", "."));
+        const prog = easeOutCubic(clamp01(t / 1.3));
+        let v = (target * prog).toFixed(decimals);
+        if (sepMatch && sepMatch[0] === ",") v = v.replace(".", ",");
+        shown = `${m[1]}${v}${m[3]}`;
+      }
+
+      const enter = easeOutBack(clamp01(t / 0.55));
+      const cx = W / 2;
+      const cy = isVert ? H * 0.45 : H * (bigWord.trim() ? 0.46 : 0.52);
+
+      let size = isVert ? 300 : 320;
+      ctx.font = `900 ${size}px Inter, system-ui, sans-serif`;
+      const fullW = ctx.measureText(raw).width;
+      const maxW = W - (isVert ? 120 : 300);
+      if (fullW > maxW) size = Math.floor((size * maxW) / fullW);
+
+      ctx.save();
+      ctx.globalAlpha = clamp01(t / 0.35);
+      ctx.translate(cx, cy);
+      ctx.scale(0.8 + 0.2 * enter, 0.8 + 0.2 * enter);
+      ctx.font = `900 ${size}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = colors.text;
+      ctx.fillText(shown, 0, 0);
+      ctx.restore();
+
+      // Traço azul que cresce embaixo
+      const barW = Math.min(fullW * 0.5, 420) * easeOutCubic(clamp01((t - 0.3) / 0.6));
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.roundRect(cx - barW / 2, cy + 40, barW, 10, 5);
+      ctx.fill();
+
+      // Palavra opcional
+      if (bigWord.trim()) {
+        const wA = easeOutCubic(clamp01((t - 0.5) / 0.5));
+        ctx.save();
+        ctx.globalAlpha = wA;
+        ctx.translate(0, (1 - wA) * 30);
+        ctx.font = `800 ${isVert ? 70 : 64}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#3b82f6";
+        ctx.fillText(bigWord.toUpperCase(), cx, cy + (isVert ? 150 : 140));
+        ctx.restore();
+      }
+      ctx.textAlign = "left";
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -3575,6 +3647,8 @@ export function CourseMotionStudio({
     emojiCaption,
     splitTitle,
     splitItems,
+    bigNumber,
+    bigWord,
     selectedCourse
   ]);
 
@@ -3609,7 +3683,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split") && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -3674,7 +3748,9 @@ export function CourseMotionStudio({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const safeBase =
-          sceneMode === "split"
+          sceneMode === "number"
+            ? `numero-${bigNumber || "destaque"}`
+            : sceneMode === "split"
             ? `meia-tela-${splitTitle || "painel"}`
             : sceneMode === "term"
             ? `termo-${customTermWord || "glossario"}`
@@ -3720,6 +3796,7 @@ export function CourseMotionStudio({
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
+    { id: "number", label: "Número", icon: Hash },
     { id: "split", label: "Meia Tela", icon: PanelLeft },
     { id: "term", label: "Termo & Significado", icon: Bookmark },
     { id: "steps", label: "Passo a Passo", icon: ListChecks },
@@ -3949,7 +4026,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && sceneMode !== "number" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -4114,6 +4191,55 @@ export function CourseMotionStudio({
                           Triângulo de Tensão
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Editor do Número */}
+                {sceneMode === "number" && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Número</Label>
+                        <Input
+                          value={bigNumber}
+                          onChange={(e) => {
+                            setBigNumber(e.target.value);
+                            setCurrentTime(0);
+                            setIsPlaying(true);
+                          }}
+                          className="h-9 text-xs font-semibold"
+                          placeholder="Ex: 150%"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Palavra (opcional)</Label>
+                        <Input
+                          value={bigWord}
+                          onChange={(e) => setBigWord(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: de aumento"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som ao aparecer</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -4302,7 +4428,7 @@ export function CourseMotionStudio({
                 )}
 
                 {/* Biblioteca de Motions salvos */}
-                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split") && (
+                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number") && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
                     <div className="flex gap-2">
@@ -4336,7 +4462,7 @@ export function CourseMotionStudio({
                             >
                               <p className="text-xs font-bold truncate">{item.nome}</p>
                               <p className="text-[11px] text-muted-foreground">
-                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : "Termo"} • {item.formato}
+                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : item.modelo === "number" ? "Número" : "Termo"} • {item.formato}
                               </p>
                             </button>
                             <Button
@@ -4371,7 +4497,9 @@ export function CourseMotionStudio({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {sceneMode === "split"
+                    {sceneMode === "number"
+                      ? `Número: ${bigNumber}`
+                      : sceneMode === "split"
                       ? `Meia tela: ${splitTitle}`
                       : sceneMode === "term"
                       ? `Termo: ${customTermWord || "Palavra"}`
