@@ -249,24 +249,24 @@ export function CourseMotionStudio({
 
   // Seleciona Aula 10 (Preparação da pele e decalque) por padrão para exibir o diagrama dos 3 dedos
   useEffect(() => {
+    setSceneType("skin_stretch");
     if (initialContentId) {
       setSelectedLessonId(initialContentId);
       return;
     }
-    if (!selectedLessonId && sortedContents.length > 0) {
+    if (sortedContents.length > 0) {
       const aula10 = sortedContents.find(
         (c) =>
           c.title.toLowerCase().includes("aula 10") ||
           c.title.toLowerCase().includes("preparação da pele")
       );
-      const withScript = sortedContents.find(
-        (c) => c.script_content && c.script_content.trim().length > 0
-      );
-      setSelectedLessonId(
-        aula10 ? aula10.id : withScript ? withScript.id : sortedContents[0].id
-      );
+      if (aula10) {
+        setSelectedLessonId(aula10.id);
+      } else if (!selectedLessonId) {
+        setSelectedLessonId(sortedContents[0].id);
+      }
     }
-  }, [sortedContents, initialContentId, selectedLessonId]);
+  }, [sortedContents, initialContentId]);
 
   const selectedLesson = useMemo(
     () => sortedContents.find((c) => c.id === selectedLessonId) || null,
@@ -1108,69 +1108,117 @@ export function CourseMotionStudio({
       ctx.lineTo(cx - 10, traceEndY);
       ctx.stroke();
 
-      // Desenha cada um dos 3 Dedos + Setas de Força de Esticamento
+      // Desenha cada um dos 3 Dedos com formato anatômico (Falange + Unha + Luva Nitrílica + Seta de Tração)
       [f1, f2, f3].forEach((fg, idx) => {
         ctx.save();
 
-        // Seta de vetor de tração para fora
-        const arrowLen = 35 + stretchProgress * 30;
-        const ax = fg.x + fg.dx * (58 + arrowLen);
-        const ay = fg.y + fg.dy * (58 + arrowLen);
+        const angle = Math.atan2(fg.dy, fg.dx);
+
+        // Corpo alongado do Dedo com Luva Preta/Azul vindo da borda até o ponto de contato
+        ctx.save();
+        ctx.translate(fg.x, fg.y);
+        ctx.rotate(angle);
+
+        // Sombra do dedo sobre a pele
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.beginPath();
+        ctx.roundRect(-34, -30, 175, 60, 30);
+        ctx.fill();
+
+        // Dedo enluvado (Luva Nitrílica Escura com borda iluminada)
+        const fingerGrad = ctx.createLinearGradient(-34, -26, 140, 26);
+        fingerGrad.addColorStop(0, "#334155");
+        fingerGrad.addColorStop(1, "#0f172a");
+        ctx.fillStyle = fingerGrad;
+        ctx.strokeStyle = statusColor;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.roundRect(-34, -26, 165, 52, 26);
+        ctx.fill();
+        ctx.stroke();
+
+        // Desenho da Unha na ponta do dedo (orientando a direção da pressão)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-24, -16, 32, 32, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Dobras da articulação da falange do dedo
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(38, -16);
+        ctx.lineTo(38, 16);
+        ctx.moveTo(46, -12);
+        ctx.lineTo(46, 12);
+        ctx.stroke();
+        ctx.restore();
+
+        // Ondas de pressão na pele ao redor da ponta do dedo
+        ctx.strokeStyle = statusColor;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(
+          fg.x,
+          fg.y,
+          44 + Math.sin(t * 6 + idx) * 4,
+          angle - 0.9,
+          angle + 0.9
+        );
+        ctx.stroke();
+
+        // Seta de vetor de tração indicando para onde o dedo puxa a pele
+        const arrowStartDist = 142;
+        const arrowEndDist = 185 + stretchProgress * 28;
+        const sx = fg.x + Math.cos(angle) * arrowStartDist;
+        const sy = fg.y + Math.sin(angle) * arrowStartDist;
+        const ax = fg.x + Math.cos(angle) * arrowEndDist;
+        const ay = fg.y + Math.sin(angle) * arrowEndDist;
 
         ctx.strokeStyle = statusColor;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 6;
         ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(fg.x + fg.dx * 50, fg.y + fg.dy * 50);
+        ctx.moveTo(sx, sy);
         ctx.lineTo(ax, ay);
         ctx.stroke();
 
         // Ponta da seta
-        const angle = Math.atan2(fg.dy, fg.dx);
         ctx.fillStyle = statusColor;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         ctx.lineTo(
-          ax - 16 * Math.cos(angle - Math.PI / 6),
-          ay - 16 * Math.sin(angle - Math.PI / 6)
+          ax - 18 * Math.cos(angle - Math.PI / 6),
+          ay - 18 * Math.sin(angle - Math.PI / 6)
         );
         ctx.lineTo(
-          ax - 16 * Math.cos(angle + Math.PI / 6),
-          ay - 16 * Math.sin(angle + Math.PI / 6)
+          ax - 18 * Math.cos(angle + Math.PI / 6),
+          ay - 18 * Math.sin(angle + Math.PI / 6)
         );
         ctx.closePath();
         ctx.fill();
 
-        // Almofada do Dedo (Formato oval de apoio na pele)
-        ctx.fillStyle = "#1e293b";
-        ctx.strokeStyle = statusColor;
-        ctx.lineWidth = 4;
+        // Selo numerado do Dedo
+        ctx.fillStyle = statusColor;
         ctx.beginPath();
-        ctx.ellipse(
-          fg.x,
-          fg.y,
-          48,
-          36,
-          idx === 0 ? -0.35 : idx === 1 ? 0.35 : 0,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(fg.x, fg.y, 18, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
 
-        // Número do Ponto de Apoio
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "900 26px Inter, system-ui, sans-serif";
+        ctx.fillStyle = "#090d16";
+        ctx.font = "900 18px Inter, system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(`${idx + 1}º`, fg.x, fg.y);
+        ctx.fillText(`${idx + 1}`, fg.x, fg.y);
 
         // Rótulo do Dedo
         ctx.textAlign = idx === 2 ? "right" : "left";
-        const labelX = idx === 2 ? fg.x + 50 : fg.x - 50;
-        const labelY = idx === 0 ? fg.y - 62 : idx === 1 ? fg.y + 62 : fg.y - 66;
+        const labelX = idx === 2 ? fg.x + 85 : fg.x - 75;
+        const labelY = idx === 0 ? fg.y - 74 : idx === 1 ? fg.y + 74 : fg.y - 78;
         ctx.fillStyle = colors.text;
-        ctx.font = "800 18px Inter, system-ui, sans-serif";
+        ctx.font = "800 19px Inter, system-ui, sans-serif";
         ctx.fillText(fg.label, labelX, labelY);
         ctx.fillStyle = colors.muted;
         ctx.font = "600 15px Inter, system-ui, sans-serif";
@@ -1178,6 +1226,36 @@ export function CourseMotionStudio({
 
         ctx.restore();
       });
+
+      // Medidor de Tensão da Pele no rodapé do Card Principal
+      const meterW = mainBoxW - 72;
+      const meterX = mainBoxX + 36;
+      const meterY = mainBoxY + mainBoxH - 54;
+      ctx.fillStyle = "rgba(148, 163, 184, 0.18)";
+      ctx.beginPath();
+      ctx.roundRect(meterX, meterY, meterW, 16, 8);
+      ctx.fill();
+
+      ctx.fillStyle = statusColor;
+      ctx.beginPath();
+      ctx.roundRect(
+        meterX,
+        meterY,
+        Math.max(16, meterW * stretchProgress),
+        16,
+        8
+      );
+      ctx.fill();
+
+      ctx.fillStyle = colors.text;
+      ctx.font = "700 16px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        `TENSÃO DA PELE: ${Math.round(stretchProgress * 100)}% ${
+          stretchProgress > 0.8 ? "(PRONTA PARA A AGULHA)" : "(ESTICANDO COM OS 3 DEDOS...)"
+        }`,
+        meterX,
+        meterY - 12
+      );
 
       // Fase 2: Entrada da Agulha SÓ DEPOIS que os 3 dedos esticaram a pele
       if (needleEntry > 0) {
