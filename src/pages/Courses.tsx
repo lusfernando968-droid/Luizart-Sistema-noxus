@@ -2669,6 +2669,7 @@ const Courses = () => {
                  --------------------------------------------------------- */
               <CourseMotionStudio
                 contents={contents}
+                courseFormats={courseFormats}
                 initialContentId={motionTargetId}
               />
             )}
