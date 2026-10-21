@@ -19,6 +19,7 @@ import {
   VolumeX,
   ListChecks,
   Smile,
+  PanelLeft,
   Save,
   Trash2
 } from "lucide-react";
@@ -52,7 +53,8 @@ type SceneMode =
   | "lower_third"
   | "term"
   | "steps"
-  | "emoji";
+  | "emoji"
+  | "split";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -653,14 +655,23 @@ export function CourseMotionStudio({
   const [emojiChar, setEmojiChar] = useState("🔥");
   const [emojiCaption, setEmojiCaption] = useState("");
 
+  // Estado para Meia Tela (painel lateral estilo podcast)
+  const [splitTitle, setSplitTitle] = useState("1º PADRÃO:");
+  const [splitItems, setSplitItems] = useState<string[]>([
+    "Texto de destaque (com detalhe opcional)",
+    "Segundo ponto da explicação",
+    "",
+    ""
+  ]);
+
   // Abas do Estúdio: Cursos (aulas) ou YouTube (motions livres)
   const [studioTab, setStudioTab] = useState<"cursos" | "youtube">("cursos");
-  const YOUTUBE_MODES: SceneMode[] = ["term", "steps", "emoji"];
+  const YOUTUBE_MODES: SceneMode[] = ["split", "term", "steps", "emoji"];
   const changeStudioTab = (tab: "cursos" | "youtube") => {
     setStudioTab(tab);
     if (tab === "youtube") {
       setAspectRatio("16:9");
-      if (!YOUTUBE_MODES.includes(sceneMode)) setSceneMode("term");
+      if (!YOUTUBE_MODES.includes(sceneMode)) setSceneMode("split");
       if (bgTheme === "chroma") setBgTheme("dark");
     }
     setCurrentTime(0);
@@ -707,6 +718,8 @@ export function CourseMotionStudio({
         ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
         : sceneMode === "emoji"
         ? { emoji: emojiChar, caption: emojiCaption }
+        : sceneMode === "split"
+        ? { title: splitTitle, items: splitItems.filter((s) => s.trim()) }
         : { title: stepsTitle, steps: stepsItems.filter((s) => s.trim()) };
     const { error } = await supabase.from("motion_biblioteca").insert({
       nome,
@@ -732,6 +745,10 @@ export function CourseMotionStudio({
       setCustomTermWord(d.word || "");
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "split") {
+      setSplitTitle(d.title || "");
+      const arr: string[] = Array.isArray(d.items) ? d.items : [];
+      setSplitItems([0, 1, 2, 3].map((i) => arr[i] || ""));
     } else if (item.modelo === "emoji") {
       setEmojiChar(d.emoji || "🔥");
       setEmojiCaption(d.caption || "");
@@ -835,6 +852,20 @@ export function CourseMotionStudio({
     setCurrentTime(0);
     setIsPlaying(true);
   }, [selectedLessonId, extractedData, selectedLesson, selectedCourse, lessonMeta]);
+
+  // Som a cada ponto que aparece na Meia Tela
+  const lastSplitChimeRef = useRef(-1);
+  useEffect(() => {
+    if (currentTime < 0.1) lastSplitChimeRef.current = -1;
+    if (sceneMode !== "split" || !soundEnabled || !isPlaying) return;
+    const n = splitItems.filter((s) => s.trim()).length;
+    for (let i = 0; i < n; i++) {
+      if (currentTime >= 0.6 + i * 0.9 && lastSplitChimeRef.current < i) {
+        lastSplitChimeRef.current = i;
+        playPodcastChime();
+      }
+    }
+  }, [currentTime, sceneMode, soundEnabled, isPlaying, splitItems]);
 
   // Som a cada passo que aparece no Passo a Passo
   useEffect(() => {
@@ -3217,6 +3248,139 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 9: MEIA TELA (PAINEL COM GRADE + LINHA AZUL, LADO LIVRE PARA O VÍDEO)
+    // =========================================================================
+    else if (sceneMode === "split") {
+      const pw = isVert ? W : W / 2;
+      const ph = isVert ? H / 2 : H;
+
+      // Libera a outra metade (vídeo/transparente)
+      if (isVert) ctx.clearRect(0, ph, W, H - ph);
+      else ctx.clearRect(pw, 0, W - pw, H);
+
+      // Painel com grade de linhas
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, pw, ph);
+      ctx.clip();
+      const pg = ctx.createLinearGradient(0, 0, pw, ph);
+      pg.addColorStop(0, colors.bg1);
+      pg.addColorStop(1, colors.bg2);
+      ctx.fillStyle = pg;
+      ctx.fillRect(0, 0, pw, ph);
+      ctx.strokeStyle =
+        bgTheme === "light" ? "rgba(15, 23, 42, 0.10)" : "rgba(255, 255, 255, 0.11)";
+      ctx.lineWidth = 2;
+      const gs = 64;
+      const off = (t * 8) % gs;
+      for (let x = -gs + off; x < pw + gs; x += gs) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, ph);
+        ctx.stroke();
+      }
+      for (let y = -gs + off; y < ph + gs; y += gs) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(pw, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Linha azul divisória
+      ctx.save();
+      ctx.shadowColor = "#3b82f6";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "#3b82f6";
+      if (isVert) ctx.fillRect(0, ph - 4, W, 8);
+      else ctx.fillRect(pw - 4, 0, 8, ph);
+      ctx.restore();
+
+      const mx = isVert ? 70 : 80;
+      const textW = pw - mx * 2 - 20;
+
+      // Título azul em destaque
+      const tA = easeOutCubic(clamp01(t / 0.55));
+      ctx.save();
+      ctx.globalAlpha = tA;
+      ctx.translate((1 - tA) * -60, 0);
+      ctx.fillStyle = "#3b82f6";
+      const titleSize = isVert ? 84 : Math.min(104, Math.round(pw * 0.115));
+      ctx.font = `900 ${titleSize}px Inter, system-ui, sans-serif`;
+      const titleY = isVert ? 150 : ph * 0.2;
+      ctx.fillText((splitTitle || "").toUpperCase(), mx, titleY);
+      ctx.restore();
+
+      // Pontos com palavras fora de parênteses em destaque e parênteses suaves
+      const items = splitItems.filter((s) => s.trim());
+      const bodySize = isVert ? 36 : 42;
+      const lineH = bodySize * 1.32;
+      const boldFont = `800 ${bodySize}px Inter, system-ui, sans-serif`;
+      const lightFont = `500 ${bodySize - 4}px Inter, system-ui, sans-serif`;
+      let cursorY = titleY + (isVert ? 90 : 110);
+
+      items.forEach((raw, i) => {
+        const a = easeOutCubic(clamp01((t - 0.6 - i * 0.9) / 0.5));
+
+        // Quebra em palavras marcando o que está entre parênteses
+        const words: Array<{ w: string; light: boolean }> = [];
+        let depth = 0;
+        let cur = "";
+        const flush = () => {
+          if (cur) words.push({ w: cur, light: depth > 0 });
+          cur = "";
+        };
+        for (const ch of raw) {
+          if (ch === "(") {
+            flush();
+            depth++;
+            cur = ch;
+          } else if (ch === ")") {
+            cur += ch;
+            flush();
+            depth = Math.max(0, depth - 1);
+          } else if (ch === " ") {
+            flush();
+          } else cur += ch;
+        }
+        flush();
+
+        const lines: Array<Array<{ w: string; light: boolean; x: number }>> = [[]];
+        let lx = 0;
+        words.forEach((wd) => {
+          ctx.font = wd.light ? lightFont : boldFont;
+          const ww = ctx.measureText(wd.w + " ").width;
+          if (lx + ww > textW - 34 && lx > 0) {
+            lines.push([]);
+            lx = 0;
+          }
+          lines[lines.length - 1].push({ ...wd, x: lx });
+          lx += ww;
+        });
+
+        const itemTop = cursorY;
+        if (a > 0) {
+          ctx.save();
+          ctx.globalAlpha = a;
+          ctx.translate(0, (1 - a) * 30);
+          ctx.fillStyle = "#3b82f6";
+          ctx.beginPath();
+          ctx.arc(mx + 8, itemTop - bodySize * 0.32, 8, 0, Math.PI * 2);
+          ctx.fill();
+          lines.forEach((ln, li) => {
+            ln.forEach((wd) => {
+              ctx.font = wd.light ? lightFont : boldFont;
+              ctx.fillStyle = wd.light ? colors.muted : colors.text;
+              ctx.fillText(wd.w, mx + 34 + wd.x, itemTop + li * lineH);
+            });
+          });
+          ctx.restore();
+        }
+        cursorY += lines.length * lineH + (isVert ? 34 : 44);
+      });
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -3371,7 +3535,7 @@ export function CourseMotionStudio({
     }
 
     // Barra de Progresso do Vídeo no rodapé (oculta no fundo transparente)
-    if (bgTheme !== "transparent") {
+    if (bgTheme !== "transparent" && sceneMode !== "split") {
       ctx.fillStyle = "rgba(59, 130, 246, 0.85)";
       ctx.fillRect(0, H - 8, W * progress, 8);
     }
@@ -3396,6 +3560,8 @@ export function CourseMotionStudio({
     stepsItems,
     emojiChar,
     emojiCaption,
+    splitTitle,
+    splitItems,
     selectedCourse
   ]);
 
@@ -3419,9 +3585,9 @@ export function CourseMotionStudio({
     if (!canvas || isRecording) return;
 
     // MP4 (H.264) não suporta transparência: fundo transparente só em WebM
-    const format: "mp4" | "webm" =
-      bgTheme === "transparent" ? "webm" : requestedFormat;
-    if (bgTheme === "transparent" && requestedFormat === "mp4") {
+    const needsAlpha = bgTheme === "transparent" || sceneMode === "split";
+    const format: "mp4" | "webm" = needsAlpha ? "webm" : requestedFormat;
+    if (needsAlpha && requestedFormat === "mp4") {
       toast.info("Fundo transparente só funciona em WebM. Baixando em WebM.");
     }
 
@@ -3430,7 +3596,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji") && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -3438,7 +3604,12 @@ export function CourseMotionStudio({
           if (AudioCtxClass) {
             recordAudioCtx = new AudioCtxClass();
             const dest = recordAudioCtx.createMediaStreamDestination();
-            if (sceneMode === "steps") {
+            if (sceneMode === "split") {
+              const n = splitItems.filter((s) => s.trim()).length;
+              for (let i = 0; i < n; i++) {
+                playPodcastChime(dest, recordAudioCtx.currentTime + 0.6 + i * 0.9);
+              }
+            } else if (sceneMode === "steps") {
               const n = stepsItems.filter((s) => s.trim()).length;
               for (let i = 0; i < n; i++) {
                 playPodcastChime(dest, recordAudioCtx.currentTime + 0.5 + i * 0.8);
@@ -3490,7 +3661,9 @@ export function CourseMotionStudio({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const safeBase =
-          sceneMode === "term"
+          sceneMode === "split"
+            ? `meia-tela-${splitTitle || "painel"}`
+            : sceneMode === "term"
             ? `termo-${customTermWord || "glossario"}`
             : sceneMode === "emoji"
             ? `emoji-${emojiCaption || "animado"}`
@@ -3534,6 +3707,7 @@ export function CourseMotionStudio({
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
+    { id: "split", label: "Meia Tela", icon: PanelLeft },
     { id: "term", label: "Termo & Significado", icon: Bookmark },
     { id: "steps", label: "Passo a Passo", icon: ListChecks },
     { id: "emoji", label: "Emoji Animado", icon: Smile },
@@ -3762,7 +3936,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -3931,6 +4105,56 @@ export function CourseMotionStudio({
                   </div>
                 )}
 
+                {/* Editor da Meia Tela */}
+                {sceneMode === "split" && (
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Título</Label>
+                      <Input
+                        value={splitTitle}
+                        onChange={(e) => setSplitTitle(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Ex: 3º PADRÃO:"
+                      />
+                    </div>
+                    {splitItems.map((s, i) => (
+                      <div key={i} className="space-y-1">
+                        <Label className="text-xs font-semibold">Ponto {i + 1}</Label>
+                        <Textarea
+                          value={s}
+                          rows={2}
+                          onChange={(e) =>
+                            setSplitItems((prev) =>
+                              prev.map((p, idx) => (idx === i ? e.target.value : p))
+                            )
+                          }
+                          className="text-xs resize-none"
+                          placeholder="Texto (o que ficar entre parênteses sai mais suave)"
+                        />
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som a cada ponto</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Editor do Emoji Animado */}
                 {sceneMode === "emoji" && (
                   <div className="space-y-2.5">
@@ -4054,7 +4278,7 @@ export function CourseMotionStudio({
                 )}
 
                 {/* Biblioteca de Motions salvos */}
-                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji") && (
+                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split") && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
                     <div className="flex gap-2">
@@ -4088,7 +4312,7 @@ export function CourseMotionStudio({
                             >
                               <p className="text-xs font-bold truncate">{item.nome}</p>
                               <p className="text-[11px] text-muted-foreground">
-                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : "Termo"} • {item.formato}
+                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : "Termo"} • {item.formato}
                               </p>
                             </button>
                             <Button
@@ -4123,7 +4347,9 @@ export function CourseMotionStudio({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {sceneMode === "term"
+                    {sceneMode === "split"
+                      ? `Meia tela: ${splitTitle}`
+                      : sceneMode === "term"
                       ? `Termo: ${customTermWord || "Palavra"}`
                       : sceneMode === "emoji"
                       ? `Ícone: ${(EMOJI_PRESETS.find((p) => p.emoji === emojiChar) || EMOJI_PRESETS[0]).label}`
@@ -4165,7 +4391,7 @@ export function CourseMotionStudio({
             <div className="w-full bg-muted/40 rounded-xl border overflow-hidden flex items-center justify-center p-2 sm:p-4">
               <div
                 style={
-                  bgTheme === "transparent"
+                  bgTheme === "transparent" || sceneMode === "split"
                     ? {
                         backgroundColor: "#ffffff",
                         backgroundImage:
