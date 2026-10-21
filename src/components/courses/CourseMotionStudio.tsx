@@ -18,6 +18,7 @@ import {
   Volume2,
   VolumeX,
   ListChecks,
+  Smile,
   Save,
   Trash2
 } from "lucide-react";
@@ -50,7 +51,8 @@ type SceneMode =
   | "quote"
   | "lower_third"
   | "term"
-  | "steps";
+  | "steps"
+  | "emoji";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -77,6 +79,28 @@ function detectLessonNumber(title: string): number {
   if (numMatch) return parseInt(numMatch[1], 10);
   return 1;
 }
+
+// Emojis animados do Estúdio (cada um com sua própria animação)
+type EmojiAnim =
+  | "flicker"
+  | "pop"
+  | "glow"
+  | "stamp"
+  | "shake"
+  | "bounce"
+  | "clap"
+  | "heartbeat";
+
+const EMOJI_PRESETS: Array<{ emoji: string; label: string; anim: EmojiAnim }> = [
+  { emoji: "🔥", label: "Fogo", anim: "flicker" },
+  { emoji: "🤯", label: "Mente explodindo", anim: "pop" },
+  { emoji: "💡", label: "Ideia", anim: "glow" },
+  { emoji: "✅", label: "Certo", anim: "stamp" },
+  { emoji: "⚠️", label: "Atenção", anim: "shake" },
+  { emoji: "💰", label: "Dinheiro", anim: "bounce" },
+  { emoji: "👏", label: "Palmas", anim: "clap" },
+  { emoji: "❤️", label: "Amei", anim: "heartbeat" }
+];
 
 // Síntese de Áudio Web (Efeito Sonoro / Chime estilo Podcast de Alta Produção)
 function playPodcastChime(
@@ -564,6 +588,10 @@ export function CourseMotionStudio({
   const [stepsItems, setStepsItems] = useState<string[]>(["", "", "", ""]);
   const lastStepChimeRef = useRef(-1);
 
+  // Estado para Emoji Animado
+  const [emojiChar, setEmojiChar] = useState("🔥");
+  const [emojiCaption, setEmojiCaption] = useState("");
+
   // Biblioteca de Motions salvos (Supabase: luizart.motion_biblioteca)
   type LibraryItem = {
     id: string;
@@ -602,6 +630,8 @@ export function CourseMotionStudio({
     const dados =
       sceneMode === "term"
         ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
+        : sceneMode === "emoji"
+        ? { emoji: emojiChar, caption: emojiCaption }
         : { title: stepsTitle, steps: stepsItems.filter((s) => s.trim()) };
     const { error } = await supabase.from("motion_biblioteca").insert({
       nome,
@@ -627,6 +657,9 @@ export function CourseMotionStudio({
       setCustomTermWord(d.word || "");
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "emoji") {
+      setEmojiChar(d.emoji || "🔥");
+      setEmojiCaption(d.caption || "");
     } else if (item.modelo === "steps") {
       setStepsTitle(d.title || "");
       const arr: string[] = Array.isArray(d.steps) ? d.steps : [];
@@ -747,7 +780,7 @@ export function CourseMotionStudio({
       hasPlayedChimeRef.current = false;
     }
     if (
-      sceneMode === "term" &&
+      (sceneMode === "term" || sceneMode === "emoji") &&
       soundEnabled &&
       isPlaying &&
       currentTime >= 0.18 &&
@@ -2996,6 +3029,140 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 8: EMOJI ANIMADO (IDENTIDADE AZUL)
+    // =========================================================================
+    else if (sceneMode === "emoji") {
+      const preset =
+        EMOJI_PRESETS.find((p) => p.emoji === emojiChar) || EMOJI_PRESETS[0];
+      const R = isVert ? 300 : 250;
+      const cx = W / 2;
+      const cy = isVert ? H * 0.42 : H * (emojiCaption ? 0.4 : 0.48);
+      const enter = easeOutBack(clamp01(t / 0.6));
+
+      // Ondas azuis expandindo
+      for (let k = 0; k < 3; k++) {
+        const ph = (t * 0.7 + k / 3) % 1;
+        ctx.save();
+        ctx.globalAlpha = clamp01(t / 0.4) * (1 - ph) * 0.55;
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * enter * (1 + ph * 0.65), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Disco azul de fundo
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(enter, enter);
+      const disc = ctx.createRadialGradient(0, -R * 0.3, R * 0.1, 0, 0, R);
+      disc.addColorStop(0, "rgba(96, 165, 250, 0.55)");
+      disc.addColorStop(1, "rgba(29, 78, 216, 0.85)");
+      ctx.fillStyle = disc;
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Animação própria de cada emoji
+      let sx = 1, sy = 1, tx = 0, ty = 0, rot = 0, glow = 0;
+      switch (preset.anim) {
+        case "flicker":
+          sy = 1 + 0.07 * Math.sin(t * 14);
+          sx = 1 - 0.03 * Math.sin(t * 14);
+          rot = 0.05 * Math.sin(t * 9);
+          break;
+        case "pop":
+          sx = sy = 1 + 0.12 * Math.sin(t * 6);
+          break;
+        case "glow":
+          sx = sy = 1 + 0.05 * Math.sin(t * 4);
+          glow = 50 + 40 * Math.sin(t * 4);
+          break;
+        case "stamp": {
+          const s = 1 + (1 - easeOutBack(clamp01(t / 0.6))) * 1.2;
+          sx = sy = Math.max(s, 0.01);
+          break;
+        }
+        case "shake":
+          tx = Math.sin(t * 45) * 16 * Math.max(0, Math.sin(t * 3));
+          break;
+        case "bounce":
+          ty = -Math.abs(Math.sin(t * 4)) * 60;
+          break;
+        case "clap":
+          sx = sy = 1 + 0.16 * Math.max(0, Math.sin(t * 10));
+          rot = 0.12 * Math.sin(t * 10);
+          break;
+        case "heartbeat":
+          sx = sy = 1 + 0.18 * Math.pow(Math.max(0, Math.sin(t * 7)), 3);
+          break;
+      }
+      ctx.translate(tx, ty);
+      ctx.rotate(rot);
+      ctx.scale(sx, sy);
+      ctx.shadowColor = "#60a5fa";
+      ctx.shadowBlur = glow;
+      ctx.font = `${Math.round(R * 1.15)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(preset.emoji, 0, R * 0.06);
+      ctx.restore();
+
+      // Brilhos azuis orbitando
+      for (let k = 0; k < 8; k++) {
+        const ang = (k * Math.PI) / 4 + t * 0.6;
+        const rr = R * 1.28;
+        const px = cx + Math.cos(ang) * rr;
+        const py = cy + Math.sin(ang) * rr;
+        const sz = (10 + 7 * Math.sin(t * 5 + k)) * enter;
+        ctx.save();
+        ctx.fillStyle = k % 2 ? "#60a5fa" : "#3b82f6";
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const r2 = i % 2 === 0 ? sz : sz * 0.3;
+          const a2 = (i * Math.PI) / 4;
+          ctx.lineTo(Math.cos(a2) * r2, Math.sin(a2) * r2);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Legenda opcional
+      if (emojiCaption.trim()) {
+        const capAnim = easeOutCubic(clamp01((t - 0.4) / 0.5));
+        ctx.save();
+        ctx.globalAlpha = capAnim;
+        ctx.translate(0, (1 - capAnim) * 40);
+        ctx.font = `900 ${isVert ? 64 : 58}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        const capLines = wrapCanvasText(ctx, emojiCaption, totalW).slice(0, 2);
+        const capY = cy + R + (isVert ? 150 : 110);
+        const wMax = Math.max(...capLines.map((l) => ctx.measureText(l).width));
+        const boxH = capLines.length * 76 + 36;
+        ctx.fillStyle = colors.card;
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.roundRect(cx - wMax / 2 - 40, capY - 66, wMax + 80, boxH, 28);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = colors.text;
+        capLines.forEach((ln, i) => ctx.fillText(ln, cx, capY + i * 76));
+        ctx.restore();
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -3173,6 +3340,8 @@ export function CourseMotionStudio({
     customTermCategory,
     stepsTitle,
     stepsItems,
+    emojiChar,
+    emojiCaption,
     selectedCourse
   ]);
 
@@ -3207,7 +3376,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if ((sceneMode === "term" || sceneMode === "steps") && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -3269,6 +3438,8 @@ export function CourseMotionStudio({
         const safeBase =
           sceneMode === "term"
             ? `termo-${customTermWord || "glossario"}`
+            : sceneMode === "emoji"
+            ? `emoji-${emojiCaption || "animado"}`
             : sceneMode === "steps"
             ? `passos-${stepsTitle || "passo-a-passo"}`
             : customTitle || `aula-${lessonNumber}`;
@@ -3311,6 +3482,7 @@ export function CourseMotionStudio({
     { id: "quote", label: "Frase Destaque", icon: Quote },
     { id: "term", label: "Termo & Significado", icon: Bookmark },
     { id: "steps", label: "Passo a Passo", icon: ListChecks },
+    { id: "emoji", label: "Emoji Animado", icon: Smile },
     { id: "lower_third", label: "Tarja (CapCut)", icon: Tv }
   ];
 
@@ -3504,7 +3676,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && sceneMode !== "steps" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -3673,6 +3845,64 @@ export function CourseMotionStudio({
                   </div>
                 )}
 
+                {/* Editor do Emoji Animado */}
+                {sceneMode === "emoji" && (
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Emoji</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {EMOJI_PRESETS.map((p) => (
+                          <button
+                            key={p.emoji}
+                            type="button"
+                            title={p.label}
+                            onClick={() => {
+                              setEmojiChar(p.emoji);
+                              setCurrentTime(0);
+                              setIsPlaying(true);
+                            }}
+                            className={`h-12 rounded-lg border text-2xl transition-all ${
+                              emojiChar === p.emoji
+                                ? "bg-primary/10 border-primary/40"
+                                : "bg-background border-border hover:bg-muted/50"
+                            }`}
+                          >
+                            {p.emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Legenda (opcional)</Label>
+                      <Input
+                        value={emojiCaption}
+                        onChange={(e) => setEmojiCaption(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Ex: Atenção!"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som ao aparecer</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Editor do Passo a Passo */}
                 {sceneMode === "steps" && (
                   <div className="space-y-2.5">
@@ -3725,7 +3955,7 @@ export function CourseMotionStudio({
                 )}
 
                 {/* Biblioteca de Motions salvos */}
-                {(sceneMode === "term" || sceneMode === "steps") && (
+                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji") && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
                     <div className="flex gap-2">
@@ -3759,7 +3989,7 @@ export function CourseMotionStudio({
                             >
                               <p className="text-xs font-bold truncate">{item.nome}</p>
                               <p className="text-[11px] text-muted-foreground">
-                                {item.modelo === "steps" ? "Passo a Passo" : "Termo"} • {item.formato}
+                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : "Termo"} • {item.formato}
                               </p>
                             </button>
                             <Button
@@ -3796,6 +4026,8 @@ export function CourseMotionStudio({
                   <p className="text-sm font-bold text-foreground truncate">
                     {sceneMode === "term"
                       ? `Termo: ${customTermWord || "Palavra"}`
+                      : sceneMode === "emoji"
+                      ? `Emoji: ${emojiChar}`
                       : sceneMode === "steps"
                       ? `Passo a passo: ${stepsTitle || ""}`
                       : lessonMeta.diagramTitle}
