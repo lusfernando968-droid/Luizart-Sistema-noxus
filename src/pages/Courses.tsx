@@ -25,8 +25,10 @@ import {
   FolderOpen,
   Link as LinkIcon,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Sparkles
 } from "lucide-react";
+import { CourseMotionStudio } from "@/components/courses/CourseMotionStudio";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
@@ -303,7 +305,8 @@ const RichScriptEditor = ({
 
 const Courses = () => {
   const [activeTab, setActiveTab] = useState("producao");
-  const [bastidoresSubTab, setBastidoresSubTab] = useState<"fila" | "dados">("fila");
+  const [bastidoresSubTab, setBastidoresSubTab] = useState<"fila" | "dados" | "motion">("fila");
+  const [motionTargetId, setMotionTargetId] = useState<string | null>(null);
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isRegisterStudentModalOpen, setIsRegisterStudentModalOpen] = useState(false);
@@ -1580,6 +1583,18 @@ const Courses = () => {
                   <BarChart3 className="h-3.5 w-3.5" />
                   Análise de Dados & Gráficos
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setBastidoresSubTab("motion")}
+                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    bastidoresSubTab === "motion"
+                      ? "bg-card text-primary shadow-sm border border-primary/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  Estúdio de Motion
+                </button>
               </div>
 
               <Button
@@ -1917,6 +1932,18 @@ const Courses = () => {
                                       variant="outline"
                                       size="sm"
                                       className="h-8 text-xs gap-1.5"
+                                      onClick={() => {
+                                        setMotionTargetId(item.id);
+                                        setBastidoresSubTab("motion");
+                                      }}
+                                    >
+                                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                      Motion
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 text-xs gap-1.5"
                                       onClick={() => setSelectedContentId(item.id)}
                                     >
                                       <ListChecks className="h-3.5 w-3.5" />
@@ -1941,7 +1968,7 @@ const Courses = () => {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : bastidoresSubTab === "dados" ? (
               /* ---------------------------------------------------------
                  SUBPÁGINA 2: ANÁLISE DE DADOS & GRÁFICOS DE PRODUÇÃO
                  --------------------------------------------------------- */
@@ -2636,6 +2663,14 @@ const Courses = () => {
                   </div>
                 </div>
               </div>
+            ) : (
+              /* ---------------------------------------------------------
+                 SUBPÁGINA 3: ESTÚDIO DE MOTION GRAPHICS (IA)
+                 --------------------------------------------------------- */
+              <CourseMotionStudio
+                contents={contents}
+                initialContentId={motionTargetId}
+              />
             )}
           </TabsContent>
 
