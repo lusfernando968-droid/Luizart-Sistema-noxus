@@ -21,6 +21,7 @@ import {
   Smile,
   PanelLeft,
   Hash,
+  BarChart3,
   Save,
   Trash2
 } from "lucide-react";
@@ -56,7 +57,8 @@ type SceneMode =
   | "steps"
   | "emoji"
   | "split"
-  | "number";
+  | "number"
+  | "chart";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -672,9 +674,21 @@ export function CourseMotionStudio({
   const [bigNumber, setBigNumber] = useState("150%");
   const [bigWord, setBigWord] = useState("");
 
+  // Estado para Gráfico animado
+  const [chartType, setChartType] = useState<"bars" | "line">("bars");
+  const [chartTitle, setChartTitle] = useState("Crescimento");
+  const [chartRows, setChartRows] = useState<Array<{ label: string; value: string }>>([
+    { label: "Jan", value: "20" },
+    { label: "Fev", value: "45" },
+    { label: "Mar", value: "70" },
+    { label: "Abr", value: "100" },
+    { label: "", value: "" },
+    { label: "", value: "" }
+  ]);
+
   // Abas do Estúdio: Cursos (aulas) ou YouTube (motions livres)
   const [studioTab, setStudioTab] = useState<"cursos" | "youtube">("cursos");
-  const YOUTUBE_MODES: SceneMode[] = ["number", "split", "term", "steps", "emoji"];
+  const YOUTUBE_MODES: SceneMode[] = ["chart", "number", "split", "term", "steps", "emoji"];
   const changeStudioTab = (tab: "cursos" | "youtube") => {
     setStudioTab(tab);
     if (tab === "youtube") {
@@ -726,6 +740,12 @@ export function CourseMotionStudio({
         ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
         : sceneMode === "emoji"
         ? { emoji: emojiChar, caption: emojiCaption }
+        : sceneMode === "chart"
+        ? {
+            type: chartType,
+            title: chartTitle,
+            rows: chartRows.filter((r) => r.label.trim() || r.value.trim())
+          }
         : sceneMode === "number"
         ? { number: bigNumber, word: bigWord }
         : sceneMode === "split"
@@ -760,6 +780,16 @@ export function CourseMotionStudio({
       setCustomTermWord(d.word || "");
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "chart") {
+      setChartType(d.type === "line" ? "line" : "bars");
+      setChartTitle(d.title || "");
+      const arr: Array<{ label: string; value: string }> = Array.isArray(d.rows) ? d.rows : [];
+      setChartRows(
+        [0, 1, 2, 3, 4, 5].map((i) => ({
+          label: arr[i]?.label || "",
+          value: arr[i]?.value || ""
+        }))
+      );
     } else if (item.modelo === "number") {
       setBigNumber(d.number || "");
       setBigWord(d.word || "");
@@ -910,7 +940,7 @@ export function CourseMotionStudio({
       hasPlayedChimeRef.current = false;
     }
     if (
-      (sceneMode === "term" || sceneMode === "emoji" || sceneMode === "number") &&
+      (sceneMode === "term" || sceneMode === "emoji" || sceneMode === "number" || sceneMode === "chart") &&
       soundEnabled &&
       isPlaying &&
       currentTime >= 0.18 &&
@@ -3466,6 +3496,172 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 11: GRÁFICO ANIMADO (BARRAS OU LINHA)
+    // =========================================================================
+    else if (sceneMode === "chart") {
+      type Pt = { label: string; num: number; pre: string; suf: string; dec: number };
+      const pts: Pt[] = chartRows
+        .filter((r) => r.label.trim() || r.value.trim())
+        .map((r) => {
+          const mm = (r.value || "0").match(/^(\D*?)(-?\d+(?:[.,]\d+)?)(.*)$/);
+          if (!mm) return { label: r.label, num: 0, pre: "", suf: "", dec: 0 };
+          const sepM = mm[2].match(/[.,]/);
+          return {
+            label: r.label,
+            num: parseFloat(mm[2].replace(",", ".")),
+            pre: mm[1],
+            suf: mm[3],
+            dec: sepM ? mm[2].length - 1 - mm[2].indexOf(sepM[0]) : 0
+          };
+        });
+      const n = pts.length;
+
+      // Título
+      const hA = easeOutCubic(clamp01(t / 0.5));
+      ctx.save();
+      ctx.globalAlpha = hA;
+      ctx.fillStyle = colors.text;
+      ctx.font = `900 ${isVert ? 70 : 60}px Inter, system-ui, sans-serif`;
+      ctx.fillText(chartTitle || "", padX, isVert ? 300 : 140);
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.roundRect(padX, (isVert ? 300 : 140) + 24, 90 * hA, 8, 4);
+      ctx.fill();
+      ctx.restore();
+
+      if (n > 0) {
+        const left = padX;
+        const right = W - padX;
+        const top = isVert ? 520 : 270;
+        const baseY = (isVert ? H - 440 : H - 170) - 60;
+        const innerH = baseY - top - 70;
+        const maxV = Math.max(...pts.map((p) => p.num), 1) * 1.08;
+        const slot = (right - left) / n;
+        const fmt = (p: Pt, k: number) => {
+          let v = (p.num * k).toFixed(p.dec);
+          if (p.dec > 0) v = v.replace(".", ",");
+          return `${p.pre}${v}${p.suf}`;
+        };
+
+        // Linhas de grade suaves e eixo
+        ctx.save();
+        ctx.strokeStyle =
+          bgTheme === "light" ? "rgba(15, 23, 42, 0.12)" : "rgba(255, 255, 255, 0.12)";
+        ctx.lineWidth = 2;
+        for (let g = 1; g <= 4; g++) {
+          const gy = baseY - (innerH * g) / 4;
+          ctx.globalAlpha = clamp01(t / 0.5);
+          ctx.beginPath();
+          ctx.moveTo(left, gy);
+          ctx.lineTo(right, gy);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = clamp01(t / 0.5);
+        ctx.strokeStyle = colors.muted;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(left, baseY);
+        ctx.lineTo(right, baseY);
+        ctx.stroke();
+        ctx.restore();
+
+        const labelSize = isVert ? 30 : 28;
+        const valSize = isVert ? 38 : 36;
+        const topIdx = pts.reduce((bi, p, i) => (p.num > pts[bi].num ? i : bi), 0);
+
+        if (chartType === "bars") {
+          const bw = Math.min(slot * 0.56, 180);
+          pts.forEach((p, i) => {
+            const k = easeOutCubic(clamp01((t - 0.3 - i * 0.18) / 0.8));
+            const h = (p.num / maxV) * innerH * k;
+            const bx = left + slot * i + (slot - bw) / 2;
+            ctx.fillStyle = i === topIdx ? "#60a5fa" : "#3b82f6";
+            ctx.beginPath();
+            ctx.roundRect(bx, baseY - h, bw, Math.max(h, 0.1), [14, 14, 0, 0]);
+            ctx.fill();
+
+            ctx.textAlign = "center";
+            ctx.fillStyle = colors.muted;
+            ctx.font = `600 ${labelSize}px Inter, system-ui, sans-serif`;
+            ctx.fillText(p.label, bx + bw / 2, baseY + 50);
+
+            ctx.globalAlpha = clamp01(k * 1.5);
+            ctx.fillStyle = colors.text;
+            ctx.font = `800 ${valSize}px Inter, system-ui, sans-serif`;
+            ctx.fillText(fmt(p, k), bx + bw / 2, baseY - h - 18);
+            ctx.globalAlpha = 1;
+          });
+        } else {
+          const xs = pts.map((_, i) => left + slot * i + slot / 2);
+          const ys = pts.map((p) => baseY - (p.num / maxV) * innerH);
+          const prog = easeOutCubic(clamp01((t - 0.3) / 1.7)) * (n - 1);
+
+          const pathTo = (c: CanvasRenderingContext2D, upTo: number) => {
+            c.moveTo(xs[0], ys[0]);
+            for (let i = 1; i <= Math.floor(upTo); i++) c.lineTo(xs[i], ys[i]);
+            const fl = Math.floor(upTo);
+            if (fl < n - 1) {
+              const fr = upTo - fl;
+              c.lineTo(xs[fl] + (xs[fl + 1] - xs[fl]) * fr, ys[fl] + (ys[fl + 1] - ys[fl]) * fr);
+            }
+          };
+          const endIdx = Math.min(Math.floor(prog), n - 1);
+          const fr = prog - Math.floor(prog);
+          const endX = endIdx < n - 1 ? xs[endIdx] + (xs[endIdx + 1] - xs[endIdx]) * fr : xs[n - 1];
+
+          if (n > 1) {
+            // Área suave sob a linha
+            const ag = ctx.createLinearGradient(0, top, 0, baseY);
+            ag.addColorStop(0, "rgba(59, 130, 246, 0.28)");
+            ag.addColorStop(1, "rgba(59, 130, 246, 0)");
+            ctx.save();
+            ctx.beginPath();
+            pathTo(ctx, prog);
+            ctx.lineTo(endX, baseY);
+            ctx.lineTo(xs[0], baseY);
+            ctx.closePath();
+            ctx.fillStyle = ag;
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.strokeStyle = "#3b82f6";
+            ctx.lineWidth = 8;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            pathTo(ctx, prog);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          pts.forEach((p, i) => {
+            ctx.textAlign = "center";
+            ctx.fillStyle = colors.muted;
+            ctx.font = `600 ${labelSize}px Inter, system-ui, sans-serif`;
+            ctx.fillText(p.label, xs[i], baseY + 50);
+            if (prog >= i - 0.001) {
+              const pa = easeOutBack(clamp01((prog - i) / 0.35 + (i === 0 ? 1 : 0)));
+              ctx.fillStyle = "#3b82f6";
+              ctx.beginPath();
+              ctx.arc(xs[i], ys[i], 14 * pa, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = colors.text;
+              ctx.beginPath();
+              ctx.arc(xs[i], ys[i], 6 * pa, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = clamp01(pa);
+              ctx.font = `800 ${valSize}px Inter, system-ui, sans-serif`;
+              ctx.fillText(fmt(p, 1), xs[i], ys[i] - 30);
+              ctx.globalAlpha = 1;
+            }
+          });
+        }
+        ctx.textAlign = "left";
+      }
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -3649,6 +3845,9 @@ export function CourseMotionStudio({
     splitItems,
     bigNumber,
     bigWord,
+    chartType,
+    chartTitle,
+    chartRows,
     selectedCourse
   ]);
 
@@ -3683,7 +3882,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number") && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -3748,7 +3947,9 @@ export function CourseMotionStudio({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const safeBase =
-          sceneMode === "number"
+          sceneMode === "chart"
+            ? `grafico-${chartTitle || "dados"}`
+            : sceneMode === "number"
             ? `numero-${bigNumber || "destaque"}`
             : sceneMode === "split"
             ? `meia-tela-${splitTitle || "painel"}`
@@ -3796,6 +3997,7 @@ export function CourseMotionStudio({
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
+    { id: "chart", label: "Gráfico", icon: BarChart3 },
     { id: "number", label: "Número", icon: Hash },
     { id: "split", label: "Meia Tela", icon: PanelLeft },
     { id: "term", label: "Termo & Significado", icon: Bookmark },
@@ -4026,7 +4228,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && sceneMode !== "number" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && sceneMode !== "number" && sceneMode !== "chart" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -4191,6 +4393,94 @@ export function CourseMotionStudio({
                           Triângulo de Tensão
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Editor do Gráfico */}
+                {sceneMode === "chart" && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {([
+                        { id: "bars", label: "Barras" },
+                        { id: "line", label: "Linha" }
+                      ] as const).map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => {
+                            setChartType(o.id);
+                            setCurrentTime(0);
+                            setIsPlaying(true);
+                          }}
+                          className={`h-9 rounded-lg border text-xs font-semibold transition-all ${
+                            chartType === o.id
+                              ? "bg-primary/10 text-primary border-primary/40"
+                              : "bg-background text-muted-foreground border-border hover:text-foreground"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Título</Label>
+                      <Input
+                        value={chartTitle}
+                        onChange={(e) => setChartTitle(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Ex: Crescimento"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Dados (nome e valor)</Label>
+                      {chartRows.map((r, i) => (
+                        <div key={i} className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={r.label}
+                            onChange={(e) =>
+                              setChartRows((prev) =>
+                                prev.map((p, idx) =>
+                                  idx === i ? { ...p, label: e.target.value } : p
+                                )
+                              )
+                            }
+                            className="h-9 text-xs"
+                            placeholder={`Nome ${i + 1}`}
+                          />
+                          <Input
+                            value={r.value}
+                            onChange={(e) =>
+                              setChartRows((prev) =>
+                                prev.map((p, idx) =>
+                                  idx === i ? { ...p, value: e.target.value } : p
+                                )
+                              )
+                            }
+                            className="h-9 text-xs"
+                            placeholder="Valor (ex: 80%)"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som ao aparecer</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -4428,7 +4718,7 @@ export function CourseMotionStudio({
                 )}
 
                 {/* Biblioteca de Motions salvos */}
-                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number") && (
+                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart") && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
                     <div className="flex gap-2">
@@ -4462,7 +4752,7 @@ export function CourseMotionStudio({
                             >
                               <p className="text-xs font-bold truncate">{item.nome}</p>
                               <p className="text-[11px] text-muted-foreground">
-                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : item.modelo === "number" ? "Número" : "Termo"} • {item.formato}
+                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : item.modelo === "number" ? "Número" : item.modelo === "chart" ? "Gráfico" : "Termo"} • {item.formato}
                               </p>
                             </button>
                             <Button
@@ -4497,7 +4787,9 @@ export function CourseMotionStudio({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {sceneMode === "number"
+                    {sceneMode === "chart"
+                      ? `Gráfico: ${chartTitle}`
+                      : sceneMode === "number"
                       ? `Número: ${bigNumber}`
                       : sceneMode === "split"
                       ? `Meia tela: ${splitTitle}`
