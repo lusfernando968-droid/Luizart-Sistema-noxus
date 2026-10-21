@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Search, MessageCircle, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { Clock, Search, MessageCircle, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { Input } from "@/components/ui/input";
@@ -17,17 +17,28 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
 
   const pendingAppointments = appointments.filter((a: any) => a.status === 'Para Remarcar');
   const pendingSessions = appointments.filter((a: any) => a.status === 'Agendado' && a.date < todayStr);
-  
+
+  const getClientName = (a: any) => {
+    const clientObj = clients?.find((c: any) => c.id === a.client_id);
+    const relClient = Array.isArray(a.client) ? a.client[0] : a.client;
+    const rawName =
+      (a.client_name && a.client_name !== "Cliente" ? a.client_name : "") ||
+      relClient?.name ||
+      clientObj?.name ||
+      "Cliente";
+    return rawName.trim();
+  };
+
   const filterBySearch = (list: any[]) => list.filter((a: any) => {
     if (!search) return true;
-    const clientName = a.client_name?.toLowerCase() || "";
+    const clientName = getClientName(a).toLowerCase();
     return clientName.includes(search.toLowerCase());
   });
 
   const filteredToReschedule = filterBySearch(pendingAppointments);
   const filteredPending = filterBySearch(pendingSessions);
 
-  const openWhatsApp = (phone: string, message: string) => {
+  const handleWhatsApp = (phone: string, message: string) => {
     if (!phone || phone === "Não informado") return;
     const cleanPhone = phone.replace(/\D/g, '');
     const url = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`;
@@ -56,9 +67,19 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
     }
   };
 
-  const handleMarkAsCompleted = (appt: any, e: any) => {
+  const handleMarkAsCompleted = async (appt: any, e: any) => {
     if (onCheckout) {
       onCheckout(appt, e);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('appointments').update({ status: 'Concluído' }).eq('id', appt.id);
+      if (error) throw error;
+      toast.success("Sessão marcada como Concluída!");
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao dar baixa na sessão.");
     }
   };
 
@@ -84,15 +105,18 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
           </TableHeader>
           <TableBody>
             {list.map((appt: any) => {
-              const client = clients.find((c: any) => c.id === appt.client_id);
-              const hasPhone = client?.phone && client.phone !== "Não informado";
-              
-              const wppMessageReschedule = `Olá ${appt.client_name || ''}! Vi que ficamos de remarcar a sua sessão de tatuagem. Já tem uma nova data em mente? Posso mandar os horários disponíveis?`;
-              const wppMessagePending = `Olá ${appt.client_name || ''}! Vi que a sua sessão do dia ${formatDate(appt.date)} ficou pendente no sistema. Deu tudo certo?`;
+              const client = clients?.find((c: any) => c.id === appt.client_id);
+              const relClient = Array.isArray(appt.client) ? appt.client[0] : appt.client;
+              const resolvedName = getClientName(appt);
+              const resolvedPhone = client?.phone || relClient?.phone || "";
+              const hasPhone = Boolean(resolvedPhone && resolvedPhone !== "Não informado");
+
+              const wppMessageReschedule = `Olá ${resolvedName}! Vi que ficamos de remarcar a sua sessão de tatuagem. Já tem uma nova data em mente? Posso mandar os horários disponíveis?`;
+              const wppMessagePending = `Olá ${resolvedName}! Vi que a sua sessão do dia ${formatDate(appt.date)} ficou pendente no sistema. Deu tudo certo?`;
 
               return (
                 <TableRow key={appt.id} className="hover:bg-accent/40">
-                  <TableCell className="font-bold text-sm">{appt.client_name || "Cliente"}</TableCell>
+                  <TableCell className="font-bold text-sm">{resolvedName}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{formatDate(appt.date)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] ${isRescheduleList ? 'bg-orange-500/10 text-orange-600 border-orange-500/20' : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'}`}>
@@ -106,7 +130,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                           variant="outline" 
                           size="icon" 
                           className="h-8 w-8 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white border-transparent"
-                          onClick={() => openWhatsApp(client.phone, isRescheduleList ? wppMessageReschedule : wppMessagePending)}
+                          onClick={() => handleWhatsApp(resolvedPhone, isRescheduleList ? wppMessageReschedule : wppMessagePending)}
                           title="Chamar Cliente no WhatsApp"
                         >
                           <MessageCircle className="w-4 h-4" />
@@ -147,8 +171,8 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                             client_id: appt.client_id || "",
                             journey_id: appt.journey_id || "",
                             date: appt.date || new Date().toISOString().split("T")[0],
-                            startTime: appt.startTime || "09:00",
-                            endTime: appt.endTime || "10:00",
+                            startTime: appt.startTime || appt.start_time || "09:00",
+                            endTime: appt.endTime || appt.end_time || "10:00",
                             status: isRescheduleList ? "Agendado" : appt.status,
                             value: appt.value || 0,
                             deposit: appt.deposit || 0,

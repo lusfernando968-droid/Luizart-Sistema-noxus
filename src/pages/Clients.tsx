@@ -208,7 +208,17 @@ const Clients = () => {
       }
 
       const { data: apptData } = await supabase.from('appointments').select('*, client:clientes(name, phone, avatar_url, is_student)');
-      setAppointments(apptData || []);
+      const formattedAppts = (apptData || []).map((a: any) => {
+        const matchedClient = formatted.find((c: any) => c.id === a.client_id);
+        const relClient = Array.isArray(a.client) ? a.client[0] : a.client;
+        return {
+          ...a,
+          client_name: relClient?.name || matchedClient?.name || a.client_name || "Cliente",
+          startTime: a.start_time || a.startTime || "09:00",
+          endTime: a.end_time || a.endTime || "10:00"
+        };
+      });
+      setAppointments(formattedAppts);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error("Erro ao carregar dados do CRM");
@@ -1705,11 +1715,9 @@ const Clients = () => {
             appointments={appointments} 
             clients={clients} 
             onEdit={(appt, formDataObj) => {
-              // Aqui a edição vai para a tela de agenda ou lida direto (simplificado para o CRM)
               toast.info("Edição de agendamento transferida para o calendário.");
             }} 
             onRefresh={fetchClients}
-            onCheckout={() => {}}
           />
         </TabsContent>
       </Tabs>

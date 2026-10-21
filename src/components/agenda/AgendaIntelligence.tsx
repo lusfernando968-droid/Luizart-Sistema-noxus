@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { format, subDays, subYears, addDays, subMonths } from "date-fns";
-import { BrainCircuit, Clock, CalendarHeart, History, CalendarClock, MessageCircle, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock, CalendarHeart, History, CalendarClock, MessageCircle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { openWhatsApp } from "@/lib/whatsapp";
 
@@ -37,29 +36,46 @@ export function AgendaIntelligence({ appointments, clients }: any) {
     openWhatsApp(url);
   };
 
+  const getClientName = (a: any) => {
+    const clientObj = clients?.find((c: any) => c.id === a.client_id);
+    const relClient = Array.isArray(a.client) ? a.client[0] : a.client;
+    const rawName =
+      (a.client_name && a.client_name !== "Cliente" ? a.client_name : "") ||
+      relClient?.name ||
+      clientObj?.name ||
+      "Cliente";
+    return rawName.trim();
+  };
+
   const renderList = (list: any[], emptyMessage: string, context: 'today' | 'tomorrow' | '7days' | '2months' | '1year') => {
     if (list.length === 0) return <div className="text-xs text-center p-6 text-muted-foreground border-2 border-dashed rounded-xl">{emptyMessage}</div>;
     
     return (
       <div className="space-y-3">
         {list.map(appt => {
-          const client = clients.find((c: any) => c.id === appt.client_id);
-          const hasPhone = client?.phone && client.phone !== "Não informado";
+          const client = clients?.find((c: any) => c.id === appt.client_id);
+          const relClient = Array.isArray(appt.client) ? appt.client[0] : appt.client;
+          const resolvedName = getClientName(appt);
+          const resolvedStartTime = appt.startTime || appt.start_time || "";
+          const resolvedPhone = client?.phone || relClient?.phone || "";
+          const hasPhone = Boolean(resolvedPhone && resolvedPhone !== "Não informado");
           
           let wppMessage = "";
-          if (context === 'tomorrow') wppMessage = `Olá ${appt.client_name || ''}! Passando para lembrar da nossa sessão de tatuagem amanhã às ${appt.startTime}. Até lá!`;
-          if (context === '7days') wppMessage = `Fala ${appt.client_name || ''}! Como está a cicatrização da tattoo que fizemos há uma semana? Tudo certinho?`;
-          if (context === '2months') wppMessage = `Fala ${appt.client_name || ''}! Tudo bem? Já faz 2 meses da nossa última tattoo, ela já deve estar 100% cicatrizada! Bora pensar no próximo projeto?`;
-          if (context === '1year') wppMessage = `Oie ${appt.client_name || ''}! Sabia que sua tattoo está fazendo 1 ano hoje? Parabéns! Já vamos planejar a próxima? Hahaha!`;
+          if (context === 'tomorrow') wppMessage = `Olá ${resolvedName}! Passando para lembrar da nossa sessão de tatuagem amanhã às ${resolvedStartTime}. Até lá!`;
+          if (context === '7days') wppMessage = `Fala ${resolvedName}! Como está a cicatrização da tattoo que fizemos há uma semana? Tudo certinho?`;
+          if (context === '2months') wppMessage = `Fala ${resolvedName}! Tudo bem? Já faz 2 meses da nossa última tattoo, ela já deve estar 100% cicatrizada! Bora pensar no próximo projeto?`;
+          if (context === '1year') wppMessage = `Oie ${resolvedName}! Sabia que sua tattoo está fazendo 1 ano hoje? Parabéns! Já vamos planejar a próxima? Hahaha!`;
 
           return (
             <div key={appt.id} className="bg-card border shadow-sm hover:shadow-md transition-all rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
                <div>
                  <div className="flex items-center gap-2">
-                   <h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors">{appt.client_name || "Cliente"}</h4>
-                   <Badge variant="outline" className="text-[10px] bg-background">{appt.startTime}</Badge>
+                   <h4 className="font-bold text-xs text-foreground group-hover:text-primary transition-colors">{resolvedName}</h4>
+                   {resolvedStartTime && (
+                     <Badge variant="outline" className="text-[10px] bg-background">{resolvedStartTime}</Badge>
+                   )}
                  </div>
-                 {client?.phone && <p className="text-[10px] text-muted-foreground mt-0.5">{client.phone}</p>}
+                 {resolvedPhone && <p className="text-[10px] text-muted-foreground mt-0.5">{resolvedPhone}</p>}
                </div>
                
                <div className="flex items-center gap-2">
@@ -69,7 +85,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
                  
                  {hasPhone && context !== 'today' && (
                    <button 
-                     onClick={() => handleWhatsApp(client.phone, wppMessage)}
+                     onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
                      className="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white p-1.5 rounded-full transition-colors flex items-center gap-1 px-2"
                      title="Enviar Mensagem CRM"
                    >
