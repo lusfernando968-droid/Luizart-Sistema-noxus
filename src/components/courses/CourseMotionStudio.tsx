@@ -653,6 +653,20 @@ export function CourseMotionStudio({
   const [emojiChar, setEmojiChar] = useState("🔥");
   const [emojiCaption, setEmojiCaption] = useState("");
 
+  // Abas do Estúdio: Cursos (aulas) ou YouTube (motions livres)
+  const [studioTab, setStudioTab] = useState<"cursos" | "youtube">("cursos");
+  const YOUTUBE_MODES: SceneMode[] = ["term", "steps", "emoji"];
+  const changeStudioTab = (tab: "cursos" | "youtube") => {
+    setStudioTab(tab);
+    if (tab === "youtube") {
+      setAspectRatio("16:9");
+      if (!YOUTUBE_MODES.includes(sceneMode)) setSceneMode("term");
+      if (bgTheme === "chroma") setBgTheme("dark");
+    }
+    setCurrentTime(0);
+    setIsPlaying(true);
+  };
+
   // Biblioteca de Motions salvos (Supabase: luizart.motion_biblioteca)
   type LibraryItem = {
     id: string;
@@ -3526,9 +3540,36 @@ export function CourseMotionStudio({
     { id: "lower_third", label: "Tarja (CapCut)", icon: Tv }
   ];
 
+  const visibleModes =
+    studioTab === "youtube"
+      ? MODE_OPTIONS.filter((m) => YOUTUBE_MODES.includes(m.id))
+      : MODE_OPTIONS;
+
   return (
     <div className="space-y-4">
+      {/* ABAS DO ESTÚDIO: CURSOS / YOUTUBE */}
+      <div className="inline-flex items-center gap-1 rounded-xl border bg-card p-1">
+        {([
+          { id: "cursos", label: "Cursos" },
+          { id: "youtube", label: "YouTube" }
+        ] as const).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => changeStudioTab(tab.id)}
+            className={`h-8 px-4 rounded-lg text-xs font-semibold transition-all ${
+              studioTab === tab.id
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* BARRA DE DIVISÃO POR CURSO / FORMATO */}
+      {studioTab === "cursos" && (
       <div className="flex flex-wrap items-center justify-between gap-2 bg-card p-3 rounded-xl border shadow-xs">
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
           <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 px-2 shrink-0">
@@ -3560,12 +3601,14 @@ export function CourseMotionStudio({
           16 Motions Exclusivos Prontos
         </Badge>
       </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* COLUNA ESQUERDA: LISTA DAS 16 AULAS DO CURSO & CONFIGURAÇÕES */}
         <div className="lg:col-span-5 space-y-4">
           <div className="bg-card rounded-xl border p-4 shadow-sm space-y-4">
             {/* Grade de Seleção Rápida das Aulas do Curso */}
+            {studioTab === "cursos" && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -3617,14 +3660,17 @@ export function CourseMotionStudio({
                 })}
               </div>
             </div>
+            )}
 
             {/* Modo da Cena para a Aula Escolhida */}
             <div className="space-y-1.5 pt-2 border-t">
               <Label className="text-xs font-semibold">
-                Camada Visual da Aula {lessonNumber}
+                {studioTab === "youtube"
+                  ? "Modelos para YouTube"
+                  : `Camada Visual da Aula ${lessonNumber}`}
               </Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {MODE_OPTIONS.map((md) => {
+                {visibleModes.map((md) => {
                   const Icon = md.icon;
                   const active = sceneMode === md.id;
                   return (
@@ -4086,7 +4132,9 @@ export function CourseMotionStudio({
                       : lessonMeta.diagramTitle}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {selectedCourse} • {selectedLesson?.title}
+                    {studioTab === "youtube"
+                      ? "YouTube • 16:9"
+                      : `${selectedCourse} • ${selectedLesson?.title}`}
                   </p>
                 </div>
               </div>
