@@ -13,7 +13,9 @@ import {
   Tv,
   Smartphone,
   Monitor,
-  Check
+  Check,
+  Zap,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +37,13 @@ interface CourseMotionStudioProps {
 }
 
 type SceneType =
+  | "voltage_speed"
+  | "skin_depth"
+  | "needles"
+  | "pendulum"
   | "intro"
   | "topics"
   | "quote"
-  | "skin_depth"
-  | "needles"
   | "lower_third";
 
 type AspectRatioType = "16:9" | "9:16";
@@ -215,10 +219,10 @@ export function CourseMotionStudio({
   }, [contents]);
 
   const [selectedLessonId, setSelectedLessonId] = useState<string>("");
-  const [sceneType, setSceneType] = useState<SceneType>("intro");
+  const [sceneType, setSceneType] = useState<SceneType>("voltage_speed");
   const [aspectRatio, setAspectRatio] = useState<AspectRatioType>("16:9");
   const [bgTheme, setBgTheme] = useState<BgThemeType>("dark");
-  const [durationSec, setDurationSec] = useState<number>(6);
+  const [durationSec, setDurationSec] = useState<number>(8);
 
   // Estados editáveis da cena atual
   const [customTitle, setCustomTitle] = useState("");
@@ -241,17 +245,24 @@ export function CourseMotionStudio({
   const animFrameRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(performance.now());
 
-  // Seleciona a primeira aula com roteiro (ex: Aula 1 ou Aula 2) por padrão
+  // Seleciona Aula 6 (Máquinas, fontes e cabos) por padrão para exibir o diagrama Voltagem vs Mão
   useEffect(() => {
     if (initialContentId) {
       setSelectedLessonId(initialContentId);
       return;
     }
     if (!selectedLessonId && sortedContents.length > 0) {
+      const aula6 = sortedContents.find(
+        (c) =>
+          c.title.toLowerCase().includes("aula 6") ||
+          c.title.toLowerCase().includes("fontes")
+      );
       const withScript = sortedContents.find(
         (c) => c.script_content && c.script_content.trim().length > 0
       );
-      setSelectedLessonId(withScript ? withScript.id : sortedContents[0].id);
+      setSelectedLessonId(
+        aula6 ? aula6.id : withScript ? withScript.id : sortedContents[0].id
+      );
     }
   }, [sortedContents, initialContentId, selectedLessonId]);
 
@@ -280,7 +291,7 @@ export function CourseMotionStudio({
     );
   }, [selectedLesson]);
 
-  // Sincroniza textos quando troca a aula selecionada
+  // Sincroniza textos e sugere cena ideal quando troca a aula selecionada
   useEffect(() => {
     if (selectedLesson) {
       setCustomTitle(selectedLesson.title);
@@ -289,9 +300,22 @@ export function CourseMotionStudio({
           selectedLesson.category ||
           "Curso Básico de Tatuador"
       );
+
+      const lower = selectedLesson.title.toLowerCase();
+      if (lower.includes("aula 6") || lower.includes("fontes") || lower.includes("máquinas")) {
+        setSceneType("voltage_speed");
+      } else if (lower.includes("aula 7") || lower.includes("agulhas")) {
+        setSceneType("needles");
+      } else if (lower.includes("aula 11") || lower.includes("traço")) {
+        setSceneType("skin_depth");
+      } else if (lower.includes("aula 12") || lower.includes("sombra")) {
+        setSceneType("pendulum");
+      } else if (selectedLesson.script_content && selectedLesson.script_content.trim()) {
+        setSceneType("topics");
+      }
     } else {
-      setCustomTitle("Aula 1: Apresentação e Direcionamento");
-      setCustomSubtitle("Módulo 1: Introdução e Mentalidade");
+      setCustomTitle("Aula 6: Máquinas, fontes e cabos");
+      setCustomSubtitle("Módulo 2: Estrutura, Equipamentos e Materiais");
     }
     setCustomTopics([
       extractedData.topics[0] || "1. Preparação da bancada",
@@ -940,6 +964,363 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // CENA ESPECIAL AULA 6: VOLTAGEM DA FONTE vs. VELOCIDADE DA MÃO
+    // =========================================================================
+    else if (sceneType === "voltage_speed") {
+      ctx.fillStyle = colors.accent;
+      ctx.font = "700 23px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "AULA 6 • RELAÇÃO TÉCNICA: FONTE DE ALIMENTAÇÃO vs. MÃO",
+        padX,
+        isVert ? 160 : 95
+      );
+
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${isVert ? 48 : 46}px Inter, system-ui, sans-serif`;
+      ctx.fillText(
+        "Sincronia entre Voltagem (V) e Velocidade da Mão",
+        padX,
+        isVert ? 220 : 150
+      );
+
+      const tracks = [
+        {
+          voltage: "5.5 V",
+          hz: "65 Hz • Batida Lenta",
+          handLabel: "MÃO RÁPIDA DEMAIS",
+          resultLabel: "RESULTADO: TRAÇO FALHADO & PONTILHADO",
+          subDesc: "A agulha bate poucas vezes por segundo enquanto a mão corre.",
+          color: "#f59e0b",
+          bgTint: "rgba(245, 158, 11, 0.10)",
+          speedFactor: 1.45,
+          mode: "patchy" as const
+        },
+        {
+          voltage: "9.8 V",
+          hz: "135 Hz • Batida Muito Rápida",
+          handLabel: "MÃO LENTA DEMAIS",
+          resultLabel: "RESULTADO: PELE MACHUCADA & TRAÇO ESTOURADO",
+          subDesc: "Excesso de batidas no mesmo ponto satura e rasga a derme.",
+          color: "#ef4444",
+          bgTint: "rgba(239, 68, 68, 0.10)",
+          speedFactor: 0.55,
+          mode: "blowout" as const
+        },
+        {
+          voltage: "7.4 V",
+          hz: "95 Hz • Batida Equilibrada",
+          handLabel: "MÃO CONSTANTE & SINCRONIZADA",
+          resultLabel: "RESULTADO: TRAÇO SÓLIDO, LIMPO E UNIFORME",
+          subDesc: "A frequência da máquina acompanha exatamente o deslocamento da mão.",
+          color: "#10b981",
+          bgTint: "rgba(16, 185, 129, 0.13)",
+          speedFactor: 0.95,
+          mode: "solid" as const
+        }
+      ];
+
+      const startY = isVert ? 290 : 195;
+      const trackH = isVert ? 430 : 250;
+      const gap = isVert ? 36 : 24;
+      const totalW = W - padX * 2;
+
+      tracks.forEach((tr, idx) => {
+        const delay = 0.2 + idx * 0.35;
+        const enter = easeOutCubic(clamp01((t - delay) / 0.5));
+        if (enter <= 0) return;
+
+        const y = startY + idx * (trackH + gap);
+
+        ctx.save();
+        ctx.globalAlpha = enter;
+        ctx.translate(0, (1 - enter) * 30);
+
+        // Card da Faixa
+        ctx.fillStyle = colors.card;
+        ctx.strokeStyle = tr.color;
+        ctx.lineWidth = idx === 2 ? 3 : 2;
+        ctx.beginPath();
+        ctx.roundRect(padX, y, totalW, trackH, 24);
+        ctx.fill();
+        ctx.stroke();
+
+        // Painel Digital da Fonte (Esquerda)
+        const visorW = isVert ? 270 : 290;
+        const visorH = trackH - 40;
+        const visorX = padX + 24;
+        const visorY = y + 20;
+
+        ctx.fillStyle = "#090d16";
+        ctx.strokeStyle = tr.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(visorX, visorY, visorW, visorH, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "700 16px Inter, system-ui, sans-serif";
+        ctx.fillText("FONTE DIGITAL", visorX + 24, visorY + 38);
+
+        ctx.fillStyle = tr.color;
+        ctx.font = "900 54px monospace";
+        ctx.fillText(tr.voltage, visorX + 24, visorY + 102);
+
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "600 18px Inter, system-ui, sans-serif";
+        ctx.fillText(tr.hz, visorX + 24, visorY + 140);
+
+        // Etiqueta de Velocidade da Mão
+        ctx.fillStyle = tr.bgTint;
+        ctx.beginPath();
+        ctx.roundRect(visorX + 20, visorY + 158, visorW - 40, 38, 10);
+        ctx.fill();
+
+        ctx.fillStyle = tr.color;
+        ctx.font = "800 16px Inter, system-ui, sans-serif";
+        ctx.fillText(tr.handLabel, visorX + 32, visorY + 182);
+
+        // Área de Simulação do Traço na Pele (Direita)
+        const simX = visorX + visorW + 40;
+        const simW = totalW - visorW - 95;
+        const simTopY = y + 32;
+
+        ctx.fillStyle = tr.color;
+        ctx.font = "800 24px Inter, system-ui, sans-serif";
+        ctx.fillText(tr.resultLabel, simX, simTopY + 18);
+
+        ctx.fillStyle = colors.muted;
+        ctx.font = "500 20px Inter, system-ui, sans-serif";
+        ctx.fillText(tr.subDesc, simX, simTopY + 52);
+
+        // Pista da Pele onde a agulha risca ao vivo
+        const lineStartX = simX + 20;
+        const lineEndX = simX + simW - 30;
+        const lineLen = lineEndX - lineStartX;
+        const lineY = y + trackH - (isVert ? 105 : 70);
+
+        // Trilha base
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.2)";
+        ctx.lineWidth = 18;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(lineStartX, lineY);
+        ctx.lineTo(lineEndX, lineY);
+        ctx.stroke();
+
+        // Progresso da mão ao longo do ciclo
+        const rawCycle = clamp01(((t - delay - 0.2) / (durationSec - 1.4)) * tr.speedFactor);
+        const currentX = lineStartX + lineLen * rawCycle;
+
+        if (tr.mode === "patchy") {
+          // Pontos espaçados (traço falhado por mão rápida + baixa voltagem)
+          const steps = 16;
+          for (let s = 0; s <= steps; s++) {
+            const px = lineStartX + (lineLen / steps) * s;
+            if (px <= currentX) {
+              ctx.fillStyle = tr.color;
+              ctx.beginPath();
+              ctx.arc(px, lineY + (s % 2 === 0 ? -2 : 2), 6, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        } else if (tr.mode === "blowout") {
+          // Traço estourado / machucado (excesso de batida + mão lenta)
+          if (currentX > lineStartX) {
+            // Halo borrado de estouro na derme
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.32)";
+            ctx.lineWidth = 34;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(lineStartX, lineY);
+            ctx.lineTo(currentX, lineY);
+            ctx.stroke();
+
+            // Linha central irregular e grossa
+            ctx.strokeStyle = "#ef4444";
+            ctx.lineWidth = 16;
+            ctx.beginPath();
+            ctx.moveTo(lineStartX, lineY);
+            ctx.lineTo(currentX, lineY);
+            ctx.stroke();
+          }
+        } else {
+          // Traço sólido, limpo e calibrado (Sincronia Ideal)
+          if (currentX > lineStartX) {
+            ctx.strokeStyle = "rgba(16, 185, 129, 0.25)";
+            ctx.lineWidth = 22;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(lineStartX, lineY);
+            ctx.lineTo(currentX, lineY);
+            ctx.stroke();
+
+            ctx.strokeStyle = "#10b981";
+            ctx.lineWidth = 10;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(lineStartX, lineY);
+            ctx.lineTo(currentX, lineY);
+            ctx.stroke();
+          }
+        }
+
+        // Biqueira / Agulha animada percorrendo a trilha
+        const freq = tr.mode === "patchy" ? 16 : tr.mode === "blowout" ? 55 : 32;
+        const needleOsc = Math.sin(t * freq) * 7;
+
+        ctx.save();
+        ctx.strokeStyle = colors.text;
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(currentX, lineY - 52 + needleOsc);
+        ctx.lineTo(currentX, lineY - 6 + needleOsc);
+        ctx.stroke();
+
+        ctx.fillStyle = tr.color;
+        ctx.beginPath();
+        ctx.arc(currentX, lineY + needleOsc * 0.4, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.restore();
+      });
+    }
+
+    // =========================================================================
+    // CENA ESPECIAL AULA 12: MOVIMENTO DE PÊNDULO & SOMBRA SUAVE (VASSOURINHA)
+    // =========================================================================
+    else if (sceneType === "pendulum") {
+      ctx.fillStyle = colors.accent;
+      ctx.font = "700 24px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "AULA 12 • TÉCNICA DE SOMBREAMENTO & TRANSIÇÃO",
+        padX,
+        isVert ? 175 : 105
+      );
+
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${isVert ? 50 : 48}px Inter, system-ui, sans-serif`;
+      ctx.fillText(
+        "Movimento de Pêndulo (Vassourinha)",
+        padX,
+        isVert ? 240 : 165
+      );
+
+      const boxX = padX;
+      const boxW = W - padX * 2;
+      const boxY = isVert ? 320 : 220;
+      const boxH = isVert ? 950 : 660;
+
+      ctx.fillStyle = colors.card;
+      ctx.strokeStyle = colors.cardBorder;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxW, boxH, 28);
+      ctx.fill();
+      ctx.stroke();
+
+      const skinSurfaceY = boxY + boxH * 0.52;
+      const dermeBottomY = skinSurfaceY + 135;
+
+      // Faixa da Pele (Derme)
+      ctx.fillStyle = "rgba(16, 185, 129, 0.14)";
+      ctx.fillRect(boxX + 40, skinSurfaceY, boxW - 80, 135);
+
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(boxX + 40, skinSurfaceY);
+      ctx.lineTo(boxX + boxW - 40, skinSurfaceY);
+      ctx.stroke();
+
+      ctx.fillStyle = "#10b981";
+      ctx.font = "700 22px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "SUPERFÍCIE DA PELE (ENTRADA E SAÍDA SUAVE EM ARCO 'U')",
+        boxX + 60,
+        skinSurfaceY - 20
+      );
+
+      // Curva do Pêndulo ("U" aberto entrando na derme e saindo no ar)
+      const startArcX = boxX + 140;
+      const endArcX = boxX + boxW - 140;
+      const midArcX = (startArcX + endArcX) / 2;
+      const highY = skinSurfaceY - 150;
+      const lowY = skinSurfaceY + 95;
+
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.45)";
+      ctx.lineWidth = 5;
+      ctx.setLineDash([12, 10]);
+      ctx.beginPath();
+      ctx.moveTo(startArcX, highY);
+      ctx.quadraticCurveTo(midArcX, lowY + 90, endArcX, highY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Posição animada da agulha no pêndulo (vai e volta suave)
+      const swing = (Math.sin(t * 2.6 - Math.PI / 2) + 1) / 2;
+      const inv = 1 - swing;
+      const px =
+        inv * inv * startArcX +
+        2 * inv * swing * midArcX +
+        swing * swing * endArcX;
+      const py =
+        inv * inv * highY +
+        2 * inv * swing * (lowY + 90) +
+        swing * swing * highY;
+
+      // Degradê de pontos (Whip shading) mais denso no centro e suave nas pontas
+      const dotCols = 28;
+      for (let c = 0; c < dotCols; c++) {
+        const frac = c / (dotCols - 1);
+        const dx = startArcX + 90 + frac * (endArcX - startArcX - 180);
+        const density = Math.sin(frac * Math.PI); // Mais forte no meio, zero nas bordas
+        if (density > 0.15) {
+          ctx.save();
+          ctx.globalAlpha = density * 0.85;
+          ctx.fillStyle = colors.text;
+          ctx.beginPath();
+          ctx.arc(
+            dx,
+            skinSurfaceY + 45,
+            4 + density * 7,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // Desenho da Máquina / Agulha fazendo o pêndulo
+      ctx.save();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 10;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(px - (swing - 0.5) * 70, py - 140);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+
+      ctx.fillStyle = py >= skinSurfaceY ? "#10b981" : colors.accent;
+      ctx.beginPath();
+      ctx.arc(px, py, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Legenda didática na base do card
+      ctx.fillStyle = colors.text;
+      ctx.font = "700 26px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "A mão entra na pele, deposita o pigmento e sai no ar antes de parar — criando degradê sem marca de agulha.",
+        boxX + 60,
+        dermeBottomY + 95
+      );
+    }
+
+    // =========================================================================
     // CENA 6: LOWER THIRD (TARJA ANIMADA PARA SOBREPOR NO CAPCUT/PREMIERE)
     // =========================================================================
     else if (sceneType === "lower_third") {
@@ -1070,11 +1451,13 @@ export function CourseMotionStudio({
     label: string;
     icon: any;
   }> = [
+    { id: "voltage_speed", label: "Voltagem vs. Mão", icon: Zap },
+    { id: "skin_depth", label: "Pele & Profundidade", icon: Crosshair },
+    { id: "needles", label: "Guia de Agulhas", icon: Layers },
+    { id: "pendulum", label: "Pêndulo & Sombra", icon: Activity },
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "Tópicos do Roteiro", icon: ListOrdered },
     { id: "quote", label: "Frase de Impacto", icon: Quote },
-    { id: "skin_depth", label: "Pele & Profundidade", icon: Crosshair },
-    { id: "needles", label: "Guia de Agulhas", icon: Layers },
     { id: "lower_third", label: "Tarja (CapCut)", icon: Tv }
   ];
 
