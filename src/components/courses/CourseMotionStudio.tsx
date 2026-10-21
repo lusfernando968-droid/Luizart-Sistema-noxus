@@ -15,7 +15,8 @@ import {
   Monitor,
   Check,
   Zap,
-  Activity
+  Activity,
+  Hand
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ interface CourseMotionStudioProps {
 }
 
 type SceneType =
+  | "skin_stretch"
   | "voltage_speed"
   | "skin_depth"
   | "needles"
@@ -219,7 +221,7 @@ export function CourseMotionStudio({
   }, [contents]);
 
   const [selectedLessonId, setSelectedLessonId] = useState<string>("");
-  const [sceneType, setSceneType] = useState<SceneType>("voltage_speed");
+  const [sceneType, setSceneType] = useState<SceneType>("skin_stretch");
   const [aspectRatio, setAspectRatio] = useState<AspectRatioType>("16:9");
   const [bgTheme, setBgTheme] = useState<BgThemeType>("dark");
   const [durationSec, setDurationSec] = useState<number>(8);
@@ -245,23 +247,23 @@ export function CourseMotionStudio({
   const animFrameRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(performance.now());
 
-  // Seleciona Aula 6 (Máquinas, fontes e cabos) por padrão para exibir o diagrama Voltagem vs Mão
+  // Seleciona Aula 10 (Preparação da pele e decalque) por padrão para exibir o diagrama dos 3 dedos
   useEffect(() => {
     if (initialContentId) {
       setSelectedLessonId(initialContentId);
       return;
     }
     if (!selectedLessonId && sortedContents.length > 0) {
-      const aula6 = sortedContents.find(
+      const aula10 = sortedContents.find(
         (c) =>
-          c.title.toLowerCase().includes("aula 6") ||
-          c.title.toLowerCase().includes("fontes")
+          c.title.toLowerCase().includes("aula 10") ||
+          c.title.toLowerCase().includes("preparação da pele")
       );
       const withScript = sortedContents.find(
         (c) => c.script_content && c.script_content.trim().length > 0
       );
       setSelectedLessonId(
-        aula6 ? aula6.id : withScript ? withScript.id : sortedContents[0].id
+        aula10 ? aula10.id : withScript ? withScript.id : sortedContents[0].id
       );
     }
   }, [sortedContents, initialContentId, selectedLessonId]);
@@ -302,7 +304,9 @@ export function CourseMotionStudio({
       );
 
       const lower = selectedLesson.title.toLowerCase();
-      if (lower.includes("aula 6") || lower.includes("fontes") || lower.includes("máquinas")) {
+      if (lower.includes("aula 10") || lower.includes("preparação da pele") || lower.includes("decalque")) {
+        setSceneType("skin_stretch");
+      } else if (lower.includes("aula 6") || lower.includes("fontes") || lower.includes("máquinas")) {
         setSceneType("voltage_speed");
       } else if (lower.includes("aula 7") || lower.includes("agulhas")) {
         setSceneType("needles");
@@ -964,6 +968,351 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // CENA ESPECIAL AULA 10: OS 3 DEDOS ESTICANDO A PELE (TRIÂNGULO DE TENSÃO)
+    // =========================================================================
+    else if (sceneType === "skin_stretch") {
+      ctx.fillStyle = colors.accent;
+      ctx.font = "700 23px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "AULA 10 • PREPARAÇÃO DA PELE & MECÂNICA DE BANCADA",
+        padX,
+        isVert ? 160 : 95
+      );
+
+      ctx.fillStyle = colors.text;
+      ctx.font = `800 ${isVert ? 46 : 46}px Inter, system-ui, sans-serif`;
+      ctx.fillText(
+        "Triângulo de Tensão: Os 3 Dedos Esticando Antes da Agulha",
+        padX,
+        isVert ? 220 : 150
+      );
+
+      // Fase 1 (0.2s a 1.8s): Os 3 dedos esticam a pele para fora
+      // Fase 2 (1.8s em diante): A agulha entra na pele já esticada e puxa o traço
+      const stretchProgress = easeOutCubic(clamp01((t - 0.25) / 1.45));
+      const needleEntry = easeOutCubic(clamp01((t - 1.85) / 0.55));
+      const traceProgress = clamp01((t - 2.3) / (durationSec - 2.8));
+
+      const totalW = W - padX * 2;
+      const mainBoxW = isVert ? totalW : totalW * 0.64;
+      const sideBoxW = isVert ? totalW : totalW * 0.33;
+      const mainBoxX = padX;
+      const mainBoxY = isVert ? 280 : 195;
+      const mainBoxH = isVert ? 860 : 760;
+
+      // Card Principal: Triângulo dos 3 Dedos
+      ctx.save();
+      ctx.fillStyle = colors.card;
+      ctx.strokeStyle = stretchProgress > 0.8 ? "#10b981" : colors.cardBorder;
+      ctx.lineWidth = stretchProgress > 0.8 ? 3 : 2;
+      ctx.beginPath();
+      ctx.roundRect(mainBoxX, mainBoxY, mainBoxW, mainBoxH, 28);
+      ctx.fill();
+      ctx.stroke();
+
+      // Status da Tensão no Topo do Card Principal
+      const statusColor = stretchProgress > 0.8 ? "#10b981" : "#f59e0b";
+      ctx.fillStyle = statusColor;
+      ctx.font = "800 24px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        stretchProgress > 0.8
+          ? "PASSO 2: PELE 100% ESTICADA • AGULHA LIBERADA PARA ENTRAR"
+          : "PASSO 1: POSICIONANDO E ABRINDO OS 3 DEDOS DE APOIO...",
+        mainBoxX + 36,
+        mainBoxY + 52
+      );
+
+      const cx = mainBoxX + mainBoxW * 0.5;
+      const cy = mainBoxY + mainBoxH * 0.54;
+
+      // Desenho da Malha Elástica da Pele (Ondulada quando frouxa -> Reta quando esticada)
+      const gridSpanX = mainBoxW * 0.32 + stretchProgress * 55;
+      const gridSpanY = mainBoxH * 0.24 + stretchProgress * 35;
+
+      ctx.strokeStyle =
+        stretchProgress > 0.8
+          ? "rgba(16, 185, 129, 0.22)"
+          : "rgba(245, 158, 11, 0.22)";
+      ctx.lineWidth = 2;
+
+      for (let r = -3; r <= 3; r++) {
+        const ly = cy + (r * gridSpanY) / 3;
+        const waveAmp = (1 - stretchProgress) * 14;
+        ctx.beginPath();
+        for (let sx = -20; sx <= 20; sx++) {
+          const px = cx + (sx / 20) * gridSpanX;
+          const py = ly + Math.sin(sx * 0.7 + r) * waveAmp;
+          if (sx === -20) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      // Coordenadas dos 3 Dedos (expandindo do centro para fora conforme stretchProgress)
+      const fingerDist = 45 * stretchProgress;
+      const f1 = {
+        // Dedo 1: Indicador (Mão Auxiliar) - Superior Esquerdo
+        x: cx - 185 - fingerDist * 0.9,
+        y: cy - 135 - fingerDist * 0.65,
+        dx: -1,
+        dy: -0.7,
+        label: "DEDO 1: INDICADOR",
+        sub: "Mão Auxiliar (Estica p/ Cima)"
+      };
+      const f2 = {
+        // Dedo 2: Polegar (Mão Auxiliar) - Inferior Esquerdo
+        x: cx - 185 - fingerDist * 0.9,
+        y: cy + 145 + fingerDist * 0.65,
+        dx: -1,
+        dy: 0.7,
+        label: "DEDO 2: POLEGAR",
+        sub: "Mão Auxiliar (Estica p/ Baixo)"
+      };
+      const f3 = {
+        // Dedo 3: Apoio da Mão da Máquina - Direita
+        x: cx + 215 + fingerDist * 1.0,
+        y: cy + 10,
+        dx: 1,
+        dy: 0,
+        label: "DEDO 3: APOIO / MINDINHO",
+        sub: "Mão da Máquina (Trava a Tensão)"
+      };
+
+      // Triângulo de Tensão Conectando os 3 Dedos
+      ctx.save();
+      ctx.fillStyle =
+        stretchProgress > 0.8
+          ? "rgba(16, 185, 129, 0.12)"
+          : "rgba(59, 130, 246, 0.10)";
+      ctx.strokeStyle = stretchProgress > 0.8 ? "#10b981" : colors.accent;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(f1.x, f1.y);
+      ctx.lineTo(f2.x, f2.y);
+      ctx.lineTo(f3.x, f3.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Linha Guia do Decalque no centro do Triângulo
+      const traceStartY = cy + 95;
+      const traceEndY = cy - 95;
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, traceStartY);
+      ctx.lineTo(cx - 10, traceEndY);
+      ctx.stroke();
+
+      // Desenha cada um dos 3 Dedos + Setas de Força de Esticamento
+      [f1, f2, f3].forEach((fg, idx) => {
+        ctx.save();
+
+        // Seta de vetor de tração para fora
+        const arrowLen = 35 + stretchProgress * 30;
+        const ax = fg.x + fg.dx * (58 + arrowLen);
+        const ay = fg.y + fg.dy * (58 + arrowLen);
+
+        ctx.strokeStyle = statusColor;
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(fg.x + fg.dx * 50, fg.y + fg.dy * 50);
+        ctx.lineTo(ax, ay);
+        ctx.stroke();
+
+        // Ponta da seta
+        const angle = Math.atan2(fg.dy, fg.dx);
+        ctx.fillStyle = statusColor;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(
+          ax - 16 * Math.cos(angle - Math.PI / 6),
+          ay - 16 * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.lineTo(
+          ax - 16 * Math.cos(angle + Math.PI / 6),
+          ay - 16 * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fill();
+
+        // Almofada do Dedo (Formato oval de apoio na pele)
+        ctx.fillStyle = "#1e293b";
+        ctx.strokeStyle = statusColor;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(
+          fg.x,
+          fg.y,
+          48,
+          36,
+          idx === 0 ? -0.35 : idx === 1 ? 0.35 : 0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+        ctx.stroke();
+
+        // Número do Ponto de Apoio
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "900 26px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`${idx + 1}º`, fg.x, fg.y);
+
+        // Rótulo do Dedo
+        ctx.textAlign = idx === 2 ? "right" : "left";
+        const labelX = idx === 2 ? fg.x + 50 : fg.x - 50;
+        const labelY = idx === 0 ? fg.y - 62 : idx === 1 ? fg.y + 62 : fg.y - 66;
+        ctx.fillStyle = colors.text;
+        ctx.font = "800 18px Inter, system-ui, sans-serif";
+        ctx.fillText(fg.label, labelX, labelY);
+        ctx.fillStyle = colors.muted;
+        ctx.font = "600 15px Inter, system-ui, sans-serif";
+        ctx.fillText(fg.sub, labelX, labelY + 22);
+
+        ctx.restore();
+      });
+
+      // Fase 2: Entrada da Agulha SÓ DEPOIS que os 3 dedos esticaram a pele
+      if (needleEntry > 0) {
+        const currentTraceY =
+          traceStartY + (traceEndY - traceStartY) * traceProgress;
+
+        // Traço sólido sendo riscado no meio do triângulo
+        if (traceProgress > 0) {
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.28)";
+          ctx.lineWidth = 20;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(cx - 10, traceStartY);
+          ctx.lineTo(cx - 10, currentTraceY);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#10b981";
+          ctx.lineWidth = 9;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(cx - 10, traceStartY);
+          ctx.lineTo(cx - 10, currentTraceY);
+          ctx.stroke();
+        }
+
+        // Biqueira / Agulha descendo e tatuando
+        const dropOffset = (1 - needleEntry) * -120;
+        const vib = Math.sin(t * 38) * 4;
+        const needleX = cx - 10;
+        const needleY = currentTraceY + dropOffset + vib;
+
+        ctx.save();
+        ctx.globalAlpha = needleEntry;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 9;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(needleX + 45, needleY - 95);
+        ctx.lineTo(needleX, needleY);
+        ctx.stroke();
+
+        ctx.fillStyle = "#10b981";
+        ctx.beginPath();
+        ctx.arc(needleX, needleY, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.restore();
+
+      // Card Lateral (ou Inferior no Mobile/Reels): Comparativo do Erro (Efeito Trampolim)
+      const sideX = isVert ? padX : mainBoxX + mainBoxW + totalW * 0.03;
+      const sideY = isVert ? mainBoxY + mainBoxH + 30 : mainBoxY;
+      const sideH = isVert ? 420 : mainBoxH;
+
+      ctx.save();
+      ctx.fillStyle = colors.card;
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.45)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(sideX, sideY, sideBoxW, sideH, 28);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.font = "800 22px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "ERRO COMUM: SEM ESTICAR",
+        sideX + 32,
+        sideY + 52
+      );
+
+      ctx.fillStyle = colors.text;
+      ctx.font = "800 28px Inter, system-ui, sans-serif";
+      ctx.fillText(
+        "Efeito Trampolim",
+        sideX + 32,
+        sideY + 92
+      );
+
+      // Ilustração animada da pele afundando com a batida da agulha quando não estica
+      const trampCenterX = sideX + sideBoxW / 2;
+      const trampBaseY = sideY + (isVert ? 210 : 280);
+      const bounce = Math.abs(Math.sin(t * 8)) * 42;
+
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(sideX + 45, trampBaseY);
+      ctx.quadraticCurveTo(
+        trampCenterX,
+        trampBaseY + bounce * 1.6,
+        sideX + sideBoxW - 45,
+        trampBaseY
+      );
+      ctx.stroke();
+
+      // Agulha empurrando a pele frouxa sem conseguir perfurar direito
+      ctx.strokeStyle = colors.muted;
+      ctx.lineWidth = 7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(trampCenterX, trampBaseY - 95 + bounce * 0.8);
+      ctx.lineTo(trampCenterX, trampBaseY - 4 + bounce * 0.8);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(trampCenterX, trampBaseY + bounce * 0.8, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Explicação dos 3 problemas de não esticar
+      const bullets = [
+        "1. A pele afunda junto com a agulha",
+        "2. O pigmento não entra na Derme",
+        "3. A agulha engancha e o traço sai tremido"
+      ];
+      const bulletStartY = isVert ? sideY + 285 : sideY + 430;
+      bullets.forEach((b, bi) => {
+        ctx.fillStyle = colors.text;
+        ctx.font = "600 21px Inter, system-ui, sans-serif";
+        const bLines = wrapCanvasText(ctx, b, sideBoxW - 64);
+        bLines.forEach((line, li) => {
+          ctx.fillText(
+            line,
+            sideX + 32,
+            bulletStartY + bi * 82 + li * 26
+          );
+        });
+      });
+
+      ctx.restore();
+    }
+
+    // =========================================================================
     // CENA ESPECIAL AULA 6: VOLTAGEM DA FONTE vs. VELOCIDADE DA MÃO
     // =========================================================================
     else if (sceneType === "voltage_speed") {
@@ -1451,6 +1800,7 @@ export function CourseMotionStudio({
     label: string;
     icon: any;
   }> = [
+    { id: "skin_stretch", label: "3 Dedos (Aula 10)", icon: Hand },
     { id: "voltage_speed", label: "Voltagem vs. Mão", icon: Zap },
     { id: "skin_depth", label: "Pele & Profundidade", icon: Crosshair },
     { id: "needles", label: "Guia de Agulhas", icon: Layers },
