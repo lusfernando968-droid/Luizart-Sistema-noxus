@@ -91,15 +91,76 @@ type EmojiAnim =
   | "clap"
   | "heartbeat";
 
-const EMOJI_PRESETS: Array<{ emoji: string; label: string; anim: EmojiAnim }> = [
-  { emoji: "🔥", label: "Fogo", anim: "flicker" },
-  { emoji: "🤯", label: "Mente explodindo", anim: "pop" },
-  { emoji: "💡", label: "Ideia", anim: "glow" },
-  { emoji: "✅", label: "Certo", anim: "stamp" },
-  { emoji: "⚠️", label: "Atenção", anim: "shake" },
-  { emoji: "💰", label: "Dinheiro", anim: "bounce" },
-  { emoji: "👏", label: "Palmas", anim: "clap" },
-  { emoji: "❤️", label: "Amei", anim: "heartbeat" }
+const EMOJI_PRESETS: Array<{
+  emoji: string;
+  label: string;
+  anim: EmojiAnim;
+  paths: string[];
+  circle?: boolean;
+}> = [
+  {
+    emoji: "🔥",
+    label: "Fogo",
+    anim: "flicker",
+    paths: [
+      "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+    ]
+  },
+  {
+    emoji: "🤯",
+    label: "Mente",
+    anim: "pop",
+    paths: [
+      "M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z",
+      "M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z",
+      "M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"
+    ]
+  },
+  {
+    emoji: "💡",
+    label: "Ideia",
+    anim: "glow",
+    paths: [
+      "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5",
+      "M9 18h6",
+      "M10 22h4"
+    ]
+  },
+  { emoji: "✅", label: "Certo", anim: "stamp", paths: ["M20 6 9 17l-5-5"] },
+  {
+    emoji: "⚠️",
+    label: "Atenção",
+    anim: "shake",
+    paths: [
+      "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+      "M12 9v4",
+      "M12 17h.01"
+    ]
+  },
+  {
+    emoji: "💰",
+    label: "Dinheiro",
+    anim: "bounce",
+    circle: true,
+    paths: ["M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8", "M12 18V6"]
+  },
+  {
+    emoji: "👍",
+    label: "Joinha",
+    anim: "clap",
+    paths: [
+      "M7 10v12",
+      "M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"
+    ]
+  },
+  {
+    emoji: "❤️",
+    label: "Amei",
+    anim: "heartbeat",
+    paths: [
+      "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+    ]
+  }
 ];
 
 // Síntese de Áudio Web (Efeito Sonoro / Chime estilo Podcast de Alta Produção)
@@ -3029,45 +3090,42 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
-    // MODO 8: EMOJI ANIMADO (IDENTIDADE AZUL)
+    // MODO 8: EMOJI ANIMADO MINIMALISTA (ÍCONE BRANCO + AZUL)
     // =========================================================================
     else if (sceneMode === "emoji") {
       const preset =
         EMOJI_PRESETS.find((p) => p.emoji === emojiChar) || EMOJI_PRESETS[0];
-      const R = isVert ? 300 : 250;
+      const R = isVert ? 250 : 210;
       const cx = W / 2;
       const cy = isVert ? H * 0.42 : H * (emojiCaption ? 0.4 : 0.48);
       const enter = easeOutBack(clamp01(t / 0.6));
 
-      // Ondas azuis expandindo
-      for (let k = 0; k < 3; k++) {
-        const ph = (t * 0.7 + k / 3) % 1;
+      // Ondas azuis finas
+      for (let k = 0; k < 2; k++) {
+        const ph = (t * 0.6 + k / 2) % 1;
         ctx.save();
-        ctx.globalAlpha = clamp01(t / 0.4) * (1 - ph) * 0.55;
+        ctx.globalAlpha = clamp01(t / 0.4) * (1 - ph) * 0.45;
         ctx.strokeStyle = "#3b82f6";
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(cx, cy, R * enter * (1 + ph * 0.65), 0, Math.PI * 2);
+        ctx.arc(cx, cy, R * enter * (1 + ph * 0.55), 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
 
-      // Disco azul de fundo
       ctx.save();
       ctx.translate(cx, cy);
       ctx.scale(enter, enter);
-      const disc = ctx.createRadialGradient(0, -R * 0.3, R * 0.1, 0, 0, R);
-      disc.addColorStop(0, "rgba(96, 165, 250, 0.55)");
-      disc.addColorStop(1, "rgba(29, 78, 216, 0.85)");
-      ctx.fillStyle = disc;
-      ctx.strokeStyle = "#60a5fa";
-      ctx.lineWidth = 6;
+      ctx.fillStyle =
+        bgTheme === "light" ? "rgba(37, 99, 235, 0.95)" : "rgba(59, 130, 246, 0.14)";
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(0, 0, R, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Animação própria de cada emoji
+      // Animação própria de cada ícone
       let sx = 1, sy = 1, tx = 0, ty = 0, rot = 0, glow = 0;
       switch (preset.anim) {
         case "flicker":
@@ -3076,11 +3134,11 @@ export function CourseMotionStudio({
           rot = 0.05 * Math.sin(t * 9);
           break;
         case "pop":
-          sx = sy = 1 + 0.12 * Math.sin(t * 6);
+          sx = sy = 1 + 0.1 * Math.sin(t * 6);
           break;
         case "glow":
-          sx = sy = 1 + 0.05 * Math.sin(t * 4);
-          glow = 50 + 40 * Math.sin(t * 4);
+          sx = sy = 1 + 0.04 * Math.sin(t * 4);
+          glow = 30 + 25 * Math.sin(t * 4);
           break;
         case "stamp": {
           const s = 1 + (1 - easeOutBack(clamp01(t / 0.6))) * 1.2;
@@ -3088,74 +3146,56 @@ export function CourseMotionStudio({
           break;
         }
         case "shake":
-          tx = Math.sin(t * 45) * 16 * Math.max(0, Math.sin(t * 3));
+          tx = Math.sin(t * 45) * 14 * Math.max(0, Math.sin(t * 3));
           break;
         case "bounce":
-          ty = -Math.abs(Math.sin(t * 4)) * 60;
+          ty = -Math.abs(Math.sin(t * 4)) * 45;
           break;
         case "clap":
-          sx = sy = 1 + 0.16 * Math.max(0, Math.sin(t * 10));
-          rot = 0.12 * Math.sin(t * 10);
+          sx = sy = 1 + 0.14 * Math.max(0, Math.sin(t * 10));
+          rot = 0.1 * Math.sin(t * 10);
           break;
         case "heartbeat":
-          sx = sy = 1 + 0.18 * Math.pow(Math.max(0, Math.sin(t * 7)), 3);
+          sx = sy = 1 + 0.16 * Math.pow(Math.max(0, Math.sin(t * 7)), 3);
           break;
       }
       ctx.translate(tx, ty);
       ctx.rotate(rot);
       ctx.scale(sx, sy);
-      ctx.shadowColor = "#60a5fa";
+      ctx.shadowColor = "#ffffff";
       ctx.shadowBlur = glow;
-      ctx.font = `${Math.round(R * 1.15)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(preset.emoji, 0, R * 0.06);
+      const k = (R * 1.05) / 24;
+      ctx.scale(k, k);
+      ctx.translate(-12, -12);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (preset.circle) {
+        ctx.beginPath();
+        ctx.arc(12, 12, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      preset.paths.forEach((d) => ctx.stroke(new Path2D(d)));
       ctx.restore();
 
-      // Brilhos azuis orbitando
-      for (let k = 0; k < 8; k++) {
-        const ang = (k * Math.PI) / 4 + t * 0.6;
-        const rr = R * 1.28;
-        const px = cx + Math.cos(ang) * rr;
-        const py = cy + Math.sin(ang) * rr;
-        const sz = (10 + 7 * Math.sin(t * 5 + k)) * enter;
-        ctx.save();
-        ctx.fillStyle = k % 2 ? "#60a5fa" : "#3b82f6";
-        ctx.translate(px, py);
-        ctx.rotate(ang);
-        ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-          const r2 = i % 2 === 0 ? sz : sz * 0.3;
-          const a2 = (i * Math.PI) / 4;
-          ctx.lineTo(Math.cos(a2) * r2, Math.sin(a2) * r2);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Legenda opcional
+      // Legenda minimalista (texto + traço azul)
       if (emojiCaption.trim()) {
         const capAnim = easeOutCubic(clamp01((t - 0.4) / 0.5));
         ctx.save();
         ctx.globalAlpha = capAnim;
         ctx.translate(0, (1 - capAnim) * 40);
-        ctx.font = `900 ${isVert ? 64 : 58}px Inter, system-ui, sans-serif`;
+        ctx.font = `800 ${isVert ? 64 : 58}px Inter, system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
-        const capLines = wrapCanvasText(ctx, emojiCaption, totalW).slice(0, 2);
-        const capY = cy + R + (isVert ? 150 : 110);
-        const wMax = Math.max(...capLines.map((l) => ctx.measureText(l).width));
-        const boxH = capLines.length * 76 + 36;
-        ctx.fillStyle = colors.card;
-        ctx.strokeStyle = "#3b82f6";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.roundRect(cx - wMax / 2 - 40, capY - 66, wMax + 80, boxH, 28);
-        ctx.fill();
-        ctx.stroke();
         ctx.fillStyle = colors.text;
+        const capLines = wrapCanvasText(ctx, emojiCaption, totalW).slice(0, 2);
+        const capY = cy + R + (isVert ? 140 : 100);
         capLines.forEach((ln, i) => ctx.fillText(ln, cx, capY + i * 76));
+        ctx.fillStyle = "#3b82f6";
+        ctx.beginPath();
+        ctx.roundRect(cx - 40, capY + (capLines.length - 1) * 76 + 30, 80, 6, 3);
+        ctx.fill();
         ctx.restore();
       }
       ctx.textAlign = "left";
@@ -3867,7 +3907,20 @@ export function CourseMotionStudio({
                                 : "bg-background border-border hover:bg-muted/50"
                             }`}
                           >
-                            {p.emoji}
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-6 w-6 mx-auto text-foreground"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              {p.circle && <circle cx="12" cy="12" r="10" />}
+                              {p.paths.map((d, i) => (
+                                <path key={i} d={d} />
+                              ))}
+                            </svg>
                           </button>
                         ))}
                       </div>
@@ -4027,7 +4080,7 @@ export function CourseMotionStudio({
                     {sceneMode === "term"
                       ? `Termo: ${customTermWord || "Palavra"}`
                       : sceneMode === "emoji"
-                      ? `Emoji: ${emojiChar}`
+                      ? `Ícone: ${(EMOJI_PRESETS.find((p) => p.emoji === emojiChar) || EMOJI_PRESETS[0]).label}`
                       : sceneMode === "steps"
                       ? `Passo a passo: ${stepsTitle || ""}`
                       : lessonMeta.diagramTitle}
