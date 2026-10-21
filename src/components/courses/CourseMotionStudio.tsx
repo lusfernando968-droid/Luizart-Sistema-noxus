@@ -656,7 +656,9 @@ export function CourseMotionStudio({
   const [emojiCaption, setEmojiCaption] = useState("");
 
   // Estado para Meia Tela (painel lateral estilo podcast)
-  const [splitTitle, setSplitTitle] = useState("1º PADRÃO:");
+  const [splitNumber, setSplitNumber] = useState("1º");
+  const [splitName, setSplitName] = useState("PADRÃO:");
+  const splitTitle = `${splitNumber} ${splitName}`.trim();
   const [splitItems, setSplitItems] = useState<string[]>([
     "Texto de destaque (com detalhe opcional)",
     "Segundo ponto da explicação",
@@ -719,7 +721,12 @@ export function CourseMotionStudio({
         : sceneMode === "emoji"
         ? { emoji: emojiChar, caption: emojiCaption }
         : sceneMode === "split"
-        ? { title: splitTitle, items: splitItems.filter((s) => s.trim()) }
+        ? {
+          title: splitTitle,
+          number: splitNumber,
+          name: splitName,
+          items: splitItems.filter((s) => s.trim())
+        }
         : { title: stepsTitle, steps: stepsItems.filter((s) => s.trim()) };
     const { error } = await supabase.from("motion_biblioteca").insert({
       nome,
@@ -746,7 +753,13 @@ export function CourseMotionStudio({
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
     } else if (item.modelo === "split") {
-      setSplitTitle(d.title || "");
+      if (d.number !== undefined || d.name !== undefined) {
+        setSplitNumber(d.number || "");
+        setSplitName(d.name || "");
+      } else {
+        setSplitNumber("");
+        setSplitName(d.title || "");
+      }
       const arr: string[] = Array.isArray(d.items) ? d.items : [];
       setSplitItems([0, 1, 2, 3].map((i) => arr[i] || ""));
     } else if (item.modelo === "emoji") {
@@ -4108,14 +4121,25 @@ export function CourseMotionStudio({
                 {/* Editor da Meia Tela */}
                 {sceneMode === "split" && (
                   <div className="space-y-2.5">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Título</Label>
-                      <Input
-                        value={splitTitle}
-                        onChange={(e) => setSplitTitle(e.target.value)}
-                        className="h-9 text-xs"
-                        placeholder="Ex: 3º PADRÃO:"
-                      />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Número</Label>
+                        <Input
+                          value={splitNumber}
+                          onChange={(e) => setSplitNumber(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: 3º"
+                        />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        <Label className="text-xs font-semibold">Nome</Label>
+                        <Input
+                          value={splitName}
+                          onChange={(e) => setSplitName(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: PADRÃO:"
+                        />
+                      </div>
                     </div>
                     {splitItems.map((s, i) => (
                       <div key={i} className="space-y-1">
