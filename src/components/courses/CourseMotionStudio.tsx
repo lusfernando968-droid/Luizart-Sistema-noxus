@@ -2640,16 +2640,38 @@ export function CourseMotionStudio({
     selectedCourse
   ]);
 
-  // Gravação e Download do Vídeo (.webm) em 60fps
-  const handleExportVideo = () => {
+  // Gravação e Download do Vídeo (.mp4 / .webm) em 60fps
+  const pickMimeType = (format: "mp4" | "webm"): string | null => {
+    const candidates =
+      format === "mp4"
+        ? [
+            "video/mp4;codecs=avc1.640028",
+            "video/mp4;codecs=avc1.4D401F",
+            "video/mp4;codecs=avc1.42E01E",
+            "video/mp4;codecs=avc1",
+            "video/mp4"
+          ]
+        : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? null;
+  };
+
+  const handleExportVideo = (format: "mp4" | "webm" = "mp4") => {
     const canvas = canvasRef.current;
     if (!canvas || isRecording) return;
 
     try {
       const stream = canvas.captureStream(60);
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm";
+      let mimeType = pickMimeType(format);
+      let extension: "mp4" | "webm" = format;
+
+      if (!mimeType && format === "mp4") {
+        mimeType = pickMimeType("webm");
+        extension = "webm";
+        toast.warning(
+          "Este navegador não grava MP4 direto. Atualize o Chrome/Edge para baixar em MP4. Baixando em WebM."
+        );
+      }
+      if (!mimeType) throw new Error("Nenhum formato de vídeo suportado");
 
       const recorder = new MediaRecorder(stream, {
         mimeType,
@@ -2670,13 +2692,13 @@ export function CourseMotionStudio({
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "");
         a.href = url;
-        a.download = `${safeName}-${sceneMode}.webm`;
+        a.download = `${safeName}-${sceneMode}.${extension}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         setIsRecording(false);
-        toast.success("Vídeo Motion exportado com sucesso!");
+        toast.success(`Vídeo Motion exportado em ${extension.toUpperCase()}!`);
       };
 
       setIsRecording(true);
@@ -2937,15 +2959,26 @@ export function CourseMotionStudio({
                 </div>
               </div>
 
-              <Button
-                size="sm"
-                className="h-9 gap-1.5 text-xs font-semibold shrink-0"
-                disabled={isRecording}
-                onClick={handleExportVideo}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {isRecording ? "Gravando Vídeo..." : "Baixar Vídeo (.webm)"}
-              </Button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  size="sm"
+                  className="h-9 gap-1.5 text-xs font-semibold"
+                  disabled={isRecording}
+                  onClick={() => handleExportVideo("mp4")}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {isRecording ? "Gravando..." : "Baixar MP4"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs font-semibold"
+                  disabled={isRecording}
+                  onClick={() => handleExportVideo("webm")}
+                >
+                  WebM
+                </Button>
+              </div>
             </div>
 
             {/* Palco do Canvas */}
