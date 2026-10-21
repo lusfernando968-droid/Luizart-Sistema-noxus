@@ -66,7 +66,8 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
-  Cell
+  Cell,
+  LabelList
 } from "recharts";
 
 export interface ChecklistItem {
@@ -344,6 +345,8 @@ const Courses = () => {
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [courseFilter, setCourseFilter] = useState<string>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
+  const [analyticsCourseFilter, setAnalyticsCourseFilter] = useState<string>("all");
+  const [chartGroupBy, setChartGroupBy] = useState<"curso" | "modulo">("curso");
 
   // Modal Novo Conteúdo
   const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
@@ -529,19 +532,36 @@ const Courses = () => {
   // =========================================================================
 
   const productionMetrics = useMemo(() => {
-    const total = contents.length;
-    const ideasCount = contents.filter((c) => c.stage === "Ideia").length;
-    const preProdCount = contents.filter((c) => c.stage === "Pré-produção").length;
-    const captureCount = contents.filter((c) => c.stage === "Captação").length;
+    const scopedContents =
+      analyticsCourseFilter === "all"
+        ? contents
+        : contents.filter((c) => (c.category || "Sem Formato") === analyticsCourseFilter);
+
+    const total = scopedContents.length;
+    const ideasCount = scopedContents.filter((c) => c.stage === "Ideia").length;
+    const preProdCount = scopedContents.filter((c) => c.stage === "Pré-produção").length;
+    const captureCount = scopedContents.filter((c) => c.stage === "Captação").length;
     const inProductionCount = preProdCount + captureCount;
-    const completedCount = contents.filter((c) => c.stage === "Concluído").length;
+    const completedCount = scopedContents.filter((c) => c.stage === "Concluído").length;
+
+    const hasValidScript = (c: ContentProduction) =>
+      Boolean(
+        c.script_content &&
+          c.script_content
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/gi, " ")
+            .trim().length > 0
+      );
+
+    const scriptsCount = scopedContents.filter(hasValidScript).length;
+    const driveCount = scopedContents.filter((c) => Boolean(c.video_link?.trim())).length;
 
     let totalTakes = 0;
     let doneTakes = 0;
     let totalPreTasks = 0;
     let donePreTasks = 0;
 
-    contents.forEach((c) => {
+    scopedContents.forEach((c) => {
       const capList = c.capture_checklist || [];
       totalTakes += capList.length;
       doneTakes += capList.filter((i) => i.done).length;
@@ -553,17 +573,24 @@ const Courses = () => {
 
     const takesProgress =
       totalTakes > 0 ? Math.round((doneTakes / totalTakes) * 100) : 0;
+    const preTasksProgress =
+      totalPreTasks > 0 ? Math.round((donePreTasks / totalPreTasks) * 100) : 0;
+    const scriptsPct = total > 0 ? Math.round((scriptsCount / total) * 100) : 0;
+    const drivePct = total > 0 ? Math.round((driveCount / total) * 100) : 0;
     const completionRate =
       total > 0 ? Math.round((completedCount / total) * 100) : 0;
+    const ideasPct = total > 0 ? Math.round((ideasCount / total) * 100) : 0;
+    const preProdPct = total > 0 ? Math.round((preProdCount / total) * 100) : 0;
+    const capturePct = total > 0 ? Math.round((captureCount / total) * 100) : 0;
 
     const stageChartData = [
-      { etapa: "Ideia", quantidade: ideasCount, color: "#64748b" },
-      { etapa: "Pré-produção", quantidade: preProdCount, color: "#f59e0b" },
-      { etapa: "Captação", quantidade: captureCount, color: "hsl(var(--primary))" },
-      { etapa: "Concluído", quantidade: completedCount, color: "#10b981" }
+      { etapa: "Ideia", quantidade: ideasCount, pct: ideasPct, color: "#64748b" },
+      { etapa: "Pré-produção", quantidade: preProdCount, pct: preProdPct, color: "#f59e0b" },
+      { etapa: "Captação", quantidade: captureCount, pct: capturePct, color: "hsl(var(--primary))" },
+      { etapa: "Concluído", quantidade: completedCount, pct: completionRate, color: "#10b981" }
     ];
 
-    // Agrupamento por Curso / Formato
+    // Agrupamento por Curso / Formato (sempre considera todos para o quadro comparativo)
     const categoryNames = Array.from(
       new Set([
         ...courseFormats.map((f) => f.name),
@@ -578,6 +605,8 @@ const Courses = () => {
       const catCap = items.filter((c) => c.stage === "Captação").length;
       const catInProd = catPre + catCap;
       const catDone = items.filter((c) => c.stage === "Concluído").length;
+      const catScripts = items.filter(hasValidScript).length;
+      const catDrive = items.filter((c) => Boolean(c.video_link?.trim())).length;
 
       let catTakesTotal = 0;
       let catTakesDone = 0;
@@ -589,8 +618,11 @@ const Courses = () => {
 
       const catTakesPct =
         catTakesTotal > 0 ? Math.round((catTakesDone / catTakesTotal) * 100) : 0;
+      const catCompletionPct =
+        items.length > 0 ? Math.round((catDone / items.length) * 100) : 0;
 
       return {
+        nome: catName,
         curso: catName,
         total: items.length,
         ideias: catIdeas,
@@ -598,9 +630,46 @@ const Courses = () => {
         captacao: catCap,
         emProducao: catInProd,
         concluidos: catDone,
+        scriptsDone: catScripts,
+        driveDone: catDrive,
         takesDone: catTakesDone,
         takesTotal: catTakesTotal,
-        takesPct: catTakesPct
+        takesPct: catTakesPct,
+        completionPct: catCompletionPct
+      };
+    });
+
+    // Agrupamento por Módulo / Tema dentro do escopo selecionado
+    const moduleNames = Array.from(
+      new Set(
+        scopedContents.map((c) =>
+          c.module_name && c.module_name.trim() ? c.module_name.trim() : "Geral / Sem Módulo"
+        )
+      )
+    ).sort((a, b) =>
+      a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" })
+    );
+
+    const byModuleData = moduleNames.map((modName) => {
+      const items = scopedContents.filter(
+        (c) =>
+          (c.module_name && c.module_name.trim() ? c.module_name.trim() : "Geral / Sem Módulo") ===
+          modName
+      );
+      const modIdeas = items.filter((c) => c.stage === "Ideia").length;
+      const modPre = items.filter((c) => c.stage === "Pré-produção").length;
+      const modCap = items.filter((c) => c.stage === "Captação").length;
+      const modDone = items.filter((c) => c.stage === "Concluído").length;
+
+      return {
+        nome: modName,
+        modulo: modName,
+        total: items.length,
+        ideias: modIdeas,
+        preProducao: modPre,
+        captacao: modCap,
+        emProducao: modPre + modCap,
+        concluidos: modDone
       };
     });
 
@@ -611,16 +680,25 @@ const Courses = () => {
       captureCount,
       inProductionCount,
       completedCount,
+      scriptsCount,
+      scriptsPct,
+      driveCount,
+      drivePct,
       totalTakes,
       doneTakes,
       takesProgress,
       totalPreTasks,
       donePreTasks,
+      preTasksProgress,
       completionRate,
+      ideasPct,
+      preProdPct,
+      capturePct,
       stageChartData,
-      byCourseData
+      byCourseData,
+      byModuleData
     };
-  }, [contents, courseFormats]);
+  }, [contents, courseFormats, analyticsCourseFilter]);
 
   // =========================================================================
   // GESTÃO DE CURSOS / FORMATOS & MÓDULOS / TEMAS (ABA CONFIGURAÇÕES)
@@ -1867,152 +1945,553 @@ const Courses = () => {
               /* ---------------------------------------------------------
                  SUBPÁGINA 2: ANÁLISE DE DADOS & GRÁFICOS DE PRODUÇÃO
                  --------------------------------------------------------- */
-              <div className="space-y-6">
+              <div className="space-y-5">
+                {/* Filtro Rápido por Curso / Formato */}
+                {productionMetrics.byCourseData.length > 0 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+                    <Button
+                      type="button"
+                      variant={analyticsCourseFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 rounded-lg text-xs font-medium shrink-0"
+                      onClick={() => setAnalyticsCourseFilter("all")}
+                    >
+                      Todos os Cursos ({contents.length})
+                    </Button>
+                    {productionMetrics.byCourseData.map((c) => (
+                      <Button
+                        key={c.curso}
+                        type="button"
+                        variant={analyticsCourseFilter === c.curso ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 rounded-lg text-xs font-medium shrink-0"
+                        onClick={() => setAnalyticsCourseFilter(c.curso)}
+                      >
+                        {c.curso} ({c.total})
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Cards de Indicadores (KPIs) */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {/* KPI 1: Ideias no Banco */}
                   <div
                     onClick={() => {
+                      if (analyticsCourseFilter !== "all") {
+                        setCourseFilter(analyticsCourseFilter);
+                      }
                       setStageFilter("Ideia");
                       setBastidoresSubTab("fila");
                     }}
-                    className="stat-card cursor-pointer hover:border-primary/40"
+                    className="stat-card cursor-pointer hover:border-primary/40 transition-all flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        Ideias no Banco
-                      </span>
-                      <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Ideias no Banco
+                        </span>
+                        <div className="h-8 w-8 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center">
+                          <Lightbulb className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                          {productionMetrics.ideasCount}
+                        </p>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          / {productionMetrics.total} aulas
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {productionMetrics.ideasCount}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      de {productionMetrics.total} conteúdos criados
-                    </p>
+
+                    <div className="mt-3 space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-slate-500 transition-all duration-500"
+                          style={{ width: `${productionMetrics.ideasPct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{productionMetrics.ideasPct}% na etapa inicial</span>
+                        <span className="font-medium text-foreground">
+                          {productionMetrics.scriptsCount} c/ roteiro
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* KPI 2: Trabalhos em Produção */}
                   <div
                     onClick={() => {
+                      if (analyticsCourseFilter !== "all") {
+                        setCourseFilter(analyticsCourseFilter);
+                      }
                       setStageFilter("Captação");
                       setBastidoresSubTab("fila");
                     }}
-                    className="stat-card cursor-pointer hover:border-primary/40"
+                    className="stat-card cursor-pointer hover:border-primary/40 transition-all flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        Trabalhos em Produção
-                      </span>
-                      <Clapperboard className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Em Produção
+                        </span>
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                          <Clapperboard className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">
+                          {productionMetrics.inProductionCount}
+                        </p>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          em andamento
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-primary">
-                      {productionMetrics.inProductionCount}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {productionMetrics.preProdCount} pré-prod. •{" "}
-                      {productionMetrics.captureCount} captação
-                    </p>
+
+                    <div className="mt-3 space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden flex">
+                        <div
+                          className="h-full bg-amber-500 transition-all duration-500"
+                          style={{ width: `${productionMetrics.preProdPct}%` }}
+                        />
+                        <div
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${productionMetrics.capturePct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          {productionMetrics.preProdCount} pré-prod.
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          {productionMetrics.captureCount} captação
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        Captação de Material
-                      </span>
-                      <TrendingUp className="h-4 w-4 text-primary" />
+                  {/* KPI 3: Captação de Material */}
+                  <div className="stat-card flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Captação de Takes
+                        </span>
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                          <TrendingUp className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                          {productionMetrics.doneTakes}
+                          <span className="text-lg font-semibold text-muted-foreground">
+                            /{productionMetrics.totalTakes}
+                          </span>
+                        </p>
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 font-semibold bg-primary/10 text-primary border-0"
+                        >
+                          {productionMetrics.takesProgress}%
+                        </Badge>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">
-                      {productionMetrics.doneTakes}/{productionMetrics.totalTakes}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {productionMetrics.takesProgress}% dos takes gravados
-                    </p>
+
+                    <div className="mt-3 space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${productionMetrics.takesProgress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Takes gravados</span>
+                        <span className="font-medium text-foreground">
+                          Pré-prod: {productionMetrics.donePreTasks}/{productionMetrics.totalPreTasks}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* KPI 4: Conteúdos Concluídos */}
                   <div
                     onClick={() => {
+                      if (analyticsCourseFilter !== "all") {
+                        setCourseFilter(analyticsCourseFilter);
+                      }
                       setStageFilter("Concluído");
                       setBastidoresSubTab("fila");
                     }}
-                    className="stat-card cursor-pointer hover:border-primary/40"
+                    className="stat-card cursor-pointer hover:border-emerald-500/40 transition-all flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        Conteúdos Concluídos
-                      </span>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Conteúdos Concluídos
+                        </span>
+                        <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-bold text-emerald-600 tracking-tight">
+                          {productionMetrics.completedCount}
+                        </p>
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 font-semibold bg-emerald-500/10 text-emerald-600 border-0"
+                        >
+                          {productionMetrics.completionRate}%
+                        </Badge>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-600">
-                      {productionMetrics.completedCount}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {productionMetrics.completionRate}% da fila finalizada
-                    </p>
+
+                    <div className="mt-3 space-y-1.5">
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${productionMetrics.completionRate}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Da fila finalizada</span>
+                        <span className="font-medium text-foreground">
+                          {productionMetrics.driveCount} no Drive
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Faixa de Raio-X das Entregas (Pipeline & Checklist Global) */}
+                <div className="bg-card rounded-xl border p-4 shadow-sm">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate">
+                          Roteiros Escritos
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-foreground shrink-0 ml-2">
+                        {productionMetrics.scriptsCount}/{productionMetrics.total}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({productionMetrics.scriptsPct}%)
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ListChecks className="h-4 w-4 text-amber-500 shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate">
+                          Tarefas Pré-prod.
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-foreground shrink-0 ml-2">
+                        {productionMetrics.donePreTasks}/{productionMetrics.totalPreTasks}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({productionMetrics.preTasksProgress}%)
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Clapperboard className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate">
+                          Takes Gravados
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-foreground shrink-0 ml-2">
+                        {productionMetrics.doneTakes}/{productionMetrics.totalTakes}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({productionMetrics.takesProgress}%)
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FolderOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span className="text-xs font-medium text-foreground truncate">
+                          Links do Drive
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-foreground shrink-0 ml-2">
+                        {productionMetrics.driveCount}/{productionMetrics.total}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          ({productionMetrics.drivePct}%)
+                        </span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Gráficos Analíticos */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Gráfico 1: Volume por Etapa do Funil de Produção */}
-                  <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
-                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-primary" />
-                      Volume por Etapa de Produção
-                    </h3>
-                    <div className="h-[260px] w-full">
+                  <div className="bg-card rounded-xl border p-5 shadow-sm flex flex-col justify-between space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-primary" />
+                        Volume por Etapa de Produção
+                      </h3>
+                      <Badge variant="outline" className="text-[11px] font-medium">
+                        {productionMetrics.total} aulas no total
+                      </Badge>
+                    </div>
+
+                    <div className="h-[240px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={productionMetrics.stageChartData}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="etapa" tick={{ fontSize: 11 }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                          <RechartsTooltip />
+                        <BarChart
+                          data={productionMetrics.stageChartData}
+                          margin={{ top: 24, right: 12, left: -20, bottom: 4 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            vertical={false}
+                            stroke="hsl(var(--border))"
+                            opacity={0.7}
+                          />
+                          <XAxis
+                            dataKey="etapa"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                            dy={6}
+                          />
+                          <YAxis
+                            allowDecimals={false}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                          />
+                          <RechartsTooltip
+                            cursor={{ fill: "hsl(var(--muted) / 0.35)", radius: 6 }}
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              borderColor: "hsl(var(--border))",
+                              borderRadius: "10px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                              fontSize: "12px"
+                            }}
+                            formatter={(value: number, _name: string, props: any) => [
+                              `${value} aulas (${props?.payload?.pct || 0}%)`,
+                              "Volume"
+                            ]}
+                          />
                           <Bar
                             dataKey="quantidade"
                             name="Conteúdos"
-                            radius={[6, 6, 0, 0]}
+                            maxBarSize={44}
+                            radius={[8, 8, 4, 4]}
+                            background={{ fill: "hsl(var(--muted) / 0.3)", radius: 8 }}
                           >
                             {productionMetrics.stageChartData.map((entry, idx) => (
                               <Cell key={`cell-${idx}`} fill={entry.color} />
                             ))}
+                            <LabelList
+                              dataKey="quantidade"
+                              position="top"
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                fill: "hsl(var(--foreground))"
+                              }}
+                            />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+
+                    {/* Resumo proporcional das 4 etapas */}
+                    <div className="grid grid-cols-4 gap-2 pt-3 border-t">
+                      {productionMetrics.stageChartData.map((st) => (
+                        <button
+                          key={st.etapa}
+                          type="button"
+                          onClick={() => {
+                            if (analyticsCourseFilter !== "all") {
+                              setCourseFilter(analyticsCourseFilter);
+                            }
+                            setStageFilter(st.etapa);
+                            setBastidoresSubTab("fila");
+                          }}
+                          className="flex flex-col items-center p-2 rounded-lg hover:bg-muted/50 transition-colors text-center"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: st.color }}
+                            />
+                            <span className="text-[11px] font-medium text-muted-foreground truncate">
+                              {st.etapa}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-foreground mt-0.5">
+                            {st.quantidade}{" "}
+                            <span className="text-[10px] font-normal text-muted-foreground">
+                              ({st.pct}%)
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Gráfico 2: Comparativo de Produção por Curso / Formato */}
-                  <div className="bg-card rounded-xl border p-5 shadow-sm space-y-4">
-                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-primary" />
-                      Produção por Curso / Formato
-                    </h3>
-                    <div className="h-[260px] w-full">
+                  {/* Gráfico 2: Comparativo de Produção por Curso ou por Módulo */}
+                  <div className="bg-card rounded-xl border p-5 shadow-sm flex flex-col justify-between space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-primary" />
+                        {chartGroupBy === "curso"
+                          ? "Produção por Curso / Formato"
+                          : "Produção por Módulo / Tema"}
+                      </h3>
+
+                      <div className="inline-flex items-center p-0.5 rounded-lg bg-muted/60 border">
+                        <button
+                          type="button"
+                          onClick={() => setChartGroupBy("curso")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                            chartGroupBy === "curso"
+                              ? "bg-card text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Por Curso
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setChartGroupBy("modulo")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                            chartGroupBy === "modulo"
+                              ? "bg-card text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Por Módulo
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="h-[240px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={productionMetrics.byCourseData}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="curso" tick={{ fontSize: 11 }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                          <RechartsTooltip />
-                          <Legend />
+                        <BarChart
+                          data={
+                            chartGroupBy === "curso"
+                              ? productionMetrics.byCourseData
+                              : productionMetrics.byModuleData
+                          }
+                          margin={{ top: 24, right: 12, left: -20, bottom: 4 }}
+                          barGap={6}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            vertical={false}
+                            stroke="hsl(var(--border))"
+                            opacity={0.7}
+                          />
+                          <XAxis
+                            dataKey="nome"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                            dy={6}
+                          />
+                          <YAxis
+                            allowDecimals={false}
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                          />
+                          <RechartsTooltip
+                            cursor={{ fill: "hsl(var(--muted) / 0.35)", radius: 6 }}
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              borderColor: "hsl(var(--border))",
+                              borderRadius: "10px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                              fontSize: "12px"
+                            }}
+                          />
+                          <Legend
+                            iconType="circle"
+                            wrapperStyle={{ fontSize: "11px", paddingTop: "12px" }}
+                          />
                           <Bar
                             dataKey="ideias"
                             name="Ideias"
                             fill="#64748b"
-                            radius={[4, 4, 0, 0]}
-                          />
+                            maxBarSize={28}
+                            radius={[6, 6, 0, 0]}
+                          >
+                            <LabelList
+                              dataKey="ideias"
+                              position="top"
+                              formatter={(v: number) => (v > 0 ? v : "")}
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fill: "hsl(var(--muted-foreground))"
+                              }}
+                            />
+                          </Bar>
                           <Bar
                             dataKey="emProducao"
                             name="Em Produção"
                             fill="hsl(var(--primary))"
-                            radius={[4, 4, 0, 0]}
-                          />
+                            maxBarSize={28}
+                            radius={[6, 6, 0, 0]}
+                          >
+                            <LabelList
+                              dataKey="emProducao"
+                              position="top"
+                              formatter={(v: number) => (v > 0 ? v : "")}
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fill: "hsl(var(--primary))"
+                              }}
+                            />
+                          </Bar>
                           <Bar
                             dataKey="concluidos"
                             name="Concluídos"
                             fill="#10b981"
-                            radius={[4, 4, 0, 0]}
-                          />
+                            maxBarSize={28}
+                            radius={[6, 6, 0, 0]}
+                          >
+                            <LabelList
+                              dataKey="concluidos"
+                              position="top"
+                              formatter={(v: number) => (v > 0 ? v : "")}
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fill: "#10b981"
+                              }}
+                            />
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t text-xs text-muted-foreground">
+                      <span>
+                        {chartGroupBy === "curso"
+                          ? `${productionMetrics.byCourseData.length} curso(s) monitorado(s)`
+                          : `${productionMetrics.byModuleData.length} módulo(s) listado(s)`}
+                      </span>
+                      <span className="font-semibold text-emerald-600">
+                        {productionMetrics.completedCount} de {productionMetrics.total} aulas prontas ({productionMetrics.completionRate}%)
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2023,17 +2502,21 @@ const Courses = () => {
                     <h3 className="font-bold text-sm text-foreground">
                       Quadro Geral de Produção por Curso / Formato
                     </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {productionMetrics.byCourseData.length} formato(s)
+                    </span>
                   </div>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/40">
-                          <TableHead>Curso / Formato</TableHead>
-                          <TableHead>Ideias</TableHead>
-                          <TableHead>Em Pré-produção</TableHead>
-                          <TableHead>Em Captação</TableHead>
-                          <TableHead>Concluídos</TableHead>
-                          <TableHead>Execução de Takes</TableHead>
+                          <TableHead className="min-w-[180px]">Curso / Formato</TableHead>
+                          <TableHead className="text-center">Ideias</TableHead>
+                          <TableHead className="text-center">Pré-prod.</TableHead>
+                          <TableHead className="text-center">Captação</TableHead>
+                          <TableHead className="text-center">Roteiros</TableHead>
+                          <TableHead className="min-w-[160px]">Execução de Takes</TableHead>
+                          <TableHead className="min-w-[160px]">Conclusão do Curso</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2041,7 +2524,7 @@ const Courses = () => {
                         {productionMetrics.byCourseData.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={7}
+                              colSpan={8}
                               className="text-center py-8 text-muted-foreground text-sm"
                             >
                               Nenhum dado de produção registrado.
@@ -2049,32 +2532,84 @@ const Courses = () => {
                           </TableRow>
                         ) : (
                           productionMetrics.byCourseData.map((row) => (
-                            <TableRow key={row.curso}>
-                              <TableCell className="font-bold text-sm text-foreground">
-                                {row.curso}
+                            <TableRow
+                              key={row.curso}
+                              className="hover:bg-muted/30 transition-colors"
+                            >
+                              <TableCell>
+                                <div>
+                                  <p className="font-bold text-sm text-foreground">
+                                    {row.curso}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {row.total} {row.total === 1 ? "aula cadastrada" : "aulas cadastradas"}
+                                  </p>
+                                </div>
                               </TableCell>
-                              <TableCell className="text-xs font-medium text-muted-foreground">
-                                {row.ideias}
+                              <TableCell className="text-center">
+                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-xs font-semibold bg-muted text-muted-foreground">
+                                  {row.ideias}
+                                </span>
                               </TableCell>
-                              <TableCell className="text-xs font-medium text-amber-600">
-                                {row.preProducao}
+                              <TableCell className="text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-xs font-semibold ${
+                                    row.preProducao > 0
+                                      ? "bg-amber-500/10 text-amber-600"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {row.preProducao}
+                                </span>
                               </TableCell>
-                              <TableCell className="text-xs font-bold text-primary">
-                                {row.captacao}
+                              <TableCell className="text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-xs font-semibold ${
+                                    row.captacao > 0
+                                      ? "bg-primary/10 text-primary"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {row.captacao}
+                                </span>
                               </TableCell>
-                              <TableCell className="text-xs font-bold text-emerald-600">
-                                {row.concluidos}/{row.total}
+                              <TableCell className="text-center">
+                                <span className="text-xs font-semibold text-foreground">
+                                  {row.scriptsDone}
+                                  <span className="text-muted-foreground font-normal">
+                                    /{row.total}
+                                  </span>
+                                </span>
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
                                     <div
                                       className="h-full bg-primary transition-all"
                                       style={{ width: `${row.takesPct}%` }}
                                     />
                                   </div>
-                                  <span className="text-xs font-semibold">
-                                    {row.takesDone}/{row.takesTotal} ({row.takesPct}%)
+                                  <span className="text-xs font-semibold whitespace-nowrap">
+                                    {row.takesDone}/{row.takesTotal}{" "}
+                                    <span className="text-muted-foreground font-normal">
+                                      ({row.takesPct}%)
+                                    </span>
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+                                    <div
+                                      className="h-full bg-emerald-500 transition-all"
+                                      style={{ width: `${row.completionPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">
+                                    {row.concluidos}/{row.total}{" "}
+                                    <span className="text-muted-foreground font-normal">
+                                      ({row.completionPct}%)
+                                    </span>
                                   </span>
                                 </div>
                               </TableCell>
