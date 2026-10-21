@@ -675,7 +675,7 @@ export function CourseMotionStudio({
   const [bigWord, setBigWord] = useState("");
 
   // Estado para Gráfico animado
-  const [chartType, setChartType] = useState<"bars" | "line">("bars");
+  const [chartType, setChartType] = useState<"bars" | "line" | "exponential">("bars");
   const [chartTitle, setChartTitle] = useState("Crescimento");
   const [chartRows, setChartRows] = useState<Array<{ label: string; value: string }>>([
     { label: "Jan", value: "20" },
@@ -781,7 +781,7 @@ export function CourseMotionStudio({
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
     } else if (item.modelo === "chart") {
-      setChartType(d.type === "line" ? "line" : "bars");
+      setChartType(d.type === "exponential" ? "exponential" : d.type === "line" ? "line" : "bars");
       setChartTitle(d.title || "");
       const arr: Array<{ label: string; value: string }> = Array.isArray(d.rows) ? d.rows : [];
       setChartRows(
@@ -3569,7 +3569,137 @@ export function CourseMotionStudio({
         const valSize = isVert ? 38 : 36;
         const topIdx = pts.reduce((bi, p, i) => (p.num > pts[bi].num ? i : bi), 0);
 
-        if (chartType === "bars") {
+        if (chartType === "exponential") {
+          const xs = pts.map((_, i) => left + slot * i + slot / 2);
+          const ys = pts.map((p) => baseY - (p.num / maxV) * innerH);
+          const prog = easeOutCubic(clamp01((t - 0.25) / 1.7));
+
+          const totalSteps = 80;
+          const maxStep = Math.floor(totalSteps * prog);
+
+          const getPointAt = (u: number) => {
+            const idx = u * (n - 1);
+            const i0 = Math.floor(idx);
+            const i1 = Math.min(i0 + 1, n - 1);
+            const f = idx - i0;
+            const expF = Math.pow(f, 1.35);
+            return {
+              x: xs[i0] + (xs[i1] - xs[i0]) * f,
+              y: ys[i0] + (ys[i1] - ys[i0]) * expF
+            };
+          };
+
+          const tipPt = getPointAt(prog);
+
+          if (maxStep > 1 && n > 1) {
+            // Área de brilho degradê azul neon sob a curva exponencial
+            const ag = ctx.createLinearGradient(0, top, 0, baseY);
+            ag.addColorStop(0, "rgba(59, 130, 246, 0.42)");
+            ag.addColorStop(0.6, "rgba(37, 99, 235, 0.15)");
+            ag.addColorStop(1, "rgba(59, 130, 246, 0)");
+            ctx.save();
+            ctx.beginPath();
+            const p0 = getPointAt(0);
+            ctx.moveTo(p0.x, baseY);
+            ctx.lineTo(p0.x, p0.y);
+            for (let s = 1; s <= maxStep; s++) {
+              const pt = getPointAt(s / totalSteps);
+              ctx.lineTo(pt.x, pt.y);
+            }
+            ctx.lineTo(tipPt.x, baseY);
+            ctx.closePath();
+            ctx.fillStyle = ag;
+            ctx.fill();
+            ctx.restore();
+
+            // Curva exponencial com brilho neon azul
+            ctx.save();
+            ctx.shadowColor = "#3b82f6";
+            ctx.shadowBlur = 24;
+            const lineGrad = ctx.createLinearGradient(xs[0], baseY, xs[n - 1], top);
+            lineGrad.addColorStop(0, "#1d4ed8");
+            lineGrad.addColorStop(0.5, "#3b82f6");
+            lineGrad.addColorStop(1, "#93c5fd");
+            ctx.strokeStyle = lineGrad;
+            ctx.lineWidth = 9;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            for (let s = 1; s <= maxStep; s++) {
+              const pt = getPointAt(s / totalSteps);
+              ctx.lineTo(pt.x, pt.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Indicador de foguete / flecha na ponta da curva
+            if (prog > 0.05) {
+              ctx.save();
+              ctx.translate(tipPt.x, tipPt.y);
+              ctx.fillStyle = "#60a5fa";
+              ctx.shadowColor = "#3b82f6";
+              ctx.shadowBlur = 18;
+              ctx.beginPath();
+              ctx.arc(0, 0, 14, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = "#ffffff";
+              ctx.beginPath();
+              ctx.arc(0, 0, 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+
+          // Badge flutuante de escala exponencial no canto superior direito
+          const badgeA = easeOutCubic(clamp01((t - 0.6) / 0.5));
+          if (badgeA > 0) {
+            ctx.save();
+            ctx.globalAlpha = badgeA;
+            const bX = right - (isVert ? 260 : 300);
+            const bY = top + (isVert ? 20 : 10);
+            ctx.fillStyle = "rgba(59, 130, 246, 0.18)";
+            ctx.strokeStyle = "#3b82f6";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(bX, bY, isVert ? 260 : 290, 48, 14);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "#60a5fa";
+            ctx.font = `800 ${isVert ? 20 : 22}px Inter, system-ui, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText("✦ CURVA EXPONENCIAL", bX + (isVert ? 130 : 145), bY + 31);
+            ctx.restore();
+          }
+
+          // Pontos e rótulos
+          pts.forEach((p, i) => {
+            ctx.textAlign = "center";
+            ctx.fillStyle = colors.muted;
+            ctx.font = `600 ${labelSize}px Inter, system-ui, sans-serif`;
+            ctx.fillText(p.label, xs[i], baseY + 50);
+
+            const ptProgThreshold = i / Math.max(n - 1, 1);
+            if (prog >= ptProgThreshold) {
+              const pa = easeOutBack(clamp01((prog - ptProgThreshold) * 4 + (i === 0 ? 1 : 0)));
+              const isLast = i === n - 1;
+              ctx.fillStyle = isLast ? "#60a5fa" : "#3b82f6";
+              ctx.beginPath();
+              ctx.arc(xs[i], ys[i], (isLast ? 16 : 12) * pa, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = "#ffffff";
+              ctx.beginPath();
+              ctx.arc(xs[i], ys[i], 5 * pa, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.globalAlpha = clamp01(pa);
+              ctx.font = `800 ${valSize}px Inter, system-ui, sans-serif`;
+              ctx.fillStyle = isLast ? "#60a5fa" : colors.text;
+              ctx.fillText(fmt(p, 1), xs[i], ys[i] - 28);
+              ctx.globalAlpha = 1;
+            }
+          });
+        } else if (chartType === "bars") {
           const bw = Math.min(slot * 0.56, 180);
           pts.forEach((p, i) => {
             const k = easeOutCubic(clamp01((t - 0.3 - i * 0.18) / 0.8));
@@ -4400,16 +4530,20 @@ export function CourseMotionStudio({
                 {/* Editor do Gráfico */}
                 {sceneMode === "chart" && (
                   <div className="space-y-2.5">
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {([
                         { id: "bars", label: "Barras" },
-                        { id: "line", label: "Linha" }
+                        { id: "line", label: "Linha" },
+                        { id: "exponential", label: "Exponencial" }
                       ] as const).map((o) => (
                         <button
                           key={o.id}
                           type="button"
                           onClick={() => {
                             setChartType(o.id);
+                            if (o.id === "exponential" && chartTitle === "Crescimento") {
+                              setChartTitle("Crescimento Exponencial");
+                            }
                             setCurrentTime(0);
                             setIsPlaying(true);
                           }}
