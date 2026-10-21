@@ -47,7 +47,7 @@ type SceneMode =
   | "lower_third"
   | "term";
 type AspectRatioType = "16:9" | "9:16";
-type BgThemeType = "dark" | "light" | "chroma";
+type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
 // Funções matemáticas de animação suave (60fps)
 function easeOutCubic(x: number): number {
@@ -736,8 +736,11 @@ export function CourseMotionStudio({
             red: "#ef4444"
           };
 
+    ctx.clearRect(0, 0, W, H);
     ctx.save();
-    if (bgTheme === "chroma") {
+    if (bgTheme === "transparent") {
+      // Fundo 100% transparente (sem preenchimento)
+    } else if (bgTheme === "chroma") {
       ctx.fillStyle = "#00b140";
       ctx.fillRect(0, 0, W, H);
     } else {
@@ -2837,7 +2840,7 @@ export function CourseMotionStudio({
       ctx.globalAlpha = clamp01(t / 0.3);
 
       // Brilho azul neon ambiente no fundo (quando não for Chroma Key verde)
-      if (bgTheme !== "chroma") {
+      if (bgTheme !== "chroma" && bgTheme !== "transparent") {
         const glow = ctx.createRadialGradient(
           cardX + cardW / 2,
           cardY + cardH / 2,
@@ -2987,9 +2990,11 @@ export function CourseMotionStudio({
       ctx.restore();
     }
 
-    // Barra de Progresso do Vídeo no rodapé
-    ctx.fillStyle = "rgba(59, 130, 246, 0.85)";
-    ctx.fillRect(0, H - 8, W * progress, 8);
+    // Barra de Progresso do Vídeo no rodapé (oculta no fundo transparente)
+    if (bgTheme !== "transparent") {
+      ctx.fillStyle = "rgba(59, 130, 246, 0.85)";
+      ctx.fillRect(0, H - 8, W * progress, 8);
+    }
 
     ctx.restore();
   }, [
@@ -3025,9 +3030,16 @@ export function CourseMotionStudio({
     return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? null;
   };
 
-  const handleExportVideo = (format: "mp4" | "webm" = "mp4") => {
+  const handleExportVideo = (requestedFormat: "mp4" | "webm" = "mp4") => {
     const canvas = canvasRef.current;
     if (!canvas || isRecording) return;
+
+    // MP4 (H.264) não suporta transparência: fundo transparente só em WebM
+    const format: "mp4" | "webm" =
+      bgTheme === "transparent" ? "webm" : requestedFormat;
+    if (bgTheme === "transparent" && requestedFormat === "mp4") {
+      toast.info("Fundo transparente só funciona em WebM. Baixando em WebM.");
+    }
 
     try {
       const canvasStream = canvas.captureStream(60);
@@ -3291,6 +3303,7 @@ export function CourseMotionStudio({
                     <SelectItem value="dark">Estúdio Dark</SelectItem>
                     <SelectItem value="light">Clean Claro</SelectItem>
                     <SelectItem value="chroma">Chroma (Verde)</SelectItem>
+                    <SelectItem value="transparent">Transparente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3540,6 +3553,17 @@ export function CourseMotionStudio({
             {/* Palco do Canvas */}
             <div className="w-full bg-muted/40 rounded-xl border overflow-hidden flex items-center justify-center p-2 sm:p-4">
               <div
+                style={
+                  bgTheme === "transparent"
+                    ? {
+                        backgroundColor: "#ffffff",
+                        backgroundImage:
+                          "linear-gradient(45deg,#cbd5e1 25%,transparent 25%,transparent 75%,#cbd5e1 75%),linear-gradient(45deg,#cbd5e1 25%,transparent 25%,transparent 75%,#cbd5e1 75%)",
+                        backgroundSize: "20px 20px",
+                        backgroundPosition: "0 0,10px 10px"
+                      }
+                    : undefined
+                }
                 className={`relative w-full overflow-hidden rounded-lg shadow-md border border-border/60 ${
                   aspectRatio === "16:9"
                     ? "aspect-video max-w-full"
