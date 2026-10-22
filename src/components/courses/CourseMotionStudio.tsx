@@ -22,6 +22,9 @@ import {
   PanelLeft,
   Hash,
   BarChart3,
+  Fuel,
+  Car,
+  Gauge,
   Save,
   Trash2
 } from "lucide-react";
@@ -58,7 +61,8 @@ type SceneMode =
   | "emoji"
   | "split"
   | "number"
-  | "chart";
+  | "chart"
+  | "fuel";
 type AspectRatioType = "16:9" | "9:16";
 type BgThemeType = "dark" | "light" | "chroma" | "transparent";
 
@@ -674,6 +678,14 @@ export function CourseMotionStudio({
   const [bigNumber, setBigNumber] = useState("150%");
   const [bigWord, setBigWord] = useState("");
 
+  // Estado para Analogia Carro & Gasolina
+  const [fuelTitle, setFuelTitle] = useState("DINHEIRO É A GASOLINA DO SEU NEGÓCIO");
+  const [fuelGasLabel, setFuelGasLabel] = useState("GASOLINA = DINHEIRO EM CAIXA");
+  const [fuelCarLabel, setFuelCarLabel] = useState("CARRO = A SUA EMPRESA");
+  const [fuelInsight, setFuelInsight] = useState(
+    "O melhor carro do mundo não anda com o tanque vazio. Não adianta ter a melhor equipe se faltar gasolina no caixa."
+  );
+
   // Estado para Gráfico animado
   const [chartType, setChartType] = useState<"bars" | "line" | "exponential" | "pie">("bars");
   const [chartTitle, setChartTitle] = useState("Crescimento");
@@ -688,7 +700,7 @@ export function CourseMotionStudio({
 
   // Abas do Estúdio: Cursos (aulas) ou YouTube (motions livres)
   const [studioTab, setStudioTab] = useState<"cursos" | "youtube">("cursos");
-  const YOUTUBE_MODES: SceneMode[] = ["chart", "number", "split", "term", "steps", "emoji"];
+  const YOUTUBE_MODES: SceneMode[] = ["fuel", "chart", "number", "split", "term", "steps", "emoji"];
   const changeStudioTab = (tab: "cursos" | "youtube") => {
     setStudioTab(tab);
     if (tab === "youtube") {
@@ -740,6 +752,13 @@ export function CourseMotionStudio({
         ? { word: customTermWord, meaning: customTermMeaning, category: customTermCategory }
         : sceneMode === "emoji"
         ? { emoji: emojiChar, caption: emojiCaption }
+        : sceneMode === "fuel"
+        ? {
+            title: fuelTitle,
+            gasLabel: fuelGasLabel,
+            carLabel: fuelCarLabel,
+            insight: fuelInsight
+          }
         : sceneMode === "chart"
         ? {
             type: chartType,
@@ -780,6 +799,14 @@ export function CourseMotionStudio({
       setCustomTermWord(d.word || "");
       setCustomTermMeaning(d.meaning || "");
       setCustomTermCategory(d.category || "TERMO TÉCNICO");
+    } else if (item.modelo === "fuel") {
+      setFuelTitle(d.title || "DINHEIRO É A GASOLINA DO SEU NEGÓCIO");
+      setFuelGasLabel(d.gasLabel || "GASOLINA = DINHEIRO EM CAIXA");
+      setFuelCarLabel(d.carLabel || "CARRO = A SUA EMPRESA");
+      setFuelInsight(
+        d.insight ||
+          "O melhor carro do mundo não anda com o tanque vazio. Não adianta ter a melhor equipe se faltar gasolina no caixa."
+      );
     } else if (item.modelo === "chart") {
       setChartType(d.type === "pie" ? "pie" : d.type === "exponential" ? "exponential" : d.type === "line" ? "line" : "bars");
       setChartTitle(d.title || "");
@@ -3907,6 +3934,368 @@ export function CourseMotionStudio({
     }
 
     // =========================================================================
+    // MODO 12: CARRO & GASOLINA (METÁFORA DE NEGÓCIOS: CAIXA É O COMBUSTÍVEL)
+    // =========================================================================
+    else if (sceneMode === "fuel") {
+      const enterA = easeOutCubic(clamp01(t / 0.6));
+      const badgeText = "✦ ANALOGIA DE GESTÃO • REGRA DO FLUXO DE CAIXA";
+      drawDiagramHeader(badgeText, fuelTitle || "DINHEIRO É A GASOLINA DO SEU NEGÓCIO");
+
+      const topY = isVert ? 330 : 210;
+      const boxW = isVert ? totalW : Math.min(540, (totalW - 140) / 2);
+      const boxH = isVert ? 370 : 470;
+      const col1X = padX;
+      const col2X = isVert ? padX : padX + totalW - boxW;
+      const col2Y = isVert ? topY + boxH + 90 : topY;
+
+      // ==========================================
+      // BLOCO 1: A BOMBA DE GASOLINA (DINHEIRO / CAIXA)
+      // ==========================================
+      ctx.save();
+      ctx.globalAlpha = enterA;
+      ctx.translate((1 - enterA) * -40, 0);
+
+      ctx.fillStyle = colors.card;
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(col1X, topY, boxW, boxH, 24);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tag superior
+      ctx.fillStyle = "rgba(59, 130, 246, 0.18)";
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(col1X + 24, topY + 22, boxW - 48, 44, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#60a5fa";
+      ctx.font = "800 20px Inter, system-ui, sans-serif";
+      ctx.fillText(`⛽ ${fuelGasLabel.toUpperCase()}`, col1X + 38, topY + 51);
+
+      // Ilustração da Bomba de Combustível
+      const pumpCX = col1X + boxW / 2;
+      const pumpCY = topY + (isVert ? 165 : 215);
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(pumpCX - 80, pumpCY - 80, 160, 160, 18);
+      ctx.fill();
+      ctx.stroke();
+
+      // Display digital de caixa
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(pumpCX - 60, pumpCY - 65, 120, 42, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "900 17px monospace, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("FLUXO: R$", pumpCX, pumpCY - 38);
+
+      // Medidor de Nível de Combustível animado
+      const gaugeW = 120;
+      const gaugeH = 20;
+      const gaugeX = pumpCX - 60;
+      const gaugeY = pumpCY - 6;
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.beginPath();
+      ctx.roundRect(gaugeX, gaugeY, gaugeW, gaugeH, 6);
+      ctx.fill();
+
+      // Nível de combustível dinâmico
+      const fuelLevel = 0.4 + 0.55 * Math.sin(t * 3) * 0.5 + 0.3;
+      ctx.fillStyle = "#3b82f6";
+      ctx.shadowColor = "#3b82f6";
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.roundRect(gaugeX + 2, gaugeY + 2, (gaugeW - 4) * fuelLevel, gaugeH - 4, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "700 13px Inter, system-ui, sans-serif";
+      ctx.fillText("E [VAZIO]               F [CHEIO]", pumpCX, gaugeY + 34);
+
+      // Frase explicativa no rodapé do bloco 1
+      ctx.textAlign = "left";
+      ctx.fillStyle = colors.text;
+      ctx.font = "600 18px Inter, system-ui, sans-serif";
+      const gLines = wrapCanvasText(ctx, "O dinheiro em caixa é o combustível que alimenta cada engrenagem da operação.", boxW - 56);
+      gLines.slice(0, 2).forEach((ln, idx) => {
+        ctx.fillText(ln, col1X + 28, topY + boxH - (isVert ? 55 : 75) + idx * 26);
+      });
+      ctx.restore();
+
+      // ==========================================
+      // BLOCO 2: O CARRO (A EMPRESA / OPERAÇÃO)
+      // ==========================================
+      ctx.save();
+      ctx.globalAlpha = enterA;
+      ctx.translate((1 - enterA) * 40, 0);
+
+      ctx.fillStyle = colors.card;
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(col2X, col2Y, boxW, boxH, 24);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tag superior
+      ctx.fillStyle = "rgba(59, 130, 246, 0.18)";
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(col2X + 24, col2Y + 22, boxW - 48, 44, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#60a5fa";
+      ctx.font = "800 20px Inter, system-ui, sans-serif";
+      ctx.fillText(`🚗 ${fuelCarLabel.toUpperCase()}`, col2X + 38, col2Y + 51);
+
+      // Ilustração do Carro Acelerando
+      const carCX = col2X + boxW / 2;
+      const carCY = col2Y + (isVert ? 170 : 215);
+
+      ctx.save();
+      const carBounce = Math.sin(t * 14) * 2;
+      ctx.translate(carCX, carCY + carBounce);
+
+      // Silhueta do carro
+      ctx.fillStyle = "rgba(30, 41, 59, 0.95)";
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-110, 15);
+      ctx.lineTo(-100, -10);
+      ctx.lineTo(-50, -12);
+      ctx.lineTo(-20, -42);
+      ctx.lineTo(45, -42);
+      ctx.lineTo(80, -10);
+      ctx.lineTo(120, 5);
+      ctx.lineTo(120, 25);
+      ctx.lineTo(-110, 25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Vidro / Janela
+      ctx.fillStyle = "rgba(59, 130, 246, 0.35)";
+      ctx.strokeStyle = "#93c5fd";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-15, -36);
+      ctx.lineTo(38, -36);
+      ctx.lineTo(65, -12);
+      ctx.lineTo(-15, -12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Farol dianteiro aceso com facho de luz
+      ctx.fillStyle = "rgba(96, 165, 250, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(120, 10);
+      ctx.lineTo(200, -15);
+      ctx.lineTo(200, 35);
+      ctx.closePath();
+      ctx.fill();
+
+      // Duas Rodas girando
+      const drawWheel = (wx, wy) => {
+        ctx.save();
+        ctx.translate(wx, wy);
+        ctx.fillStyle = "#0f172a";
+        ctx.strokeStyle = "#60a5fa";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        const spin = t * 16;
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(spin) * -16, Math.sin(spin) * -16);
+        ctx.lineTo(Math.cos(spin) * 16, Math.sin(spin) * 16);
+        ctx.moveTo(Math.cos(spin + Math.PI / 2) * -16, Math.sin(spin + Math.PI / 2) * -16);
+        ctx.lineTo(Math.cos(spin + Math.PI / 2) * 16, Math.sin(spin + Math.PI / 2) * 16);
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      drawWheel(-65, 25);
+      drawWheel(75, 25);
+
+      // Pista / Asfalto com faixas de velocidade
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.5)";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-140, 48);
+      ctx.lineTo(150, 48);
+      ctx.stroke();
+
+      const dashOff = (t * 320) % 50;
+      ctx.strokeStyle = "#60a5fa";
+      ctx.lineWidth = 3;
+      for (let dx = -140 - dashOff; dx < 150; dx += 50) {
+        ctx.beginPath();
+        ctx.moveTo(dx, 56);
+        ctx.lineTo(dx + 25, 56);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Selo de status do motor
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "800 16px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("VELOCIDADE • OPERAÇÃO ATIVA", carCX, topY + (isVert ? 260 : 335));
+
+      // Frase explicativa no rodapé do bloco 2
+      ctx.textAlign = "left";
+      ctx.fillStyle = colors.text;
+      ctx.font = "600 18px Inter, system-ui, sans-serif";
+      const cLines = wrapCanvasText(ctx, "A estrutura, o marketing e a equipe só rodam se tiver gasolina entrando.", boxW - 56);
+      cLines.slice(0, 2).forEach((ln, idx) => {
+        ctx.fillText(ln, col2X + 28, col2Y + boxH - (isVert ? 55 : 75) + idx * 26);
+      });
+      ctx.restore();
+
+      // ==========================================
+      // CENTRO: O DUTO / INJEÇÃO DE COMBUSTÍVEL
+      // ==========================================
+      ctx.save();
+      if (!isVert) {
+        const pipeStartX = col1X + boxW;
+        const pipeEndX = col2X;
+        const pipeY = topY + 160;
+
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.35)";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(pipeStartX, pipeY);
+        ctx.lineTo(pipeEndX, pipeY);
+        ctx.stroke();
+
+        for (let p = 0; p < 6; p++) {
+          const flowProgress = (t * 1.6 + p / 6) % 1;
+          const px = pipeStartX + (pipeEndX - pipeStartX) * flowProgress;
+          ctx.fillStyle = "#60a5fa";
+          ctx.shadowColor = "#3b82f6";
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(px, pipeY, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const midCX = (pipeStartX + pipeEndX) / 2;
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(midCX - 120, pipeY - 22, 240, 44, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#60a5fa";
+        ctx.font = "800 15px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("➔ INJEÇÃO CONTÍNUA ➔", midCX, pipeY + 6);
+      } else {
+        const pipeY1 = topY + boxH;
+        const pipeY2 = col2Y;
+        const pipeX = W / 2;
+
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.35)";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(pipeX, pipeY1);
+        ctx.lineTo(pipeX, pipeY2);
+        ctx.stroke();
+
+        for (let p = 0; p < 4; p++) {
+          const flowProgress = (t * 1.8 + p / 4) % 1;
+          const py = pipeY1 + (pipeY2 - pipeY1) * flowProgress;
+          ctx.fillStyle = "#60a5fa";
+          ctx.shadowColor = "#3b82f6";
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(pipeX, py, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(pipeX - 110, (pipeY1 + pipeY2) / 2 - 20, 220, 40, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#60a5fa";
+        ctx.font = "800 14px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("⬇ INJETANDO CAIXA ⬇", pipeX, (pipeY1 + pipeY2) / 2 + 5);
+      }
+      ctx.restore();
+
+      // ==========================================
+      // BANNER DE LIÇÃO / INSIGHT NO RODAPÉ
+      // ==========================================
+      const botY = isVert ? col2Y + boxH + 30 : topY + boxH + 30;
+      const botH = isVert ? 210 : 130;
+      const botW = totalW;
+
+      ctx.save();
+      const insA = easeOutCubic(clamp01((t - 0.4) / 0.55));
+      ctx.globalAlpha = insA;
+      ctx.translate(0, (1 - insA) * 30);
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(padX, botY, botW, botH, 20);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.roundRect(padX + 16, botY + 16, 6, botH - 32, 3);
+      ctx.fill();
+
+      ctx.fillStyle = "#60a5fa";
+      ctx.font = "800 18px Inter, system-ui, sans-serif";
+      ctx.fillText("💡 REGRA DE OURO DO NEGÓCIO:", padX + 38, botY + 40);
+
+      ctx.fillStyle = colors.text;
+      ctx.font = `700 ${isVert ? 24 : 26}px Inter, system-ui, sans-serif`;
+      const insLines = wrapCanvasText(ctx, fuelInsight || "O melhor carro do mundo não anda com o tanque vazio. Injete caixa para rodar.", botW - 70);
+      insLines.slice(0, isVert ? 4 : 2).forEach((ln, idx) => {
+        ctx.fillText(ln, padX + 38, botY + (isVert ? 80 : 76) + idx * (isVert ? 34 : 36));
+      });
+      ctx.restore();
+
+      ctx.textAlign = "left";
+    }
+
+    // =========================================================================
     // MODO 6: TERMO & SIGNIFICADO (MOTION GRAPHIC PODCAST COM IDENTIDADE AZUL)
     // =========================================================================
     else if (sceneMode === "term") {
@@ -4093,6 +4482,10 @@ export function CourseMotionStudio({
     chartType,
     chartTitle,
     chartRows,
+    fuelTitle,
+    fuelGasLabel,
+    fuelCarLabel,
+    fuelInsight,
     selectedCourse
   ]);
 
@@ -4127,7 +4520,7 @@ export function CourseMotionStudio({
       let audioTrack: MediaStreamTrack | null = null;
       let recordAudioCtx: AudioContext | null = null;
 
-      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart") && soundEnabled) {
+      if ((sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart" || sceneMode === "fuel") && soundEnabled) {
         try {
           const AudioCtxClass =
             window.AudioContext ||
@@ -4192,7 +4585,9 @@ export function CourseMotionStudio({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const safeBase =
-          sceneMode === "chart"
+          sceneMode === "fuel"
+            ? "gasolina-carro-caixa"
+            : sceneMode === "chart"
             ? `grafico-${chartTitle || "dados"}`
             : sceneMode === "number"
             ? `numero-${bigNumber || "destaque"}`
@@ -4242,6 +4637,7 @@ export function CourseMotionStudio({
     { id: "intro", label: "Capa da Aula", icon: Film },
     { id: "topics", label: "4 Tópicos", icon: ListOrdered },
     { id: "quote", label: "Frase Destaque", icon: Quote },
+    { id: "fuel", label: "Carro & Gasolina", icon: Fuel },
     { id: "chart", label: "Gráfico", icon: BarChart3 },
     { id: "number", label: "Número", icon: Hash },
     { id: "split", label: "Meia Tela", icon: PanelLeft },
@@ -4473,7 +4869,7 @@ export function CourseMotionStudio({
             {/* Campos de texto quando está em Capa / Tópicos / Frase / Tarja / Termo */}
             {sceneMode !== "diagram" && (
               <div className="space-y-2.5 pt-2 border-t">
-                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && sceneMode !== "number" && sceneMode !== "chart" && (
+                {sceneMode !== "term" && sceneMode !== "steps" && sceneMode !== "emoji" && sceneMode !== "split" && sceneMode !== "number" && sceneMode !== "chart" && sceneMode !== "fuel" && (
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold">Título</Label>
                     <Input
@@ -4638,6 +5034,73 @@ export function CourseMotionStudio({
                           Triângulo de Tensão
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Editor da Analogia Carro & Gasolina */}
+                {sceneMode === "fuel" && (
+                  <div className="space-y-2.5">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Título Principal</Label>
+                      <Input
+                        value={fuelTitle}
+                        onChange={(e) => setFuelTitle(e.target.value)}
+                        className="h-9 text-xs"
+                        placeholder="Ex: DINHEIRO É A GASOLINA DO SEU NEGÓCIO"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Elemento 1 (Combustível)</Label>
+                        <Input
+                          value={fuelGasLabel}
+                          onChange={(e) => setFuelGasLabel(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: GASOLINA = DINHEIRO EM CAIXA"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Elemento 2 (Veículo)</Label>
+                        <Input
+                          value={fuelCarLabel}
+                          onChange={(e) => setFuelCarLabel(e.target.value)}
+                          className="h-9 text-xs"
+                          placeholder="Ex: CARRO = A SUA EMPRESA"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Lição / Insight de Fechamento</Label>
+                      <Textarea
+                        value={fuelInsight}
+                        rows={3}
+                        onChange={(e) => setFuelInsight(e.target.value)}
+                        className="text-xs resize-none"
+                        placeholder="Ex: O melhor carro do mundo não anda com o tanque vazio. Não adianta ter a melhor equipe se faltar gasolina no caixa."
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg border bg-muted/40">
+                      <div className="flex items-center gap-2">
+                        {soundEnabled ? (
+                          <Volume2 className="h-4 w-4 text-primary" />
+                        ) : (
+                          <VolumeX className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs font-semibold">Som ao aparecer</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={soundEnabled ? "default" : "outline"}
+                        size="sm"
+                        className="h-7 px-2.5 text-[11px]"
+                        onClick={() => setSoundEnabled((v) => !v)}
+                      >
+                        {soundEnabled ? "Ligado" : "Mudo"}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -4970,7 +5433,7 @@ export function CourseMotionStudio({
                 )}
 
                 {/* Biblioteca de Motions salvos */}
-                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart") && (
+                {(sceneMode === "term" || sceneMode === "steps" || sceneMode === "emoji" || sceneMode === "split" || sceneMode === "number" || sceneMode === "chart" || sceneMode === "fuel") && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs font-semibold">Biblioteca de Motions</Label>
                     <div className="flex gap-2">
@@ -5004,7 +5467,7 @@ export function CourseMotionStudio({
                             >
                               <p className="text-xs font-bold truncate">{item.nome}</p>
                               <p className="text-[11px] text-muted-foreground">
-                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : item.modelo === "number" ? "Número" : item.modelo === "chart" ? "Gráfico" : "Termo"} • {item.formato}
+                                {item.modelo === "steps" ? "Passo a Passo" : item.modelo === "emoji" ? "Emoji" : item.modelo === "split" ? "Meia Tela" : item.modelo === "number" ? "Número" : item.modelo === "fuel" ? "Carro & Gasolina" : item.modelo === "chart" ? "Gráfico" : "Termo"} • {item.formato}
                               </p>
                             </button>
                             <Button
@@ -5039,7 +5502,9 @@ export function CourseMotionStudio({
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {sceneMode === "chart"
+                    {sceneMode === "fuel"
+                      ? `Analogia: ${fuelTitle}`
+                      : sceneMode === "chart"
                       ? `Gráfico: ${chartTitle}`
                       : sceneMode === "number"
                       ? `Número: ${bigNumber}`
