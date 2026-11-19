@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { WaitlistReallocateModal, FreedSlotInfo } from "@/components/crm/WaitlistReallocateModal";
 import { supabase, supabasePublic } from "@/lib/supabase";
 import {
   AreaChart,
@@ -78,6 +79,8 @@ const Index = () => {
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [selectedCheckout, setSelectedCheckout] = useState<any>(null);
+  const [reallocateModalOpen, setReallocateModalOpen] = useState(false);
+  const [freedSlot, setFreedSlot] = useState<FreedSlotInfo | null>(null);
   const [checkoutData, setCheckoutData] = useState({
     status: 'Recebido',
     value: 0,
@@ -258,6 +261,8 @@ const Index = () => {
         checkoutData.status === 'Permuta' ||
         checkoutData.status === 'Apenas Consulta'
           ? 'Concluído'
+          : checkoutData.status === 'Para Remarcar'
+          ? 'Para Remarcar'
           : 'Cancelado';
       const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
@@ -311,6 +316,20 @@ const Index = () => {
       );
       setCheckoutModalOpen(false);
       fetchDashboardData();
+
+      if (apptStatus === 'Cancelado' || apptStatus === 'Para Remarcar') {
+        const [sTime, eTime] = (selectedCheckout.time || "09:00 - 11:00").split(" - ");
+        setFreedSlot({
+          appointmentId: selectedCheckout.id,
+          previousClientName: selectedCheckout.name,
+          date: new Date().toISOString().split("T")[0],
+          startTime: sTime?.trim() || "09:00",
+          endTime: eTime?.trim() || "11:00",
+          reason: apptStatus,
+          value: Number(selectedCheckout.value || 0)
+        });
+        setReallocateModalOpen(true);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Erro ao dar baixa na sessão.");
@@ -703,6 +722,7 @@ const Index = () => {
                   <SelectItem value="Recebido">Realizada / Pago</SelectItem>
                   <SelectItem value="Permuta">Realizada / Abater em Permuta</SelectItem>
                   <SelectItem value="Apenas Consulta">Apenas Consulta (Sem Custo)</SelectItem>
+                  <SelectItem value="Para Remarcar">Remarcou / Reagendar</SelectItem>
                   <SelectItem value="Cancelado">Faltou / Cancelado</SelectItem>
                 </SelectContent>
               </Select>
@@ -812,6 +832,13 @@ const Index = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WaitlistReallocateModal
+        open={reallocateModalOpen}
+        onOpenChange={setReallocateModalOpen}
+        freedSlot={freedSlot}
+        onReallocated={fetchDashboardData}
+      />
     </>
   );
 };

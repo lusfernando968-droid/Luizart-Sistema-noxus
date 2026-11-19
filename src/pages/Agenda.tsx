@@ -38,6 +38,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { WaitlistReallocateModal, FreedSlotInfo } from "@/components/crm/WaitlistReallocateModal";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase, supabasePublic } from "@/lib/supabase";
@@ -94,6 +95,8 @@ const Agenda = () => {
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [selectedCheckout, setSelectedCheckout] = useState<Appointment | null>(null);
+  const [reallocateModalOpen, setReallocateModalOpen] = useState(false);
+  const [freedSlot, setFreedSlot] = useState<FreedSlotInfo | null>(null);
   const [contextMenuData, setContextMenuData] = useState<{ x: number, y: number, appt: Appointment } | null>(null);
 
   useEffect(() => {
@@ -690,6 +693,33 @@ const Agenda = () => {
           : "Agendamento salvo com sucesso!"
       );
 
+      // Se o status mudou para 'Cancelado', 'Para Remarcar' ou 'Reagendado' (ou mudou a data de um agendamento existente), abre pop-up para realocar a vaga
+      const vacatedByStatus =
+        (finalStatus === "Cancelado" ||
+          finalStatus === "Para Remarcar" ||
+          finalStatus === "Reagendado") &&
+        editingAppointment?.status !== finalStatus;
+      const vacatedByDateMove =
+        Boolean(editingAppointment) &&
+        editingAppointment?.date &&
+        editingAppointment.date !== formData.date &&
+        editingAppointment.status !== "Cancelado";
+
+      if (vacatedByStatus || vacatedByDateMove) {
+        setTimeout(() => {
+          setFreedSlot({
+            appointmentId: savedApptId,
+            previousClientName: clientName,
+            date: editingAppointment?.date || formData.date,
+            startTime: editingAppointment?.startTime || formData.startTime,
+            endTime: editingAppointment?.endTime || formData.endTime,
+            reason: vacatedByStatus ? finalStatus : "Reagendado",
+            value: Number(editingAppointment?.value ?? formData.value ?? 0)
+          });
+          setReallocateModalOpen(true);
+        }, 250);
+      }
+
       // Se o status mudou para 'Concluído', abra o modal de checkout para dar baixa financeira (se for tatuagem ou tiver valor)
       if (
         finalStatus === 'Concluído' &&
@@ -808,6 +838,8 @@ const Agenda = () => {
         checkoutData.status === 'Permuta' ||
         checkoutData.status === 'Apenas Consulta'
           ? 'Concluído'
+          : checkoutData.status === 'Para Remarcar'
+          ? 'Para Remarcar'
           : 'Cancelado';
       const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
@@ -863,6 +895,19 @@ const Agenda = () => {
       setCheckoutModalOpen(false);
       fetchAppointments();
       fetchClients();
+
+      if (apptStatus === 'Cancelado' || apptStatus === 'Para Remarcar') {
+        setFreedSlot({
+          appointmentId: selectedCheckout.id,
+          previousClientName: selectedCheckout.client_name,
+          date: selectedCheckout.date || new Date().toISOString().split("T")[0],
+          startTime: selectedCheckout.startTime || "09:00",
+          endTime: selectedCheckout.endTime || "11:00",
+          reason: apptStatus,
+          value: Number(selectedCheckout.value || 0)
+        });
+        setReallocateModalOpen(true);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Erro ao dar baixa na sessão.");
@@ -1515,6 +1560,7 @@ const Agenda = () => {
                     <SelectItem value="Concluído">Concluído</SelectItem>
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                     <SelectItem value="Para Remarcar">Para Remarcar</SelectItem>
+                    <SelectItem value="Reagendado">Reagendado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1673,6 +1719,7 @@ const Agenda = () => {
                   <SelectItem value="Recebido">Realizada / Pago</SelectItem>
                   <SelectItem value="Permuta">Realizada / Abater em Permuta</SelectItem>
                   <SelectItem value="Apenas Consulta">Apenas Consulta (Sem Custo)</SelectItem>
+                  <SelectItem value="Para Remarcar">Remarcou / Reagendar</SelectItem>
                   <SelectItem value="Cancelado">Faltou / Cancelado</SelectItem>
                 </SelectContent>
               </Select>
@@ -1802,6 +1849,18 @@ const Agenda = () => {
         onOpenChange={setConfigModalOpen}
         onConfigSaved={() => {
           fetchAgendaConfigAndBlocks();
+        }}
+      />
+
+      {/* Pop-up para Realocar Horário Liberado (Lista de Espera) */}
+      <WaitlistReallocateModal
+        open={reallocateModalOpen}
+        onOpenChange={setReallocateModalOpen}
+        freedSlot={freedSlot}
+        clients={clients}
+        onReallocated={() => {
+          fetchAppointments();
+          fetchClients();
         }}
       />
 

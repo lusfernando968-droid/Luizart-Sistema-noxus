@@ -7,11 +7,14 @@ import { openWhatsApp } from "@/lib/whatsapp";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WaitlistReallocateModal, FreedSlotInfo } from "@/components/crm/WaitlistReallocateModal";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onCheckout }: any) {
   const [search, setSearch] = useState("");
+  const [reallocateModalOpen, setReallocateModalOpen] = useState(false);
+  const [freedSlot, setFreedSlot] = useState<FreedSlotInfo | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -55,12 +58,23 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
     }
   };
 
-  const handleMarkAsRescheduled = async (id: string) => {
+  const handleMarkAsRescheduled = async (appt: any) => {
     try {
-      const { error } = await supabase.from('appointments').update({ status: 'Reagendado' }).eq('id', id);
+      const { error } = await supabase.from('appointments').update({ status: 'Reagendado' }).eq('id', appt.id);
       if (error) throw error;
       toast.success("Sessão marcada como Reagendada!");
       if (onRefresh) onRefresh();
+
+      setFreedSlot({
+        appointmentId: appt.id,
+        previousClientName: getClientName(appt),
+        date: appt.date || new Date().toISOString().split("T")[0],
+        startTime: appt.startTime || appt.start_time || "09:00",
+        endTime: appt.endTime || appt.end_time || "11:00",
+        reason: "Reagendado",
+        value: Number(appt.value || 0)
+      });
+      setReallocateModalOpen(true);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao atualizar sessão.");
@@ -142,8 +156,8 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                           variant="outline" 
                           size="icon" 
                           className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
-                          title="Marcar como Reagendado"
-                          onClick={() => handleMarkAsRescheduled(appt.id)}
+                          title="Marcar como Reagendado e Realocar Vaga"
+                          onClick={() => handleMarkAsRescheduled(appt)}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </Button>
@@ -228,6 +242,14 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
           {renderTable(filteredPending, "Nenhuma sessão pendente. Tudo em dia!", false)}
         </div>
       </div>
+
+      <WaitlistReallocateModal
+        open={reallocateModalOpen}
+        onOpenChange={setReallocateModalOpen}
+        freedSlot={freedSlot}
+        clients={clients}
+        onReallocated={onRefresh}
+      />
     </div>
   );
 }

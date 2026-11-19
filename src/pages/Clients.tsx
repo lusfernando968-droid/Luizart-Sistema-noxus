@@ -46,6 +46,9 @@ interface Client {
   barter_description?: string;
   barter_balance?: number;
   barter_history?: any[];
+  is_waitlist?: boolean;
+  waitlist_notes?: string;
+  waitlist_added_at?: string;
 
   lastVisit?: string;
 }
@@ -146,6 +149,20 @@ const Clients = () => {
   const [barterMoveNote, setBarterMoveNote] = useState("");
   const [savingBarter, setSavingBarter] = useState(false);
 
+  // Lista de Espera States
+  const [waitlistSearch, setWaitlistSearch] = useState("");
+  const [addWaitlistModalOpen, setAddWaitlistModalOpen] = useState(false);
+  const [waitlistCandidateSearch, setWaitlistCandidateSearch] = useState("");
+  const [selectedWaitlistClientId, setSelectedWaitlistClientId] = useState("");
+  const [waitlistNoteInput, setWaitlistNoteInput] = useState("");
+  const [quickSlotClient, setQuickSlotClient] = useState<Client | null>(null);
+  const [quickSlotData, setQuickSlotData] = useState({
+    date: new Date().toISOString().split("T")[0],
+    startTime: "14:00",
+    endTime: "17:00",
+    value: 0
+  });
+
   useEffect(() => {
     if (selectedClient) {
       setTempNotes(selectedClient.notes || "");
@@ -217,7 +234,10 @@ const Clients = () => {
         is_barter: Boolean(c.is_barter),
         barter_description: c.barter_description || "",
         barter_balance: Number(c.barter_balance || 0),
-        barter_history: Array.isArray(c.barter_history) ? c.barter_history : []
+        barter_history: Array.isArray(c.barter_history) ? c.barter_history : [],
+        is_waitlist: Boolean(c.is_waitlist),
+        waitlist_notes: c.waitlist_notes || "",
+        waitlist_added_at: c.waitlist_added_at || ""
       }));
 
       setClients(formatted);
@@ -593,6 +613,93 @@ const Clients = () => {
     }
   };
 
+  const handleToggleWaitlist = async (client: Client, customNote?: string) => {
+    try {
+      const newStatus = !client.is_waitlist;
+      const payload: any = {
+        is_waitlist: newStatus,
+        waitlist_added_at: newStatus ? new Date().toISOString() : null
+      };
+      if (typeof customNote === "string") {
+        payload.waitlist_notes = customNote.trim();
+      }
+      const { error } = await supabase.from('clientes').update(payload).eq('id', client.id);
+      if (error) throw error;
+      toast.success(newStatus ? `${client.name} adicionado à Lista de Espera!` : `${client.name} removido da Lista de Espera.`);
+      if (selectedClient?.id === client.id) {
+        setSelectedClient({
+          ...client,
+          is_waitlist: newStatus,
+          waitlist_added_at: payload.waitlist_added_at,
+          waitlist_notes: typeof customNote === "string" ? customNote.trim() : client.waitlist_notes
+        });
+      }
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar Lista de Espera.");
+    }
+  };
+
+  const handleConfirmAddWaitlist = async () => {
+    if (!selectedWaitlistClientId) {
+      toast.error("Selecione um cliente.");
+      return;
+    }
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          is_waitlist: true,
+          waitlist_notes: waitlistNoteInput.trim() || null,
+          waitlist_added_at: nowIso
+        })
+        .eq('id', selectedWaitlistClientId);
+      if (error) throw error;
+
+      toast.success("Cliente adicionado à Lista de Espera!");
+      setAddWaitlistModalOpen(false);
+      setSelectedWaitlistClientId("");
+      setWaitlistNoteInput("");
+      setWaitlistCandidateSearch("");
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao adicionar à Lista de Espera.");
+    }
+  };
+
+  const handleConfirmQuickSlot = async () => {
+    if (!quickSlotClient) return;
+    try {
+      const userStr = localStorage.getItem("noxus_user");
+      const loggedUser = userStr ? JSON.parse(userStr) : null;
+
+      const { error } = await supabase.from('appointments').insert([{
+        client_id: quickSlotClient.id,
+        date: quickSlotData.date,
+        start_time: quickSlotData.startTime,
+        end_time: quickSlotData.endTime,
+        status: "Agendado",
+        type: "Tatuagem",
+        value: quickSlotData.value || 0,
+        deposit: 0,
+        notes: quickSlotClient.waitlist_notes ? `Encaixe Lista de Espera: ${quickSlotClient.waitlist_notes}` : "Encaixe da Lista de Espera",
+        user_id: loggedUser?.id || null
+      }]);
+      if (error) throw error;
+
+      await supabase.from('clientes').update({ is_waitlist: false }).eq('id', quickSlotClient.id);
+      toast.success(`Horário agendado para ${quickSlotClient.name}!`);
+      setQuickSlotClient(null);
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao agendar encaixe.");
+    }
+  };
+
   const handleSaveBarterDescription = async () => {
     if (!selectedClient) return;
     try {
@@ -768,6 +875,14 @@ const Clients = () => {
             <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
               <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
             </TabsTrigger>
+            <TabsTrigger value="espera" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <Clock className="w-3.5 h-3.5" /> Lista de Espera
+              {clients.filter(c => c.is_waitlist).length > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary">
+                  {clients.filter(c => c.is_waitlist).length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -906,6 +1021,12 @@ const Clients = () => {
                                     )}
                                   </span>
                                 )}
+                                {client.is_waitlist && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-foreground border border-border">
+                                    <Clock className="w-2.5 h-2.5 text-primary" />
+                                    Espera
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-muted-foreground">{client.phone}</TableCell>
@@ -945,6 +1066,10 @@ const Clients = () => {
                           <ContextMenuItem onClick={() => handleToggleBarter(client)}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {client.is_barter ? "Desativar Permuta" : "Ativar Permuta"}
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleToggleWaitlist(client)}>
+                            <Clock className="mr-2 h-4 w-4" />
+                            {client.is_waitlist ? "Remover da Lista de Espera" : "Colocar na Lista de Espera"}
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => {
                             const number = client.phone.replace(/\D/g, '');
@@ -1002,6 +1127,12 @@ const Clients = () => {
                               <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <RefreshCw className="w-3 h-3" />
                                 Permuta{selectedClient.barter_description ? `: ${selectedClient.barter_description}` : ""}
+                              </span>
+                            )}
+                            {selectedClient.is_waitlist && (
+                              <span className="bg-muted text-foreground border border-border px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-primary" />
+                                Lista de Espera
                               </span>
                             )}
                           </div>
@@ -1097,6 +1228,10 @@ const Clients = () => {
                             <DropdownMenuItem onClick={() => handleToggleBarter(selectedClient)}>
                               <RefreshCw className="h-4 w-4 mr-2" />
                               {selectedClient.is_barter ? 'Desativar Permuta' : 'Ativar Permuta'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleWaitlist(selectedClient)}>
+                              <Clock className="h-4 w-4 mr-2" />
+                              {selectedClient.is_waitlist ? 'Remover da Lista de Espera' : 'Colocar na Lista de Espera'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditModal(selectedClient)}>
                               <Pencil className="h-4 w-4 mr-2" />
@@ -2099,7 +2234,292 @@ const Clients = () => {
             onRefresh={fetchClients}
           />
         </TabsContent>
+
+        {/* ABA 5: LISTA DE ESPERA */}
+        <TabsContent value="espera" className="m-0 space-y-6">
+          <div className="bg-card rounded-xl border shadow-sm text-foreground">
+            <div className="p-4 border-b flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+              <div className="relative w-full max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente na lista de espera..."
+                  value={waitlistSearch}
+                  onChange={(e) => setWaitlistSearch(e.target.value)}
+                  className="pl-9 bg-accent/20 h-11"
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  setSelectedWaitlistClientId("");
+                  setWaitlistNoteInput("");
+                  setWaitlistCandidateSearch("");
+                  setAddWaitlistModalOpen(true);
+                }}
+                className="h-11 gap-2 font-semibold"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar à Lista de Espera
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Observação / Disponibilidade</TableHead>
+                    <TableHead>Na Lista Desde</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const waitlistList = clients
+                      .filter((c) => c.is_waitlist)
+                      .filter((c) => {
+                        if (!waitlistSearch.trim()) return true;
+                        const q = waitlistSearch.toLowerCase();
+                        return (
+                          c.name.toLowerCase().includes(q) ||
+                          c.phone.includes(q) ||
+                          (c.waitlist_notes || "").toLowerCase().includes(q)
+                        );
+                      });
+
+                    if (waitlistList.length === 0) {
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-28 text-center text-muted-foreground text-xs">
+                            Nenhum cliente na Lista de Espera no momento.
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    return waitlistList.map((client) => (
+                      <TableRow
+                        key={client.id}
+                        className="hover:bg-accent/40 cursor-pointer"
+                        onClick={() => setSelectedClient(client)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
+                              {client.avatar_url ? (
+                                <img
+                                  src={client.avatar_url}
+                                  alt={client.name}
+                                  className="h-full w-full rounded-full object-cover"
+                                />
+                              ) : (
+                                client.name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-bold block">{client.name}</span>
+                              <span className="text-[11px] text-muted-foreground">{client.status}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{client.phone}</TableCell>
+                        <TableCell className="text-xs max-w-[280px]">
+                          {client.waitlist_notes ? (
+                            <span className="bg-muted px-2.5 py-1 rounded-md border text-foreground inline-block">
+                              {client.waitlist_notes}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {client.waitlist_added_at
+                            ? new Date(client.waitlist_added_at).toLocaleDateString("pt-BR")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 px-2.5 text-xs gap-1.5 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white border-transparent font-semibold"
+                              onClick={() => {
+                                const raw = (client.phone || "").replace(/\D/g, "");
+                                if (!raw || raw.length < 10) {
+                                  toast.error("Cliente sem WhatsApp válido.");
+                                  return;
+                                }
+                                const phone = raw.startsWith("55") ? raw : `55${raw}`;
+                                const msg = `Fala ${client.name}, tudo bem? Surgiu uma vaga aqui na agenda! Você consegue vir tatuar?`;
+                                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                              }}
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              WhatsApp
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-9 px-2.5 text-xs gap-1.5 font-semibold"
+                              onClick={() => {
+                                setQuickSlotClient(client);
+                                setQuickSlotData({
+                                  date: new Date().toISOString().split("T")[0],
+                                  startTime: "14:00",
+                                  endTime: "17:00",
+                                  value: 0
+                                });
+                              }}
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              Encaixar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                              title="Remover da Lista de Espera"
+                              onClick={() => handleToggleWaitlist(client)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Modal Adicionar Cliente à Lista de Espera */}
+      <Dialog open={addWaitlistModalOpen} onOpenChange={setAddWaitlistModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar à Lista de Espera</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Selecionar Cliente</Label>
+              <Input
+                placeholder="Buscar cliente por nome ou telefone..."
+                value={waitlistCandidateSearch}
+                onChange={(e) => setWaitlistCandidateSearch(e.target.value)}
+                className="h-10 text-xs"
+              />
+              <div className="border rounded-lg max-h-44 overflow-y-auto divide-y bg-card mt-1.5">
+                {clients
+                  .filter((c) => !c.is_waitlist)
+                  .filter((c) => {
+                    if (!waitlistCandidateSearch.trim()) return true;
+                    const q = waitlistCandidateSearch.toLowerCase();
+                    return c.name.toLowerCase().includes(q) || c.phone.includes(q);
+                  })
+                  .slice(0, 20)
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedWaitlistClientId(c.id)}
+                      className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors ${
+                        selectedWaitlistClientId === c.id
+                          ? "bg-primary/10 text-primary font-bold"
+                          : "hover:bg-accent/50 text-foreground"
+                      }`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-[11px] text-muted-foreground shrink-0 ml-2">{c.phone}</span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Observação / Disponibilidade</Label>
+              <Input
+                placeholder="Ex: Disponível à tarde, dinheiro na mão, fechamento..."
+                value={waitlistNoteInput}
+                onChange={(e) => setWaitlistNoteInput(e.target.value)}
+                className="h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddWaitlistModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmAddWaitlist} disabled={!selectedWaitlistClientId}>
+              Salvar na Lista
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Agendar Encaixe Rápido da Lista de Espera */}
+      <Dialog open={!!quickSlotClient} onOpenChange={(open) => !open && setQuickSlotClient(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Encaixar Cliente na Agenda</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-muted p-3 rounded-lg text-xs">
+              <span className="font-bold text-sm text-foreground block">{quickSlotClient?.name}</span>
+              {quickSlotClient?.waitlist_notes && (
+                <span className="text-muted-foreground block mt-0.5">{quickSlotClient.waitlist_notes}</span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Data da Sessão</Label>
+                <Input
+                  type="date"
+                  value={quickSlotData.date}
+                  onChange={(e) => setQuickSlotData((prev) => ({ ...prev, date: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Valor da Sessão</Label>
+                <CurrencyInput
+                  value={quickSlotData.value}
+                  onChange={(val) => setQuickSlotData((prev) => ({ ...prev, value: val }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Início</Label>
+                <Input
+                  type="time"
+                  value={quickSlotData.startTime}
+                  onChange={(e) => setQuickSlotData((prev) => ({ ...prev, startTime: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Término</Label>
+                <Input
+                  type="time"
+                  value={quickSlotData.endTime}
+                  onChange={(e) => setQuickSlotData((prev) => ({ ...prev, endTime: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickSlotClient(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmQuickSlot}>Confirmar Encaixe</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Add Client */}
       <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
