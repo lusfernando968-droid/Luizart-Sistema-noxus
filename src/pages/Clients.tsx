@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
 import { JourneyPlaybookModal } from "@/components/crm/JourneyPlaybookModal";
 import { JourneyDetailsModal } from "@/components/crm/JourneyDetailsModal";
@@ -41,6 +42,10 @@ interface Client {
   notes?: string;
   sessions?: number;  totalInvoiced?: number;
   is_student?: boolean;
+  is_barter?: boolean;
+  barter_description?: string;
+  barter_balance?: number;
+  barter_history?: any[];
 
   lastVisit?: string;
 }
@@ -133,11 +138,23 @@ const Clients = () => {
   const [tempNotes, setTempNotes] = useState("");
   const [notesExpanded, setNotesExpanded] = useState(true);
 
+  // Permuta States
+  const [barterExpanded, setBarterExpanded] = useState(true);
+  const [barterDescInput, setBarterDescInput] = useState("");
+  const [barterMoveType, setBarterMoveType] = useState<"credito" | "pendente">("credito");
+  const [barterMoveAmount, setBarterMoveAmount] = useState(0);
+  const [barterMoveNote, setBarterMoveNote] = useState("");
+  const [savingBarter, setSavingBarter] = useState(false);
+
   useEffect(() => {
     if (selectedClient) {
       setTempNotes(selectedClient.notes || "");
       setIsEditingNotes(false);
       setNotesExpanded(true);
+      setBarterDescInput(selectedClient.barter_description || "");
+      setBarterMoveAmount(0);
+      setBarterMoveNote("");
+      setBarterExpanded(true);
     }
   }, [selectedClient?.id]);
 
@@ -196,7 +213,11 @@ const Clients = () => {
         avatar_url: c.avatar_url,
         referred_by_id: c.referred_by_id,
         referrer_name: c.referrer?.name,
-        is_student: c.is_student || false
+        is_student: c.is_student || false,
+        is_barter: Boolean(c.is_barter),
+        barter_description: c.barter_description || "",
+        barter_balance: Number(c.barter_balance || 0),
+        barter_history: Array.isArray(c.barter_history) ? c.barter_history : []
       }));
 
       setClients(formatted);
@@ -556,10 +577,155 @@ const Clients = () => {
     }
   };
 
+  const handleToggleBarter = async (client: Client) => {
+    try {
+      const newStatus = !client.is_barter;
+      const { error } = await supabase.from('clientes').update({ is_barter: newStatus }).eq('id', client.id);
+      if (error) throw error;
+      toast.success(newStatus ? "Permuta ativada no cliente!" : "Permuta desativada.");
+      if (selectedClient?.id === client.id) {
+        setSelectedClient({ ...client, is_barter: newStatus });
+      }
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar status de permuta.");
+    }
+  };
+
+  const handleSaveBarterDescription = async () => {
+    if (!selectedClient) return;
+    try {
+      setSavingBarter(true);
+      const cleanDesc = barterDescInput.trim();
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          is_barter: true,
+          barter_description: cleanDesc
+        })
+        .eq('id', selectedClient.id);
+      if (error) throw error;
+
+      setSelectedClient(prev => prev ? { ...prev, is_barter: true, barter_description: cleanDesc } : null);
+      toast.success("Serviço da permuta salvo!");
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao salvar serviço da permuta.");
+    } finally {
+      setSavingBarter(false);
+    }
+  };
+
+  const handleAddBarterMovement = async () => {
+    if (!selectedClient) return;
+    if (!barterMoveAmount || barterMoveAmount <= 0) {
+      toast.error("Informe um valor maior que zero.");
+      return;
+    }
+    try {
+      setSavingBarter(true);
+      const currentBalance = Number(selectedClient.barter_balance || 0);
+      const signedDelta = barterMoveType === "credito" ? Number(barterMoveAmount) : -Number(barterMoveAmount);
+      const newBalance = currentBalance + signedDelta;
+      const cleanDesc = barterDescInput.trim() || selectedClient.barter_description || "Permuta";
+
+      const historyEntry = {
+        id: String(Date.now()),
+        date: new Date().toISOString().split("T")[0],
+        type: barterMoveType,
+        amount: signedDelta,
+        balance_after: newBalance,
+        note:
+          barterMoveNote.trim() ||
+          (barterMoveType === "credito" ? "Crédito recebido em permuta" : "Valor pendente / abatido")
+      };
+
+      const currentHistory = Array.isArray(selectedClient.barter_history) ? selectedClient.barter_history : [];
+      const updatedHistory = [historyEntry, ...currentHistory];
+
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          is_barter: true,
+          barter_description: cleanDesc,
+          barter_balance: newBalance,
+          barter_history: updatedHistory
+        })
+        .eq('id', selectedClient.id);
+
+      if (error) throw error;
+
+      setSelectedClient(prev =>
+        prev
+          ? {
+              ...prev,
+              is_barter: true,
+              barter_description: cleanDesc,
+              barter_balance: newBalance,
+              barter_history: updatedHistory
+            }
+          : null
+      );
+      setBarterMoveAmount(0);
+      setBarterMoveNote("");
+      toast.success("Saldo de permuta atualizado!");
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar saldo de permuta.");
+    } finally {
+      setSavingBarter(false);
+    }
+  };
+
+  const handleClearBarterBalance = async () => {
+    if (!selectedClient) return;
+    try {
+      setSavingBarter(true);
+      const currentHistory = Array.isArray(selectedClient.barter_history) ? selectedClient.barter_history : [];
+      const historyEntry = {
+        id: String(Date.now()),
+        date: new Date().toISOString().split("T")[0],
+        type: "quitacao",
+        amount: -Number(selectedClient.barter_balance || 0),
+        balance_after: 0,
+        note: "Saldo zerado / quitado"
+      };
+      const updatedHistory = [historyEntry, ...currentHistory];
+
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          barter_balance: 0,
+          barter_history: updatedHistory
+        })
+        .eq('id', selectedClient.id);
+
+      if (error) throw error;
+
+      setSelectedClient(prev => prev ? { ...prev, barter_balance: 0, barter_history: updatedHistory } : null);
+      toast.success("Saldo de permuta zerado!");
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao zerar saldo.");
+    } finally {
+      setSavingBarter(false);
+    }
+  };
+
   const filtered = clients.filter((c) => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
     const matchStatus = filterStatus === "all" || c.status === filterStatus;
-    const matchType = filterType === "all" || (filterType === "student" ? c.is_student : !c.is_student);
+    const matchType =
+      filterType === "all" ||
+      (filterType === "student"
+        ? c.is_student
+        : filterType === "barter"
+        ? c.is_barter
+        : !c.is_student);
     const matchSessions = filterSessions === "all" || (filterSessions === "zero" ? !c.sessions || c.sessions === 0 : (c.sessions || 0) > 0);
     
     const invoiced = c.totalInvoiced || 0;
@@ -653,9 +819,10 @@ const Clients = () => {
                            <SelectValue placeholder="Todos" />
                         </SelectTrigger>
                         <SelectContent>
-                           <SelectItem value="all">Todos (Tattoos e Alunos)</SelectItem>
+                           <SelectItem value="all">Todos</SelectItem>
                            <SelectItem value="tattoo">Apenas Tatuagem</SelectItem>
                            <SelectItem value="student">Apenas Alunos</SelectItem>
+                           <SelectItem value="barter">Apenas Permuta</SelectItem>
                         </SelectContent>
                      </Select>
                   </div>
@@ -728,6 +895,17 @@ const Clients = () => {
                                 </div>
                                 <span className="font-bold">{client.name}</span>
                                 {client.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500" title="Aluno" />}
+                                {client.is_barter && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                    <RefreshCw className="w-2.5 h-2.5" />
+                                    {client.barter_description ? client.barter_description : "Permuta"}
+                                    {Number(client.barter_balance || 0) !== 0 && (
+                                      <span className={Number(client.barter_balance) > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                                        ({Number(client.barter_balance) > 0 ? "Disp." : "Pend."} R$ {Math.abs(Number(client.barter_balance)).toLocaleString("pt-BR")})
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-muted-foreground">{client.phone}</TableCell>
@@ -763,6 +941,10 @@ const Clients = () => {
                           <ContextMenuItem onClick={() => handleToggleStudent(client)}>
                             <BookOpen className="mr-2 h-4 w-4" />
                             {client.is_student ? "Remover Aluno" : "Tornar Aluno"}
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleToggleBarter(client)}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {client.is_barter ? "Desativar Permuta" : "Ativar Permuta"}
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => {
                             const number = client.phone.replace(/\D/g, '');
@@ -814,6 +996,12 @@ const Clients = () => {
                               <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <BookOpen className="w-3 h-3" />
                                 Aluno
+                              </span>
+                            )}
+                            {selectedClient.is_barter && (
+                              <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                <RefreshCw className="w-3 h-3" />
+                                Permuta{selectedClient.barter_description ? `: ${selectedClient.barter_description}` : ""}
                               </span>
                             )}
                           </div>
@@ -906,6 +1094,10 @@ const Clients = () => {
                               <BookOpen className="h-4 w-4 mr-2" />
                               {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleBarter(selectedClient)}>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              {selectedClient.is_barter ? 'Desativar Permuta' : 'Ativar Permuta'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditModal(selectedClient)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar Cliente
@@ -943,6 +1135,193 @@ const Clients = () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Card de Permuta (Troca de Serviços) */}
+                  <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 text-foreground space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                        <RefreshCw className="h-4 w-4 text-primary shrink-0" />
+                        <h3 className="font-bold text-base text-foreground shrink-0">Permuta</h3>
+                        {selectedClient.is_barter && (
+                          <span
+                            className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                              Number(selectedClient.barter_balance || 0) > 0
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                : Number(selectedClient.barter_balance || 0) < 0
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                : "bg-muted text-muted-foreground border-border"
+                            }`}
+                          >
+                            {Number(selectedClient.barter_balance || 0) > 0
+                              ? `Disponível c/ você: R$ ${Number(selectedClient.barter_balance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                              : Number(selectedClient.barter_balance || 0) < 0
+                              ? `Pendente do cliente: R$ ${Math.abs(Number(selectedClient.barter_balance)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                              : "Saldo: R$ 0,00 (Quitado)"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!selectedClient.is_barter ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => handleToggleBarter(selectedClient)}
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Ativar Permuta
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                            onClick={() => setBarterExpanded(!barterExpanded)}
+                          >
+                            {barterExpanded ? (
+                              <>
+                                <span className="hidden sm:inline">Minimizar</span>
+                                <ChevronUp className="w-4 h-4" />
+                              </>
+                            ) : (
+                              <>
+                                <span className="hidden sm:inline">Expandir</span>
+                                <ChevronDown className="w-4 h-4" />
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedClient.is_barter && barterExpanded && (
+                      <div className="pt-3 border-t space-y-4 animate-in fade-in duration-150">
+                        {/* Tipo / Serviço da Permuta */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold">Sobre o que é a permuta</Label>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Input
+                              placeholder="Ex: Barbeiro, Personal, Academia..."
+                              value={barterDescInput}
+                              onChange={(e) => setBarterDescInput(e.target.value)}
+                              className="h-11 flex-1"
+                            />
+                            <Button
+                              variant="outline"
+                              className="h-11 px-4 text-xs font-semibold shrink-0"
+                              disabled={savingBarter || barterDescInput.trim() === (selectedClient.barter_description || "")}
+                              onClick={handleSaveBarterDescription}
+                            >
+                              Salvar Tipo
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Lançamento de Crédito ou Pendência */}
+                        <div className="p-3.5 rounded-xl border bg-muted/20 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label className="text-xs font-semibold">Movimentar Saldo</Label>
+                            {Number(selectedClient.barter_balance || 0) !== 0 && (
+                              <button
+                                type="button"
+                                onClick={handleClearBarterBalance}
+                                disabled={savingBarter}
+                                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground underline"
+                              >
+                                Quitar / Zerar Saldo
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setBarterMoveType("credito")}
+                              className={`h-10 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                                barterMoveType === "credito"
+                                  ? "bg-card border-foreground text-foreground shadow-sm"
+                                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              + Crédito do Cliente (Tem comigo)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBarterMoveType("pendente")}
+                              className={`h-10 px-3 rounded-lg border text-xs font-semibold transition-all ${
+                                barterMoveType === "pendente"
+                                  ? "bg-card border-foreground text-foreground shadow-sm"
+                                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              - Pendente / Abater (Deve serviço)
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            <div className="sm:col-span-4">
+                              <CurrencyInput
+                                value={barterMoveAmount}
+                                onChange={(val) => setBarterMoveAmount(val)}
+                              />
+                            </div>
+                            <div className="sm:col-span-5">
+                              <Input
+                                placeholder="Detalhe (Ex: Mensalidade, Sessão...)"
+                                value={barterMoveNote}
+                                onChange={(e) => setBarterMoveNote(e.target.value)}
+                                className="h-10 text-xs bg-background"
+                              />
+                            </div>
+                            <div className="sm:col-span-3">
+                              <Button
+                                className="w-full h-10 text-xs font-semibold"
+                                disabled={savingBarter || !barterMoveAmount || barterMoveAmount <= 0}
+                                onClick={handleAddBarterMovement}
+                              >
+                                Registrar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Histórico Recente da Permuta */}
+                        {Array.isArray(selectedClient.barter_history) && selectedClient.barter_history.length > 0 && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-muted-foreground">Últimos Registros</Label>
+                            <div className="divide-y border rounded-lg bg-background/50 max-h-40 overflow-y-auto">
+                              {selectedClient.barter_history.slice(0, 6).map((item: any, idx: number) => (
+                                <div key={item.id || idx} className="px-3 py-2 flex items-center justify-between gap-2 text-xs">
+                                  <div className="min-w-0">
+                                    <span className="font-medium text-foreground block truncate">{item.note || "Movimentação"}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {item.date ? item.date.split("-").reverse().join("/") : ""}
+                                    </span>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span
+                                      className={`font-bold block ${
+                                        Number(item.amount) > 0
+                                          ? "text-emerald-600 dark:text-emerald-400"
+                                          : "text-amber-600 dark:text-amber-400"
+                                      }`}
+                                    >
+                                      {Number(item.amount) > 0 ? "+" : "-"}R${" "}
+                                      {Math.abs(Number(item.amount || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Saldo: R$ {Math.abs(Number(item.balance_after || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                      {Number(item.balance_after) > 0 ? " (Disp.)" : Number(item.balance_after) < 0 ? " (Pend.)" : ""}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Card de Anotações & Observações do Cliente (Aberto por padrão, minimizável) */}

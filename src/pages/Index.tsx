@@ -12,7 +12,8 @@ import {
   FileText,
   Phone,
   CheckCircle2,
-  LinkIcon
+  LinkIcon,
+  RefreshCw
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,9 @@ const Index = () => {
   const [checkoutData, setCheckoutData] = useState({
     status: 'Recebido',
     value: 0,
-    paymentMethod: 'Pix'
+    paymentMethod: 'Pix',
+    driveLink: '',
+    barterDescription: ''
   });
 
   const fetchDashboardData = async () => {
@@ -91,7 +94,7 @@ const Index = () => {
       const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
       const thisMonth = today.slice(0, 7);
       
-      const { data: appts } = await supabase.from('appointments').select('*, client:clientes(name, phone)');
+      const { data: appts } = await supabase.from('appointments').select('*, client:clientes(id, name, phone, is_barter, barter_description, barter_balance, barter_history)');
       const { data: fins } = await supabase.from('financial_transactions').select('*');
       const { data: clients } = await supabase.from('clientes').select('*');
       const { data: anamnesis } = await supabase.from('anamnesis').select('*');
@@ -154,10 +157,17 @@ const Index = () => {
 
       setTodayClients(todayAppts.map(a => ({
         id: a.id,
+        client_id: a.client_id || a.client?.id,
         name: a.client?.name || "Cliente",
         time: `${a.start_time || a.startTime || ""} - ${a.end_time || a.endTime || ""}`,
         status: a.status,
-        value: a.value
+        value: a.value,
+        deposit: a.deposit || 0,
+        type: a.type || "Tatuagem",
+        is_barter: Boolean(a.client?.is_barter),
+        barter_description: a.client?.barter_description || "",
+        barter_balance: Number(a.client?.barter_balance || 0),
+        barter_history: Array.isArray(a.client?.barter_history) ? a.client.barter_history : []
       })));
 
       setTomorrowAppointments(tomorrowAppts.map(a => ({
@@ -230,10 +240,11 @@ const Index = () => {
   const openCheckout = (appt: any) => {
     setSelectedCheckout(appt);
     setCheckoutData({
-      status: 'Recebido',
-      value: appt.value || 0,
+      status: appt.is_barter ? 'Permuta' : 'Recebido',
+      value: Math.max(0, Number(appt.value || 0) - Number(appt.deposit || 0)),
       paymentMethod: 'Pix',
-      driveLink: ''
+      driveLink: '',
+      barterDescription: appt.barter_description || ''
     });
     setCheckoutModalOpen(true);
   };
@@ -242,7 +253,12 @@ const Index = () => {
     if (!selectedCheckout) return;
     try {
       // 1. Update appointment
-      const apptStatus = checkoutData.status === 'Recebido' || checkoutData.status === 'Apenas Consulta' ? 'Concluído' : 'Cancelado';
+      const apptStatus =
+        checkoutData.status === 'Recebido' ||
+        checkoutData.status === 'Permuta' ||
+        checkoutData.status === 'Apenas Consulta'
+          ? 'Concluído'
+          : 'Cancelado';
       const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
 
@@ -260,7 +276,39 @@ const Index = () => {
         if (finError) console.error("Error inserting financial transaction:", finError);
       }
 
-      toast.success("Sessão baixada com sucesso!");
+      // 3. Abater no saldo de permuta do cliente se for Permuta
+      if (checkoutData.status === 'Permuta' && selectedCheckout.client_id) {
+        const currentBalance = Number(selectedCheckout.barter_balance || 0);
+        const deductAmount = Number(checkoutData.value || 0);
+        const newBalance = currentBalance - deductAmount;
+        const historyEntry = {
+          id: String(Date.now()),
+          date: new Date().toISOString().split("T")[0],
+          type: "abatimento",
+          amount: -deductAmount,
+          balance_after: newBalance,
+          note: `Baixa de sessão (${selectedCheckout.time || "Tatuagem"})`
+        };
+        const currentHistory = Array.isArray(selectedCheckout.barter_history) ? selectedCheckout.barter_history : [];
+
+        const { error: barterError } = await supabase
+          .from('clientes')
+          .update({
+            is_barter: true,
+            barter_description: checkoutData.barterDescription?.trim() || selectedCheckout.barter_description || "Permuta",
+            barter_balance: newBalance,
+            barter_history: [historyEntry, ...currentHistory]
+          })
+          .eq('id', selectedCheckout.client_id);
+
+        if (barterError) throw barterError;
+      }
+
+      toast.success(
+        checkoutData.status === 'Permuta'
+          ? "Sessão abatida no saldo de permuta!"
+          : "Sessão baixada com sucesso!"
+      );
       setCheckoutModalOpen(false);
       fetchDashboardData();
     } catch (error) {
@@ -630,7 +678,15 @@ const Index = () => {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="bg-muted p-3 rounded-md flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-foreground">Cliente: {selectedCheckout?.name}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-foreground">Cliente: {selectedCheckout?.name}</span>
+                {selectedCheckout?.is_barter && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    Permuta{selectedCheckout?.barter_description ? `: ${selectedCheckout.barter_description}` : ""}
+                  </span>
+                )}
+              </div>
               <span className="text-muted-foreground">Horário: {selectedCheckout?.time} - {selectedCheckout?.type}</span>
             </div>
 
@@ -640,16 +696,74 @@ const Index = () => {
                 value={checkoutData.status}
                 onValueChange={(val) => setCheckoutData(prev => ({ ...prev, status: val }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Selecione o resultado" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Recebido">Realizada / Pago</SelectItem>
+                  <SelectItem value="Permuta">Realizada / Abater em Permuta</SelectItem>
                   <SelectItem value="Apenas Consulta">Apenas Consulta (Sem Custo)</SelectItem>
                   <SelectItem value="Cancelado">Faltou / Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {checkoutData.status === 'Permuta' && (() => {
+              const currentBalance = Number(selectedCheckout?.barter_balance || 0);
+              const deductVal = Number(checkoutData.value || 0);
+              const afterBalance = currentBalance - deductVal;
+
+              return (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg border bg-muted/40 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground font-medium">Saldo Atual do Cliente:</span>
+                      <span className={`font-bold ${
+                        currentBalance > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : currentBalance < 0
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-foreground"
+                      }`}>
+                        R$ {Math.abs(currentBalance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}{" "}
+                        {currentBalance > 0 ? "(Disponível)" : currentBalance < 0 ? "(Pendente)" : "(Zerado)"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                      <span className="text-muted-foreground font-medium">Saldo Após Esta Sessão:</span>
+                      <span className={`font-bold ${
+                        afterBalance > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : afterBalance < 0
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-foreground"
+                      }`}>
+                        R$ {Math.abs(afterBalance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}{" "}
+                        {afterBalance > 0 ? "(Disponível)" : afterBalance < 0 ? "(Pendente)" : "(Quitado)"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Serviço da Permuta</Label>
+                    <Input
+                      placeholder="Ex: Barbeiro, Personal, Academia..."
+                      value={checkoutData.barterDescription}
+                      onChange={(e) => setCheckoutData(prev => ({ ...prev, barterDescription: e.target.value }))}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Valor Abatido na Permuta</Label>
+                    <CurrencyInput
+                      value={checkoutData.value}
+                      onChange={(val) => setCheckoutData(prev => ({ ...prev, value: val }))}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
 
             {checkoutData.status === 'Recebido' && (
               <>
