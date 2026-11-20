@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   Compass,
   Target,
@@ -21,6 +21,10 @@ import {
   ChevronUp,
   FileText,
   Lock,
+  UserCheck,
+  Calculator,
+  Video,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +39,7 @@ import { toast } from "sonner";
 
 interface StrategicItem {
   id: string;
-  item_type: "kpi_config" | "project" | "daily_task" | "journal" | "idea";
+  item_type: "kpi_config" | "project" | "daily_task" | "journal" | "idea" | "assistant_mission";
   title: string;
   category: string;
   status: string;
@@ -51,6 +55,7 @@ interface StrategicItem {
 }
 
 const Strategy = () => {
+  const navigate = useNavigate();
   // Trava de Segurança: Exclusivo para o Dono
   const userStr = localStorage.getItem("noxus_user");
   const user = userStr ? JSON.parse(userStr) : null;
@@ -68,6 +73,13 @@ const Strategy = () => {
     monthSessions: 0,
     avgTicket: 0,
   });
+  const [funnelRadar, setFunnelRadar] = useState({
+    orcamentoCount: 0,
+    onboardingCount: 0,
+    remarcarCount: 0,
+    remarcarValue: 0,
+    waitlistCount: 0,
+  });
   const [todayAppts, setTodayAppts] = useState<any[]>([]);
   const [strategicBlocks, setStrategicBlocks] = useState<any[]>([]);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -77,6 +89,24 @@ const Strategy = () => {
     start_time: "09:00",
     end_time: "11:00",
     reason: "Bloco Estratégico (QG)",
+  });
+
+  // Delegação de Missões para o Assistente
+  const [missionTitle, setMissionTitle] = useState("");
+  const [missionNotes, setMissionNotes] = useState("");
+  const [missionPriority, setMissionPriority] = useState("Alta");
+
+  // Simulador de Preço & Hora Tatuada
+  const [simTicketAdd, setSimTicketAdd] = useState(150);
+  const [simMonthlySessions, setSimMonthlySessions] = useState(18);
+  const [simHoursPerSession, setSimHoursPerSession] = useState(3.5);
+
+  // Modal de Roteiro Rápido (Ponte com Estúdio Motion / Conteúdo)
+  const [scriptIdea, setScriptIdea] = useState<StrategicItem | null>(null);
+  const [scriptForm, setScriptForm] = useState({
+    hook: "",
+    body: "",
+    cta: "",
   });
 
   // Config de Metas KPI
@@ -138,6 +168,7 @@ const Strategy = () => {
         { data: finsData },
         { data: apptsData },
         { data: blocksData },
+        { data: clientsData },
       ] = await Promise.all([
         supabase
           .from("strategic_workspace")
@@ -146,6 +177,7 @@ const Strategy = () => {
         supabase.from("financial_transactions").select("value, type, date"),
         supabase.from("appointments").select("id, value, status, date, start_time, end_time, type, client:clientes(name)"),
         supabase.from("agenda_blocks").select("*").gte("date", todayStr).order("date", { ascending: true }),
+        supabase.from("clientes").select("id, status, is_waitlist"),
       ]);
 
       if (stratError) throw stratError;
@@ -203,6 +235,24 @@ const Strategy = () => {
         monthSessions: completedMonthAppts.length,
         avgTicket: avgTkt,
       });
+
+      const allClients = clientsData || [];
+      const orcamentoCount = allClients.filter((c: any) => c.status === "Orçamento").length;
+      const onboardingCount = allClients.filter((c: any) => c.status === "Onboarding").length;
+      const waitlistCount = allClients.filter((c: any) => Boolean(c.is_waitlist)).length;
+      const remarcarAppts = (apptsData || []).filter((a: any) => a.status === "Para Remarcar");
+      const remarcarValue = remarcarAppts.reduce(
+        (acc: number, a: any) => acc + Number(a.value || avgTkt || 500),
+        0
+      );
+
+      setFunnelRadar({
+        orcamentoCount,
+        onboardingCount,
+        remarcarCount: remarcarAppts.length,
+        remarcarValue,
+        waitlistCount,
+      });
     } catch (error) {
       console.error("Erro ao carregar dados estratégicos:", error);
       toast.error("Erro ao carregar painel estratégico.");
@@ -238,6 +288,11 @@ const Strategy = () => {
 
   const ideas = useMemo(
     () => items.filter((i) => i.item_type === "idea"),
+    [items]
+  );
+
+  const assistantMissions = useMemo(
+    () => items.filter((i) => i.item_type === "assistant_mission"),
     [items]
   );
 
@@ -641,6 +696,91 @@ const Strategy = () => {
       fetchStrategicData();
     } catch (e) {
       toast.error("Erro ao remover bloqueio.");
+    }
+  };
+
+  // Delegar Missão para o Assistente
+  const handleCreateAssistantMission = async (customTitle?: string, customNotes?: string) => {
+    const finalTitle = (customTitle ?? missionTitle).trim();
+    if (!finalTitle) {
+      toast.error("Informe a missão para o assistente.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from("strategic_workspace").insert([
+        {
+          item_type: "assistant_mission",
+          title: finalTitle,
+          category: missionPriority,
+          status: "Pendente",
+          horizon: "diario",
+          content: (customNotes ?? missionNotes).trim() || null,
+          entry_date: todayStr,
+        },
+      ]);
+      if (error) throw error;
+      if (!customTitle) {
+        setMissionTitle("");
+        setMissionNotes("");
+      }
+      toast.success("Missão enviada para a tela do Assistente!");
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao delegar missão.");
+    }
+  };
+
+  const handleToggleAssistantMission = async (mission: StrategicItem) => {
+    const newStatus = mission.status === "Concluído" ? "Pendente" : "Concluído";
+    try {
+      const { error } = await supabase
+        .from("strategic_workspace")
+        .update({ status: newStatus })
+        .eq("id", mission.id);
+      if (error) throw error;
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao atualizar missão.");
+    }
+  };
+
+  // Ponte com Estúdio de Conteúdo / Roteirizador Rápido
+  const openScriptModal = (idea: StrategicItem) => {
+    setScriptIdea(idea);
+    setScriptForm({
+      hook: idea.metadata?.script_hook || "",
+      body: idea.metadata?.script_body || "",
+      cta: idea.metadata?.script_cta || "",
+    });
+  };
+
+  const handleSaveScript = async (openStudioAfter = false) => {
+    if (!scriptIdea) return;
+    try {
+      const { error } = await supabase
+        .from("strategic_workspace")
+        .update({
+          metadata: {
+            ...(scriptIdea.metadata || {}),
+            script_hook: scriptForm.hook.trim(),
+            script_body: scriptForm.body.trim(),
+            script_cta: scriptForm.cta.trim(),
+            has_script: Boolean(
+              scriptForm.hook.trim() || scriptForm.body.trim() || scriptForm.cta.trim()
+            ),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", scriptIdea.id);
+      if (error) throw error;
+      toast.success("Roteiro salvo na ideia!");
+      setScriptIdea(null);
+      await fetchStrategicData();
+      if (openStudioAfter) {
+        navigate("/cursos");
+      }
+    } catch (e) {
+      toast.error("Erro ao salvar roteiro.");
     }
   };
 
@@ -1254,15 +1394,31 @@ const Strategy = () => {
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {!isDone && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2.5 text-xs gap-1.5"
-                            onClick={() => openScheduleBlockModal(task.title)}
-                          >
-                            <Calendar className="w-3.5 h-3.5 text-primary" />
-                            <span className="hidden sm:inline">Travar na Agenda</span>
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs gap-1.5"
+                              onClick={() =>
+                                handleCreateAssistantMission(
+                                  task.title,
+                                  linkedProj ? `Projeto: ${linkedProj}` : ""
+                                )
+                              }
+                            >
+                              <UserCheck className="w-3.5 h-3.5 text-primary" />
+                              <span className="hidden sm:inline">Delegar</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs gap-1.5"
+                              onClick={() => openScheduleBlockModal(task.title)}
+                            >
+                              <Calendar className="w-3.5 h-3.5 text-primary" />
+                              <span className="hidden sm:inline">Travar na Agenda</span>
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="ghost"
@@ -1605,11 +1761,25 @@ const Strategy = () => {
                                 {linkedProj}
                               </span>
                             )}
+                            {idea.metadata?.has_script && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                Roteiro Pronto
+                              </span>
+                            )}
                           </div>
                         </div>
                       </button>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5"
+                          onClick={() => openScriptModal(idea)}
+                        >
+                          <Video className="w-3.5 h-3.5 text-primary" />
+                          Roteiro / Estúdio
+                        </Button>
                         {!isDone && (
                           <Button
                             variant="outline"
@@ -1798,9 +1968,373 @@ const Strategy = () => {
                 );
               })()}
             </div>
+
+            {/* Ferramenta 3: Delegar Missão para o Assistente ("Ordens do Dia") */}
+            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-primary" />
+                  <h3 className="font-bold text-base">Delegar Missão p/ Assistente</h3>
+                </div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {assistantMissions.filter((m) => m.status !== "Concluído").length} Pendentes
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    placeholder="Ex: Chamar os 5 clientes da Lista de Espera hoje..."
+                    value={missionTitle}
+                    onChange={(e) => setMissionTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateAssistantMission();
+                      }
+                    }}
+                    className="h-10 text-xs flex-1"
+                  />
+                  <Select value={missionPriority} onValueChange={setMissionPriority}>
+                    <SelectTrigger className="h-10 w-full sm:w-32 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Alta">Urgente</SelectItem>
+                      <SelectItem value="Normal">Normal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Instrução extra (opcional)..."
+                    value={missionNotes}
+                    onChange={(e) => setMissionNotes(e.target.value)}
+                    className="h-10 text-xs flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-10 px-4 text-xs font-semibold shrink-0"
+                    onClick={() => handleCreateAssistantMission()}
+                  >
+                    Enviar Missão
+                  </Button>
+                </div>
+              </div>
+
+              <div className="divide-y border rounded-lg overflow-hidden max-h-56 overflow-y-auto">
+                {assistantMissions.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Nenhuma missão enviada para o assistente ainda.
+                  </div>
+                ) : (
+                  assistantMissions.map((m) => {
+                    const isDone = m.status === "Concluído";
+                    return (
+                      <div
+                        key={m.id}
+                        className="p-2.5 px-3 flex items-center justify-between gap-2 text-xs bg-background"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAssistantMission(m)}
+                          className="flex items-start gap-2.5 text-left flex-1 min-w-0"
+                        >
+                          {isDone ? (
+                            <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                          )}
+                          <div className="min-w-0">
+                            <span
+                              className={`font-semibold block truncate ${
+                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            >
+                              {m.title}
+                            </span>
+                            {m.content && (
+                              <span className="text-[11px] text-muted-foreground block truncate">
+                                {m.content}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isDone
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                            }`}
+                          >
+                            {isDone ? "Feito" : "Na Fila"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteItem(m.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Ferramenta 4: Radar de Dinheiro Parado no Funil (Garimpo) */}
+            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-primary" />
+                  <h3 className="font-bold text-base">Radar de Dinheiro Parado no Funil</h3>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => navigate("/clientes")}
+                >
+                  Abrir CRM
+                </Button>
+              </div>
+
+              {(() => {
+                const ticket = Math.max(100, Math.round(studioMetrics.avgTicket || 500));
+                const orcamentoPotencial = funnelRadar.orcamentoCount * ticket;
+                const waitlistPotencial = funnelRadar.waitlistCount * ticket;
+                const totalParado = orcamentoPotencial + funnelRadar.remarcarValue;
+
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="p-3 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Em Orçamento ({funnelRadar.orcamentoCount})
+                        </span>
+                        <span className="text-sm font-bold text-foreground mt-1 block">
+                          ~R$ {orcamentoPotencial.toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          P/ Remarcar ({funnelRadar.remarcarCount})
+                        </span>
+                        <span className="text-sm font-bold text-foreground mt-1 block">
+                          R$ {funnelRadar.remarcarValue.toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                      <div className="p-3 rounded-xl border bg-primary/5 border-primary/20">
+                        <span className="text-[11px] text-primary font-semibold block">
+                          Lista de Espera ({funnelRadar.waitlistCount})
+                        </span>
+                        <span className="text-sm font-bold text-foreground mt-1 block">
+                          ~R$ {waitlistPotencial.toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="text-xs">
+                        <span className="text-muted-foreground block">Potencial acumulado para repescagem:</span>
+                        <span className="text-base font-bold text-foreground">
+                          R$ {totalParado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-9 text-xs font-semibold gap-1.5 shrink-0"
+                        onClick={() =>
+                          handleCreateAssistantMission(
+                            `Fazer repescagem dos ${funnelRadar.orcamentoCount} clientes em Orçamento e ${funnelRadar.remarcarCount} Para Remarcar`,
+                            "Priorizar clientes com maior potencial de fechamento nesta semana"
+                          )
+                        }
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Acionar Assistente p/ Garimpo
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Ferramenta 5: Simulador de Preço & Hora Tatuada */}
+            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4 lg:col-span-2">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-primary" />
+                  <h3 className="font-bold text-base">Simulador de Reajuste de Preço & Valor da Hora Tatuada</h3>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Ticket Médio Atual:{" "}
+                  <strong className="text-foreground">
+                    R$ {Math.round(studioMetrics.avgTicket || 500).toLocaleString("pt-BR")}
+                  </strong>
+                </span>
+              </div>
+
+              {(() => {
+                const currentTicket = Math.max(100, Math.round(studioMetrics.avgTicket || 500));
+                const newTicket = currentTicket + Number(simTicketAdd || 0);
+                const currentMonthly = currentTicket * simMonthlySessions;
+                const newMonthly = newTicket * simMonthlySessions;
+                const extraMonthly = newMonthly - currentMonthly;
+                const extraAnnual = extraMonthly * 12;
+                const currentHourly = simHoursPerSession > 0 ? currentTicket / simHoursPerSession : 0;
+                const newHourly = simHoursPerSession > 0 ? newTicket / simHoursPerSession : 0;
+                const sessionsSaved =
+                  newTicket > 0 ? Math.max(0, simMonthlySessions - Math.ceil(currentMonthly / newTicket)) : 0;
+
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                    <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Aumento por Sessão (R$)</Label>
+                        <CurrencyInput value={simTicketAdd} onChange={setSimTicketAdd} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Sessões / Mês</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={simMonthlySessions}
+                            onChange={(e) => setSimMonthlySessions(Math.max(1, Number(e.target.value || 1)))}
+                            className="h-10 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">Horas / Sessão</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min={0.5}
+                            value={simHoursPerSession}
+                            onChange={(e) =>
+                              setSimHoursPerSession(Math.max(0.5, Number(e.target.value || 1)))
+                            }
+                            className="h-10 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Novo Valor Sessão
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          R$ {newTicket.toLocaleString("pt-BR")}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          (+R$ {simTicketAdd.toLocaleString("pt-BR")}/sessão)
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border bg-primary/5 border-primary/20">
+                        <span className="text-[11px] text-primary font-semibold block">
+                          Ganho Extra no Ano
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          +R$ {extraAnnual.toLocaleString("pt-BR")}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          (+R$ {extraMonthly.toLocaleString("pt-BR")}/mês)
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Sua Hora Tatuada
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          R$ {Math.round(newHourly).toLocaleString("pt-BR")}/h
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Antes: R$ {Math.round(currentHourly).toLocaleString("pt-BR")}/h
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Tempo Livre Ganho
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          -{sessionsSaved} sessões
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          p/ ganhar o mesmo que hoje
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modal Roteiro Rápido & Ponte com Estúdio Motion */}
+      <Dialog open={!!scriptIdea} onOpenChange={(open) => !open && setScriptIdea(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="w-4 h-4 text-primary" />
+              Roteiro de Conteúdo: {scriptIdea?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3.5 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">1. Gancho (Primeiros 3 segundos)</Label>
+              <Input
+                placeholder="Ex: O erro que faz 80% dos tatuadores perderem dinheiro no caixa..."
+                value={scriptForm.hook}
+                onChange={(e) => setScriptForm((prev) => ({ ...prev, hook: e.target.value }))}
+                className="h-11 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">2. Desenvolvimento & Analogia Visual</Label>
+              <Textarea
+                rows={4}
+                placeholder="Ex: Mostrar o modelo Carro & Gasolina no Estúdio Motion explicando a diferença entre faturamento e caixa..."
+                value={scriptForm.body}
+                onChange={(e) => setScriptForm((prev) => ({ ...prev, body: e.target.value }))}
+                className="text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">3. Chamada para Ação (Fechamento)</Label>
+              <Input
+                placeholder="Ex: Comenta 'CAIXA' ou entra no link da Mentoria..."
+                value={scriptForm.cta}
+                onChange={(e) => setScriptForm((prev) => ({ ...prev, cta: e.target.value }))}
+                className="h-11 text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setScriptIdea(null)}>
+              Cancelar
+            </Button>
+            <Button variant="outline" onClick={() => handleSaveScript(false)}>
+              Apenas Salvar Roteiro
+            </Button>
+            <Button onClick={() => handleSaveScript(true)} className="gap-1.5">
+              <Video className="w-3.5 h-3.5" />
+              Salvar & Abrir Estúdio Motion
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Travar Horário Estratégico na Agenda */}
       <Dialog open={blockModalOpen} onOpenChange={setBlockModalOpen}>

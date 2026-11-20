@@ -78,6 +78,7 @@ const Agenda = () => {
   const [gradeDropdownOpen, setGradeDropdownOpen] = useState(false);
   const [agendaConfig, setAgendaConfig] = useState<AgendaConfig | null>(null);
   const [agendaBlocks, setAgendaBlocks] = useState<AgendaBlock[]>([]);
+  const [assistantMissions, setAssistantMissions] = useState<any[]>([]);
   const [selectedBlockToDelete, setSelectedBlockToDelete] = useState<AgendaBlock | null>(null);
   const [blockAlertOpen, setBlockAlertOpen] = useState(false);
 
@@ -218,14 +219,35 @@ const Agenda = () => {
 
   const fetchAgendaConfigAndBlocks = async () => {
     try {
-      const [{ data: configData }, { data: blocksData }] = await Promise.all([
+      const [{ data: configData }, { data: blocksData }, { data: missionsData }] = await Promise.all([
         supabase.from('agenda_config').select('*').limit(1).maybeSingle(),
-        supabase.from('agenda_blocks').select('*').order('date', { ascending: true })
+        supabase.from('agenda_blocks').select('*').order('date', { ascending: true }),
+        supabase
+          .from('strategic_workspace')
+          .select('*')
+          .eq('item_type', 'assistant_mission')
+          .eq('status', 'Pendente')
+          .order('created_at', { ascending: false })
       ]);
       if (configData) setAgendaConfig(configData);
       if (blocksData) setAgendaBlocks(blocksData);
+      if (missionsData) setAssistantMissions(missionsData);
     } catch (error) {
       console.error('Error fetching agenda config and blocks:', error);
+    }
+  };
+
+  const handleCompleteAssistantMission = async (missionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('strategic_workspace')
+        .update({ status: 'Concluído', updated_at: new Date().toISOString() })
+        .eq('id', missionId);
+      if (error) throw error;
+      toast.success("Missão concluída!");
+      fetchAgendaConfigAndBlocks();
+    } catch (error) {
+      toast.error("Erro ao concluir missão.");
     }
   };
 
@@ -1070,6 +1092,48 @@ const Agenda = () => {
         </TabsList>
         
         <TabsContent value="calendario" className="m-0 space-y-4">
+          {assistantMissions.length > 0 && (
+            <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
+                  <UserCheck className="w-4 h-4 text-primary" />
+                  Missões Prioritárias do Dia ({assistantMissions.length})
+                </h3>
+              </div>
+              <div className="divide-y border rounded-lg overflow-hidden bg-muted/20">
+                {assistantMissions.map((m: any) => (
+                  <div
+                    key={m.id}
+                    className="p-2.5 px-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground">{m.title}</span>
+                        {m.category === "Alta" && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            Urgente
+                          </span>
+                        )}
+                      </div>
+                      {m.content && (
+                        <span className="text-muted-foreground block mt-0.5">{m.content}</span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-3 text-xs gap-1.5 font-semibold shrink-0 self-end sm:self-center"
+                      onClick={() => handleCompleteAssistantMission(m.id)}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                      Concluir Missão
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-card rounded-xl border p-4 shadow-sm mb-4">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" /> Compromissos de Hoje
