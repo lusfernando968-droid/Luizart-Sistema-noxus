@@ -24,6 +24,7 @@ import {
   Megaphone,
   GraduationCap,
   Target,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ export function AppSidebar() {
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ] : [
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { title: "QG Estratégico", path: "/estrategia", icon: Compass },
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },

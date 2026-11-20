@@ -16,6 +16,7 @@ import MentorshipOnboardingForm from "./pages/MentorshipOnboardingForm";
 import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import Mentorship from "./pages/Mentorship";
+import Strategy from "./pages/Strategy";
 import Settings from "./pages/Settings";
 import { Layout } from "@/components/Layout";
 
@@ -26,7 +27,7 @@ const AuthLayout = () => {
   const isAssistant = user?.role === 'ASSISTANT' || user?.name?.includes('Gabriel');
   const path = window.location.pathname;
 
-  if (isAssistant && (path === '/dashboard' || path === '/cursos' || path === '/mentorias' || path === '/equipe')) {
+  if (isAssistant && (path === '/dashboard' || path === '/cursos' || path === '/mentorias' || path === '/equipe' || path === '/estrategia')) {
     return <Navigate to="/agenda" replace />;
   }
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/perfil" element={<Profile />} />
               <Route path="/cursos" element={<Courses />} />
               <Route path="/mentorias" element={<Mentorship />} />
+              <Route path="/estrategia" element={<Strategy />} />
               <Route path="/configuracoes" element={<Settings />} />
             </Route>
 

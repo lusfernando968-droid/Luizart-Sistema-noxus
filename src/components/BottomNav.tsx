@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Users, DollarSign, Shield, MessageSquare, Megaphone } from "lucide-react";
+import { LayoutDashboard, Calendar, Users, DollarSign, Shield, MessageSquare, Megaphone, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -62,6 +62,7 @@ export function BottomNav() {
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ] : [
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { title: "Estratégia", path: "/estrategia", icon: Compass },
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
