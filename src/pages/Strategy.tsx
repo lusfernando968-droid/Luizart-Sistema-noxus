@@ -63,9 +63,20 @@ const Strategy = () => {
   // Métricas reais do estúdio para cruzar com as KPIs estratégicas
   const [studioMetrics, setStudioMetrics] = useState({
     monthRevenue: 0,
+    scheduledMonthRevenue: 0,
     yearRevenue: 0,
     monthSessions: 0,
     avgTicket: 0,
+  });
+  const [todayAppts, setTodayAppts] = useState<any[]>([]);
+  const [strategicBlocks, setStrategicBlocks] = useState<any[]>([]);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [blockForm, setBlockForm] = useState({
+    title: "",
+    date: new Date().toISOString().split("T")[0],
+    start_time: "09:00",
+    end_time: "11:00",
+    reason: "Bloco Estratégico (QG)",
   });
 
   // Config de Metas KPI
@@ -122,20 +133,26 @@ const Strategy = () => {
   const fetchStrategicData = async () => {
     try {
       setLoading(true);
-      const [{ data: stratData, error: stratError }, { data: finsData }, { data: apptsData }] =
-        await Promise.all([
-          supabase
-            .from("strategic_workspace")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase.from("financial_transactions").select("value, type, date"),
-          supabase.from("appointments").select("value, status, date"),
-        ]);
+      const [
+        { data: stratData, error: stratError },
+        { data: finsData },
+        { data: apptsData },
+        { data: blocksData },
+      ] = await Promise.all([
+        supabase
+          .from("strategic_workspace")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("financial_transactions").select("value, type, date"),
+        supabase.from("appointments").select("id, value, status, date, start_time, end_time, type, client:clientes(name)"),
+        supabase.from("agenda_blocks").select("*").gte("date", todayStr).order("date", { ascending: true }),
+      ]);
 
       if (stratError) throw stratError;
 
       const list = (stratData || []) as StrategicItem[];
       setItems(list);
+      setStrategicBlocks(blocksData || []);
 
       const kpiConfig = list.find((i) => i.item_type === "kpi_config");
       if (kpiConfig) {
@@ -156,14 +173,32 @@ const Strategy = () => {
       const completedMonthAppts = (apptsData || []).filter(
         (a: any) => a.date?.startsWith(thisMonthStr) && a.status === "Concluído"
       );
+      const scheduledMonthAppts = (apptsData || []).filter(
+        (a: any) =>
+          a.date?.startsWith(thisMonthStr) &&
+          (a.status === "Agendado" || a.status === "Confirmado")
+      );
+      const scheduledRev = scheduledMonthAppts.reduce(
+        (acc: number, a: any) => acc + Number(a.value || 0),
+        0
+      );
+
+      const todayList = (apptsData || [])
+        .filter((a: any) => a.date === todayStr && a.status !== "Cancelado")
+        .sort((a: any, b: any) => (a.start_time || "").localeCompare(b.start_time || ""));
+      setTodayAppts(todayList);
+
       const avgTkt =
         completedMonthAppts.length > 0
           ? completedMonthAppts.reduce((acc: number, a: any) => acc + Number(a.value || 0), 0) /
             completedMonthAppts.length
-          : 0;
+          : scheduledMonthAppts.length > 0
+          ? scheduledRev / scheduledMonthAppts.length
+          : 500;
 
       setStudioMetrics({
         monthRevenue: monthRev,
+        scheduledMonthRevenue: scheduledRev,
         yearRevenue: yearRev,
         monthSessions: completedMonthAppts.length,
         avgTicket: avgTkt,
@@ -562,6 +597,53 @@ const Strategy = () => {
     }
   };
 
+  const openScheduleBlockModal = (defaultTitle = "") => {
+    setBlockForm({
+      title: defaultTitle || "Foco Estratégico (QG)",
+      date: todayStr,
+      start_time: "09:00",
+      end_time: "11:00",
+      reason: "Reservado pelo QG Estratégico",
+    });
+    setBlockModalOpen(true);
+  };
+
+  const handleConfirmScheduleBlock = async () => {
+    if (!blockForm.title.trim()) {
+      toast.error("Informe o título do bloco.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from("agenda_blocks").insert([
+        {
+          title: blockForm.title.trim(),
+          date: blockForm.date,
+          start_time: blockForm.start_time,
+          end_time: blockForm.end_time,
+          all_day: false,
+          reason: blockForm.reason,
+        },
+      ]);
+      if (error) throw error;
+      toast.success("Horário reservado e protegido na Agenda!");
+      setBlockModalOpen(false);
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao reservar horário na agenda.");
+    }
+  };
+
+  const handleRemoveStrategicBlock = async (blockId: string) => {
+    try {
+      const { error } = await supabase.from("agenda_blocks").delete().eq("id", blockId);
+      if (error) throw error;
+      toast.success("Bloqueio liberado na Agenda.");
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao remover bloqueio.");
+    }
+  };
+
   const monthGoalPct =
     monthlyGoalInput > 0 ? Math.min(100, Math.round((studioMetrics.monthRevenue / monthlyGoalInput) * 100)) : 0;
   const annualGoalPct =
@@ -730,6 +812,9 @@ const Strategy = () => {
                   {ideas.filter((i) => i.status !== "Concluído").length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="ferramentas" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
+              <Calendar className="w-3.5 h-3.5" /> Agenda & Ferramentas
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1167,14 +1252,27 @@ const Strategy = () => {
                         </div>
                       </button>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                        onClick={() => handleDeleteItem(task.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!isDone && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs gap-1.5"
+                            onClick={() => openScheduleBlockModal(task.title)}
+                          >
+                            <Calendar className="w-3.5 h-3.5 text-primary" />
+                            <span className="hidden sm:inline">Travar na Agenda</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleDeleteItem(task.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })
@@ -1539,7 +1637,227 @@ const Strategy = () => {
             </div>
           </div>
         </TabsContent>
+
+        {/* ABA 5: AGENDA & FERRAMENTAS ESTRATÉGICAS */}
+        <TabsContent value="ferramentas" className="m-0 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Ferramenta 1: Conexão com a Agenda (Travar Horário de CEO / Produção) */}
+            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <h3 className="font-bold text-base">Agenda de Hoje & Blocos Estratégicos</h3>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 font-semibold"
+                  onClick={() => openScheduleBlockModal("")}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Travar Horário na Agenda
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Sessões de Clientes Hoje ({todayAppts.length})
+                </Label>
+                {todayAppts.length === 0 ? (
+                  <div className="p-3 rounded-lg border bg-muted/20 text-xs text-muted-foreground">
+                    Nenhuma sessão de cliente agendada para hoje — dia livre para execução estratégica.
+                  </div>
+                ) : (
+                  <div className="divide-y border rounded-lg overflow-hidden">
+                    {todayAppts.map((a: any) => {
+                      const relClient = Array.isArray(a.client) ? a.client[0] : a.client;
+                      return (
+                        <div key={a.id} className="p-2.5 px-3 flex items-center justify-between text-xs bg-background">
+                          <span className="font-semibold text-foreground">
+                            {relClient?.name || "Cliente"} ({a.type || "Tatuagem"})
+                          </span>
+                          <span className="font-bold text-primary">
+                            {a.start_time} - {a.end_time}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Horários Protegidos na Agenda ({strategicBlocks.length})
+                </Label>
+                {strategicBlocks.length === 0 ? (
+                  <div className="p-4 rounded-lg border border-dashed text-center text-xs text-muted-foreground">
+                    Nenhum horário reservado. Reserve blocos para gravar aulas, criar conteúdo ou planejar sem o assistente marcar clientes em cima.
+                  </div>
+                ) : (
+                  <div className="divide-y border rounded-lg overflow-hidden max-h-52 overflow-y-auto">
+                    {strategicBlocks.map((b: any) => (
+                      <div key={b.id} className="p-2.5 px-3 flex items-center justify-between gap-2 text-xs bg-muted/20">
+                        <div className="min-w-0">
+                          <span className="font-bold text-foreground block truncate">{b.title}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {b.date?.split("-").reverse().join("/")} •{" "}
+                            {b.all_day ? "Dia inteiro" : `${b.start_time} às ${b.end_time}`}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleRemoveStrategicBlock(b.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Ferramenta 2: Simulador & Calculadora de Ritmo da Meta */}
+            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  <h3 className="font-bold text-base">Calculadora & Projeção da Meta do Mês</h3>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setKpiModalOpen(true)}
+                >
+                  Editar Meta
+                </Button>
+              </div>
+
+              {(() => {
+                const projectedTotal = studioMetrics.monthRevenue + studioMetrics.scheduledMonthRevenue;
+                const remainingToGoal = Math.max(0, monthlyGoalInput - studioMetrics.monthRevenue);
+                const remainingAfterAgenda = Math.max(0, monthlyGoalInput - projectedTotal);
+                const ticket = Math.max(100, Math.round(studioMetrics.avgTicket || 500));
+                const sessionsNeededNow = Math.ceil(remainingToGoal / ticket);
+                const extraSessionsToBook = Math.ceil(remainingAfterAgenda / ticket);
+
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Já Recebido no Caixa
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          R$ {studioMetrics.monthRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-xl border bg-muted/20">
+                        <span className="text-[11px] text-muted-foreground font-semibold block">
+                          Já Agendado no Mês
+                        </span>
+                        <span className="text-base font-bold text-primary mt-1 block">
+                          R$ {studioMetrics.scheduledMonthRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-xl border bg-primary/5 border-primary/20">
+                        <span className="text-[11px] text-primary font-semibold block">
+                          Projeção Total do Mês
+                        </span>
+                        <span className="text-base font-bold text-foreground mt-1 block">
+                          R$ {projectedTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border bg-muted/30 space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground font-medium">Falta entrar no caixa p/ bater a meta:</span>
+                        <span className="font-bold text-foreground">
+                          R$ {remainingToGoal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ({sessionsNeededNow} sessões de R$ {ticket})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                        <span className="text-muted-foreground font-medium">
+                          Falta agendar (além do que já está marcado):
+                        </span>
+                        <span className="font-bold text-primary">
+                          {remainingAfterAgenda > 0
+                            ? `R$ ${remainingAfterAgenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} (+${extraSessionsToBook} novos agendamentos)`
+                            : "Meta já coberta pela agenda atual!"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Modal Travar Horário Estratégico na Agenda */}
+      <Dialog open={blockModalOpen} onOpenChange={setBlockModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Travar Horário Estratégico na Agenda</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Atividade / Missão *</Label>
+              <Input
+                placeholder="Ex: Gravar vídeos YouTube, Planejamento Marketing..."
+                value={blockForm.title}
+                onChange={(e) => setBlockForm((prev) => ({ ...prev, title: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Data</Label>
+              <Input
+                type="date"
+                value={blockForm.date}
+                onChange={(e) => setBlockForm((prev) => ({ ...prev, date: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Início</Label>
+                <Input
+                  type="time"
+                  value={blockForm.start_time}
+                  onChange={(e) => setBlockForm((prev) => ({ ...prev, start_time: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Término</Label>
+                <Input
+                  type="time"
+                  value={blockForm.end_time}
+                  onChange={(e) => setBlockForm((prev) => ({ ...prev, end_time: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlockModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmScheduleBlock}>Bloquear na Agenda</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Ajustar Metas KPI */}
       <Dialog open={kpiModalOpen} onOpenChange={setKpiModalOpen}>
