@@ -11,11 +11,13 @@ import {
   AlertCircle,
   FileText,
   Phone,
+  MessageCircle,
   CheckCircle2,
   LinkIcon,
   RefreshCw,
   ChevronDown
 } from "lucide-react";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -467,21 +469,29 @@ const Index = () => {
           {tomorrowDropdownOpen && (
             <div className="px-3 pb-3 pt-2 border-t border-border/60 flex flex-col gap-1.5 bg-muted/20">
               {tomorrowAppointments.map((appt, i) => (
-                <div key={appt.id || i} className="flex items-center justify-between gap-2 text-xs sm:text-sm bg-background px-3 py-2 rounded-lg border border-border/80">
+                <div
+                  key={appt.id || i}
+                  className="flex items-center justify-between gap-2 text-xs sm:text-sm bg-background px-3 py-2 rounded-lg border border-border/70"
+                >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium text-foreground truncate">{appt.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">• {appt.time}</span>
+                    <span className="font-semibold text-foreground truncate">{appt.name}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-muted text-[11px] font-medium text-muted-foreground shrink-0">
+                      {appt.time}
+                    </span>
                   </div>
-                  <a
-                    href={`https://wa.me/55${(appt.phone || "").replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Olá ${appt.name}! Passando para confirmar seu horário amanhã, dia ${new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('pt-BR')}, às ${appt.time}. Podemos confirmar?`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md text-xs font-semibold transition-colors shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = (appt.phone || "").replace(/\D/g, "");
+                      const tomorrowStr = new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString("pt-BR");
+                      const msg = `Olá ${appt.name}! Passando para confirmar seu horário amanhã, dia ${tomorrowStr}, às ${appt.time}. Podemos confirmar?`;
+                      openWhatsApp(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(msg)}`);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-primary/20 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-semibold transition-all shrink-0 active:scale-95"
                   >
-                    <Phone className="h-3 w-3" /> Confirmar
-                  </a>
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    <span>Confirmar</span>
+                  </button>
                 </div>
               ))}
             </div>
