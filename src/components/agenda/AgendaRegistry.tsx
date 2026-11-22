@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Activity, CheckCircle2, XCircle, RefreshCw, Filter, FileSpreadsheet, BookOpen } from "lucide-react";
 
 export function AgendaRegistry({ appointments, clients }: any) {
@@ -187,32 +187,83 @@ export function AgendaRegistry({ appointments, clients }: any) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Gráfico de Distribuição Compacto */}
+        {/* Gráfico de Pizza com Quantidade Visual ao Lado de Cada Parcela */}
         <Card className="lg:col-span-1 shadow-2xs flex flex-col border-border rounded-xl">
           <CardHeader className="py-3 px-4 border-b border-border/60">
             <CardTitle className="text-sm font-semibold text-foreground">Distribuição de Status</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex items-center justify-center p-4">
-            <ResponsiveContainer width="100%" height={170}>
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: "transparent" }}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    border: "1px solid hsl(var(--border))",
-                    backgroundColor: "hsl(var(--card))",
-                  }}
-                />
-                <Bar dataKey="valor" name="Sessões" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="flex-1 flex flex-col items-center justify-between p-4 gap-3">
+            <div className="w-full h-[180px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData.filter((d) => d.valor > 0)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={38}
+                    outerRadius={62}
+                    cornerRadius={3}
+                    paddingAngle={3}
+                    dataKey="valor"
+                    stroke="none"
+                    labelLine={{ stroke: "#94a3b8", strokeWidth: 1 }}
+                    label={({ cx, cy, midAngle, outerRadius, valor, name }) => {
+                      const RADIAN = Math.PI / 180;
+                      const radius = outerRadius + 16;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          fill="hsl(var(--foreground))"
+                          textAnchor={x > cx ? "start" : "end"}
+                          dominantBaseline="central"
+                          className="text-[11px] font-bold"
+                        >
+                          {`${valor}`}
+                        </text>
+                      );
+                    }}
+                  >
+                    {chartData
+                      .filter((d) => d.valor > 0)
+                      .map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--card))",
+                    }}
+                    formatter={(value: number, name: string) => [`${value} sessões`, name]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="w-full grid grid-cols-2 gap-1.5 pt-2 border-t border-border/50">
+              {chartData.map((entry) => (
+                <div
+                  key={entry.name}
+                  className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-xs"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-[11px] font-medium text-foreground truncate">
+                      {entry.name}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-foreground shrink-0">{entry.valor}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
