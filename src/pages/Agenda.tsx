@@ -1614,11 +1614,11 @@ const Agenda = () => {
               </div>
             )}
 
-            {/* Alerta discreto de Horário Restrito */}
+            {/* Alerta sutil de Horário Restrito */}
             {currentConflict.hasConflict && (
-              <div className="px-3 py-2 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2 font-medium">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Horário fora da grade padrão / restrito</span>
+              <div className="px-2.5 py-1.5 rounded-lg border border-destructive/15 bg-destructive/5 text-destructive text-[11px] flex items-center gap-1.5 font-medium">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-destructive/80" />
+                <span>Horário indisponível / restrito</span>
               </div>
             )}
 
