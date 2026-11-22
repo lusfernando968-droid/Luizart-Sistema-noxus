@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Search, MessageCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Clock, Search, MessageCircle, CheckCircle2, RefreshCw, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WaitlistReallocateModal, FreedSlotInfo } from "@/components/crm/WaitlistReallocateModal";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -48,9 +47,15 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
   const filteredPending = filterBySearch(pendingSessions);
 
   const handleWhatsApp = (phone: string, message: string) => {
-    if (!phone || phone === "Não informado") return;
+    if (!phone || phone === "Não informado") {
+      toast.error("Cliente sem telefone cadastrado.");
+      return;
+    }
     const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.length < 10) return;
+    if (cleanPhone.length < 10) {
+      toast.error("Número de WhatsApp inválido.");
+      return;
+    }
     const finalPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
     const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
     openWhatsApp(url);
@@ -58,7 +63,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
 
   const formatDate = (dateString: string) => {
     try {
-      if (!dateString) return "—";
+      if (!dateString) return "Sem data";
       const parsed = parseISO(dateString);
       return format(parsed, "dd/MM/yyyy", { locale: ptBR });
     } catch {
@@ -154,253 +159,134 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
             {search ? "Nenhum cliente encontrado na busca." : emptyMessage}
           </div>
         ) : (
-          <>
-            {/* VISÃO MOBILE: Lista Compacta de 2 Andares (Zero Rolagem Lateral) */}
-            <div className="sm:hidden divide-y divide-border/60">
-              {list.map((appt: any) => {
-                const clientObj = getClientObj(appt);
-                const resolvedName = getClientName(appt);
-                const resolvedPhone = clientObj?.phone || "";
-                const cleanDigits = resolvedPhone.replace(/\D/g, "");
-                const hasPhone = cleanDigits.length >= 10;
-                const timeRange =
-                  appt.startTime || appt.start_time
-                    ? `${appt.startTime || appt.start_time}${
-                        appt.endTime || appt.end_time ? ` - ${appt.endTime || appt.end_time}` : ""
-                      }`
-                    : "";
+          <div className="p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {list.map((appt: any) => {
+              const clientObj = getClientObj(appt);
+              const resolvedName = getClientName(appt);
+              const resolvedPhone = clientObj?.phone || "";
+              const cleanDigits = resolvedPhone.replace(/\D/g, "");
+              const hasPhone = cleanDigits.length >= 10;
+              const timeRange =
+                appt.startTime || appt.start_time
+                  ? `${appt.startTime || appt.start_time}${
+                      appt.endTime || appt.end_time ? ` - ${appt.endTime || appt.end_time}` : ""
+                    }`
+                  : "";
 
-                const wppMessageReschedule = `Olá ${resolvedName}! Vi que ficamos de remarcar a sua sessão de tatuagem. Já tem uma nova data em mente? Posso mandar os horários disponíveis?`;
-                const wppMessagePending = `Olá ${resolvedName}! Vi que a sua sessão do dia ${formatDate(
-                  appt.date
-                )} ficou pendente no sistema. Deu tudo certo?`;
+              const wppMessageReschedule = `Olá ${resolvedName}! Vi que ficamos de remarcar a sua sessão de tatuagem. Já tem uma nova data em mente? Posso mandar os horários disponíveis?`;
+              const wppMessagePending = `Olá ${resolvedName}! Vi que a sua sessão do dia ${formatDate(
+                appt.date
+              )} ficou pendente no sistema. Deu tudo certo?`;
 
-                return (
-                  <div
-                    key={appt.id}
-                    className="px-3.5 py-3 flex flex-col gap-2 hover:bg-muted/20 transition-colors"
-                  >
-                    {/* Andar 1: Avatar + Nome + Data à esquerda | Badge de Status à direita */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                          {clientObj?.avatar_url ? (
-                            <img
-                              src={clientObj.avatar_url}
-                              alt={resolvedName}
-                              className="h-full w-full rounded-full object-cover"
-                            />
-                          ) : (
-                            resolvedName.charAt(0).toUpperCase()
+              return (
+                <div
+                  key={appt.id}
+                  className="rounded-xl border border-border/80 bg-background overflow-hidden flex flex-col justify-between shadow-2xs hover:border-border transition-colors"
+                >
+                  {/* Bloco Superior: Dados do Cliente + Valor e Status */}
+                  <div className="p-3.5 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/15">
+                        {clientObj?.avatar_url ? (
+                          <img
+                            src={clientObj.avatar_url}
+                            alt={resolvedName}
+                            className="h-full w-full rounded-xl object-cover"
+                          />
+                        ) : (
+                          resolvedName.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <span className="font-bold text-sm text-foreground block truncate">
+                          {resolvedName}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                          <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                            <Calendar className="w-3 h-3 text-muted-foreground" />
+                            {formatDate(appt.date)}
+                          </span>
+                          {timeRange && (
+                            <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              {timeRange}
+                            </span>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-sm text-foreground block truncate">
-                            {resolvedName}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground block truncate">
-                            {formatDate(appt.date)}
-                            {timeRange ? ` • ${timeRange}` : ""}
-                            {Number(appt.value || 0) > 0 ? ` • ${formatCurrency(appt.value)}` : ""}
-                          </span>
-                        </div>
                       </div>
+                    </div>
 
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-sm font-bold text-foreground">
+                        {formatCurrency(appt.value)}
+                      </span>
                       <Badge
                         variant="outline"
-                        className={`text-[10px] px-2 py-0.5 font-semibold shrink-0 ${
+                        className={`text-[10px] px-2 py-0 font-semibold ${
                           isRescheduleList
                             ? "bg-primary/10 text-primary border-primary/25"
-                            : "bg-muted/60 text-muted-foreground border-border"
+                            : "bg-muted text-muted-foreground border-border"
                         }`}
                       >
                         {isRescheduleList ? "Remarcar" : "Pendente"}
                       </Badge>
                     </div>
-
-                    {/* Andar 2: Botões de Ação Compactos para Toque */}
-                    <div className="pl-10 flex items-center justify-end gap-1.5">
-                      {hasPhone && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 rounded-lg"
-                          onClick={() =>
-                            handleWhatsApp(
-                              resolvedPhone,
-                              isRescheduleList ? wppMessageReschedule : wppMessagePending
-                            )
-                          }
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 text-primary" />
-                          WhatsApp
-                        </Button>
-                      )}
-
-                      {isRescheduleList ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 rounded-lg"
-                          onClick={() => handleMarkAsRescheduled(appt)}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                          Reagendado
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 rounded-lg"
-                          onClick={(e) => handleMarkAsCompleted(appt, e)}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                          Concluir
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
-                        title={isRescheduleList ? "Agendar Novo Horário" : "Editar Sessão"}
-                        onClick={() => triggerEdit(appt, isRescheduleList)}
-                      >
-                        <Clock className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* VISÃO DESKTOP: Tabela Completa */}
-            <div className="hidden sm:block overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/10">
-                  <TableRow>
-                    <TableHead className="text-xs">Cliente</TableHead>
-                    <TableHead className="text-xs">Última Data</TableHead>
-                    <TableHead className="text-xs">Valor</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {list.map((appt: any) => {
-                    const clientObj = getClientObj(appt);
-                    const resolvedName = getClientName(appt);
-                    const resolvedPhone = clientObj?.phone || "";
-                    const cleanDigits = resolvedPhone.replace(/\D/g, "");
-                    const hasPhone = cleanDigits.length >= 10;
-                    const timeRange =
-                      appt.startTime || appt.start_time
-                        ? `${appt.startTime || appt.start_time}${
-                            appt.endTime || appt.end_time ? ` - ${appt.endTime || appt.end_time}` : ""
-                          }`
-                        : "";
+                  {/* Recorte Inferior: Barra de Ações Estruturada */}
+                  <div className="px-2.5 py-2 bg-muted/30 border-t border-border/70 grid grid-cols-3 gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!hasPhone}
+                      className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full"
+                      onClick={() =>
+                        handleWhatsApp(
+                          resolvedPhone,
+                          isRescheduleList ? wppMessageReschedule : wppMessagePending
+                        )
+                      }
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span className="truncate">WhatsApp</span>
+                    </Button>
 
-                    const wppMessageReschedule = `Olá ${resolvedName}! Vi que ficamos de remarcar a sua sessão de tatuagem. Já tem uma nova data em mente? Posso mandar os horários disponíveis?`;
-                    const wppMessagePending = `Olá ${resolvedName}! Vi que a sua sessão do dia ${formatDate(
-                      appt.date
-                    )} ficou pendente no sistema. Deu tudo certo?`;
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full"
+                      onClick={() => triggerEdit(appt, isRescheduleList)}
+                    >
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate">{isRescheduleList ? "Novo Horário" : "Horário"}</span>
+                    </Button>
 
-                    return (
-                      <TableRow key={appt.id} className="hover:bg-muted/20">
-                        <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                              {clientObj?.avatar_url ? (
-                                <img
-                                  src={clientObj.avatar_url}
-                                  alt={resolvedName}
-                                  className="h-full w-full rounded-full object-cover"
-                                />
-                              ) : (
-                                resolvedName.charAt(0).toUpperCase()
-                              )}
-                            </div>
-                            <span className="font-bold text-sm text-foreground">{resolvedName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDate(appt.date)}
-                          {timeRange ? ` • ${timeRange}` : ""}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold text-foreground whitespace-nowrap">
-                          {formatCurrency(appt.value)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-2 py-0.5 font-semibold ${
-                              isRescheduleList
-                                ? "bg-primary/10 text-primary border-primary/25"
-                                : "bg-muted/60 text-muted-foreground border-border"
-                            }`}
-                          >
-                            {isRescheduleList ? "Para Remarcar" : "Sessão Pendente"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-1.5">
-                            {hasPhone && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2.5 text-xs font-semibold gap-1.5 rounded-lg"
-                                onClick={() =>
-                                  handleWhatsApp(
-                                    resolvedPhone,
-                                    isRescheduleList ? wppMessageReschedule : wppMessagePending
-                                  )
-                                }
-                              >
-                                <MessageCircle className="w-3.5 h-3.5 text-primary" />
-                                WhatsApp
-                              </Button>
-                            )}
-
-                            {isRescheduleList ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2.5 text-xs font-semibold gap-1.5 rounded-lg"
-                                onClick={() => handleMarkAsRescheduled(appt)}
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                                Reagendado
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2.5 text-xs font-semibold gap-1.5 rounded-lg"
-                                onClick={(e) => handleMarkAsCompleted(appt, e)}
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                                Concluir
-                              </Button>
-                            )}
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
-                              title={isRescheduleList ? "Agendar Novo Horário" : "Editar Sessão"}
-                              onClick={() => triggerEdit(appt, isRescheduleList)}
-                            >
-                              <Clock className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+                    {isRescheduleList ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg w-full shadow-2xs"
+                        onClick={() => handleMarkAsRescheduled(appt)}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Reagendado</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg w-full shadow-2xs"
+                        onClick={(e) => handleMarkAsCompleted(appt, e)}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Concluir</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     );
