@@ -263,14 +263,14 @@ export function AgendaIntelligence({ appointments, clients }: any) {
                         <div className="shrink-0">{getStatusBadge(appt.status)}</div>
                       </div>
 
-                      {/* Recorte Inferior: Botão Grande Mobile-First */}
-                      <div className="px-2.5 py-2 bg-muted/30 border-t border-border/70">
+                      {/* Recorte Inferior: Largo para Toque no Mobile, Compacto à Direita no Web */}
+                      <div className="px-3 py-2 bg-muted/30 border-t border-border/70 flex items-center justify-end">
                         <Button
                           variant="default"
                           size="sm"
                           disabled={!hasPhone}
                           onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
-                          className="h-9 w-full text-xs font-semibold gap-2 rounded-lg shadow-2xs"
+                          className="h-8 w-full sm:w-auto sm:px-3.5 text-xs font-semibold gap-1.5 rounded-lg shadow-2xs"
                         >
                           <MessageCircle className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate">{buttonLabel}</span>

@@ -2401,161 +2401,169 @@ const Clients = () => {
         </TabsContent>
 
         {/* ABA 5: LISTA DE ESPERA */}
-        <TabsContent value="espera" className="m-0 space-y-6">
-          <div className="bg-card rounded-xl border shadow-sm text-foreground">
-            <div className="p-4 border-b flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-              <div className="relative w-full max-w-md">
+        <TabsContent value="espera" className="m-0 space-y-4">
+          <div className="bg-card rounded-xl border border-border shadow-2xs text-foreground overflow-hidden">
+            {/* Barra Superior: Busca + Botão Adicionar */}
+            <div className="p-3 sm:p-4 border-b border-border/60 flex items-center justify-between gap-2">
+              <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar cliente na lista de espera..."
+                  placeholder="Buscar na lista de espera..."
                   value={waitlistSearch}
                   onChange={(e) => setWaitlistSearch(e.target.value)}
-                  className="pl-9 bg-accent/20 h-11"
+                  className="pl-9 bg-muted/30 border-border/80 h-10 sm:h-11 rounded-xl text-xs sm:text-sm"
                 />
               </div>
               <Button
+                size="sm"
                 onClick={() => {
                   setSelectedWaitlistClientId("");
                   setWaitlistNoteInput("");
                   setWaitlistCandidateSearch("");
                   setAddWaitlistModalOpen(true);
                 }}
-                className="h-11 gap-2 font-semibold"
+                className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl gap-1.5 text-xs font-semibold shrink-0"
               >
-                <Plus className="h-4 w-4" />
-                Adicionar à Lista de Espera
+                <Plus className="h-3.5 w-3.5" />
+                <span className="sm:hidden">Adicionar</span>
+                <span className="hidden sm:inline">Adicionar à Lista de Espera</span>
               </Button>
             </div>
 
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Observação / Disponibilidade</TableHead>
-                    <TableHead>Na Lista Desde</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const waitlistList = clients
-                      .filter((c) => c.is_waitlist)
-                      .filter((c) => {
-                        if (!waitlistSearch.trim()) return true;
-                        const q = waitlistSearch.toLowerCase();
-                        return (
-                          c.name.toLowerCase().includes(q) ||
-                          c.phone.includes(q) ||
-                          (c.waitlist_notes || "").toLowerCase().includes(q)
-                        );
-                      });
+            {(() => {
+              const waitlistList = clients
+                .filter((c) => c.is_waitlist)
+                .filter((c) => {
+                  if (!waitlistSearch.trim()) return true;
+                  const q = waitlistSearch.toLowerCase();
+                  return (
+                    c.name.toLowerCase().includes(q) ||
+                    c.phone.includes(q) ||
+                    (c.waitlist_notes || "").toLowerCase().includes(q)
+                  );
+                });
 
-                    if (waitlistList.length === 0) {
-                      return (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-28 text-center text-muted-foreground text-xs">
-                            Nenhum cliente na Lista de Espera no momento.
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
+              if (waitlistList.length === 0) {
+                return (
+                  <div className="p-10 text-center text-muted-foreground text-xs">
+                    Nenhum cliente na Lista de Espera no momento.
+                  </div>
+                );
+              }
 
-                    return waitlistList.map((client) => (
-                      <TableRow
+              return (
+                <div className="p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {waitlistList.map((client) => {
+                    const cleanDigits = (client.phone || "").replace(/\D/g, "");
+                    const hasValidPhone = cleanDigits.length >= 10;
+
+                    return (
+                      <div
                         key={client.id}
-                        className="hover:bg-accent/40 cursor-pointer"
-                        onClick={() => setSelectedClient(client)}
+                        className="rounded-xl border border-border/80 bg-background overflow-hidden flex flex-col justify-between shadow-2xs hover:border-border transition-colors"
                       >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
+                        {/* Topo do Card: Avatar + Nome + Contato/Observação */}
+                        <div
+                          onClick={() => setSelectedClient(client)}
+                          className="p-3.5 flex items-start justify-between gap-3 cursor-pointer hover:bg-muted/15 transition-colors"
+                        >
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/15">
                               {client.avatar_url ? (
                                 <img
                                   src={client.avatar_url}
                                   alt={client.name}
-                                  className="h-full w-full rounded-full object-cover"
+                                  className="h-full w-full rounded-xl object-cover"
                                 />
                               ) : (
                                 client.name.charAt(0).toUpperCase()
                               )}
                             </div>
-                            <div>
-                              <span className="font-bold block">{client.name}</span>
-                              <span className="text-[11px] text-muted-foreground">{client.status}</span>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <span className="font-bold text-sm text-foreground block truncate">
+                                {client.name}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                                <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                                  <Phone className="w-3 h-3 text-muted-foreground" />
+                                  {formatPhoneDisplay(client.phone)}
+                                </span>
+                                {client.waitlist_added_at && (
+                                  <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                                    <Clock className="w-3 h-3 text-muted-foreground" />
+                                    Desde {new Date(client.waitlist_added_at).toLocaleDateString("pt-BR")}
+                                  </span>
+                                )}
+                              </div>
+                              {client.waitlist_notes && (
+                                <p className="text-xs text-muted-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg border border-border/60 mt-1.5 line-clamp-2">
+                                  {client.waitlist_notes}
+                                </p>
+                              )}
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{client.phone}</TableCell>
-                        <TableCell className="text-xs max-w-[280px]">
-                          {client.waitlist_notes ? (
-                            <span className="bg-muted px-2.5 py-1 rounded-md border text-foreground inline-block">
-                              {client.waitlist_notes}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {client.waitlist_added_at
-                            ? new Date(client.waitlist_added_at).toLocaleDateString("pt-BR")
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-9 px-2.5 text-xs gap-1.5 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white border-transparent font-semibold"
-                              onClick={() => {
-                                const raw = (client.phone || "").replace(/\D/g, "");
-                                if (!raw || raw.length < 10) {
-                                  toast.error("Cliente sem WhatsApp válido.");
-                                  return;
-                                }
-                                const phone = raw.startsWith("55") ? raw : `55${raw}`;
-                                const msg = `Fala ${client.name}, tudo bem? Surgiu uma vaga aqui na agenda! Você consegue vir tatuar?`;
-                                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-                              }}
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              WhatsApp
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-9 px-2.5 text-xs gap-1.5 font-semibold"
-                              onClick={() => {
-                                setQuickSlotClient(client);
-                                setQuickSlotData({
-                                  date: new Date().toISOString().split("T")[0],
-                                  startTime: "14:00",
-                                  endTime: "17:00",
-                                  value: 0
-                                });
-                              }}
-                            >
-                              <Calendar className="w-3.5 h-3.5" />
-                              Encaixar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                              title="Remover da Lista de Espera"
-                              onClick={() => handleToggleWaitlist(client)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
+
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-accent border border-border/80 text-foreground shrink-0">
+                            {client.status}
+                          </span>
+                        </div>
+
+                        {/* Recorte Inferior: Grade de 3 Colunas no Mobile, Botões Compactos à Direita no Web */}
+                        <div className="px-2.5 sm:px-3.5 py-2 bg-muted/30 border-t border-border/70 grid grid-cols-3 sm:flex sm:items-center sm:justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!hasValidPhone}
+                            className="h-8 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full sm:w-auto"
+                            onClick={() => {
+                              if (!hasValidPhone) {
+                                toast.error("Cliente sem WhatsApp válido.");
+                                return;
+                              }
+                              const phone = cleanDigits.startsWith("55") ? cleanDigits : `55${cleanDigits}`;
+                              const msg = `Fala ${client.name}, tudo bem? Surgiu uma vaga aqui na agenda! Você consegue vir tatuar?`;
+                              openWhatsApp(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`);
+                            }}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="truncate">WhatsApp</span>
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-destructive/10 hover:text-destructive w-full sm:w-auto"
+                            title="Remover da Lista de Espera"
+                            onClick={() => handleToggleWaitlist(client)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Remover</span>
+                          </Button>
+
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 px-2 sm:px-3.5 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg w-full sm:w-auto shadow-2xs"
+                            onClick={() => {
+                              setQuickSlotClient(client);
+                              setQuickSlotData({
+                                date: new Date().toISOString().split("T")[0],
+                                startTime: "14:00",
+                                endTime: "17:00",
+                                value: 0,
+                              });
+                            }}
+                          >
+                            <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Encaixar</span>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </TabsContent>
       </Tabs>

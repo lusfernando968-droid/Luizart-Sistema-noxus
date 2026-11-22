@@ -233,13 +233,13 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                     </div>
                   </div>
 
-                  {/* Recorte Inferior: Barra de Ações Estruturada */}
-                  <div className="px-2.5 py-2 bg-muted/30 border-t border-border/70 grid grid-cols-3 gap-1.5">
+                  {/* Recorte Inferior: Grade de 3 Colunas no Mobile, Botões Compactos à Direita no Web */}
+                  <div className="px-2.5 sm:px-3.5 py-2 bg-muted/30 border-t border-border/70 grid grid-cols-3 sm:flex sm:items-center sm:justify-end gap-1.5">
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={!hasPhone}
-                      className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full"
+                      className="h-8 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full sm:w-auto"
                       onClick={() =>
                         handleWhatsApp(
                           resolvedPhone,
@@ -254,7 +254,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full"
+                      className="h-8 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg bg-card border-border/80 hover:bg-accent w-full sm:w-auto"
                       onClick={() => triggerEdit(appt, isRescheduleList)}
                     >
                       <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -265,7 +265,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                       <Button
                         variant="default"
                         size="sm"
-                        className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg w-full shadow-2xs"
+                        className="h-8 px-2 sm:px-3.5 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg w-full sm:w-auto shadow-2xs"
                         onClick={() => handleMarkAsRescheduled(appt)}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -275,7 +275,7 @@ export function AgendaReschedule({ appointments, clients, onEdit, onRefresh, onC
                       <Button
                         variant="default"
                         size="sm"
-                        className="h-8 px-2 text-[11px] font-semibold gap-1.5 rounded-lg w-full shadow-2xs"
+                        className="h-8 px-2 sm:px-3.5 text-[11px] sm:text-xs font-semibold gap-1.5 rounded-lg w-full sm:w-auto shadow-2xs"
                         onClick={(e) => handleMarkAsCompleted(appt, e)}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
