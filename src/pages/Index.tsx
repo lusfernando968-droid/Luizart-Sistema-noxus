@@ -591,7 +591,7 @@ const Index = () => {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Client Acquisition Chart (Cumulative Line + Growth Rate vs Base) */}
-        <div className="bg-card rounded-xl border shadow-sm flex flex-col justify-between">
+        <div className="bg-card rounded-xl border shadow-sm p-6 flex flex-col justify-between gap-4">
           {(() => {
             const currentMonthIdx = new Date().getMonth();
             const currentMonthItem = clientAcquisitionData[currentMonthIdx];
@@ -600,86 +600,75 @@ const Index = () => {
 
             return (
               <>
-                <div className="p-6 border-b flex items-center justify-between gap-2">
-                  <h2 className="text-lg font-semibold text-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">
                     Acúmulo de Clientes ({new Date().getFullYear()})
                   </h2>
                   {currentMonthItem && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                      +{currentTaxa}% ({currentMonthItem.name})
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-primary/10 text-primary whitespace-nowrap shrink-0">
+                      <ArrowUpRight className="h-3 w-3" />
+                      +{currentTaxa}% em {currentMonthItem.name}
                     </span>
                   )}
                 </div>
 
-                <div className="p-6 flex flex-col gap-4">
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={clientAcquisitionData}
-                        margin={{ top: 20, right: 15, left: -20, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <RechartsTooltip
-                          contentStyle={{
-                            borderRadius: "8px",
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                          }}
-                          itemStyle={{ fontSize: "12px", fontWeight: "600" }}
-                          labelStyle={{ fontSize: "12px", color: "#64748b", marginBottom: "2px" }}
-                          formatter={(value: number, _name: string, props: any) => {
-                            const novos = props?.payload?.novos ?? 0;
-                            const taxa = props?.payload?.taxa ?? 0;
-                            return [
-                              `${value} clientes (+${novos} novos | +${taxa}% na base)`,
-                              "Total Acumulado",
-                            ];
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="acumulado"
-                          name="Total Acumulado"
-                          stroke="#2563eb"
-                          strokeWidth={2.5}
-                          dot={{ r: 3.5, fill: "#2563eb" }}
-                          activeDot={{ r: 5 }}
-                        >
-                          <LabelList
-                            dataKey="taxaLabel"
-                            position="top"
-                            offset={8}
-                            style={{ fontSize: "10px", fontWeight: 700, fill: "#0f172a" }}
-                          />
-                        </Line>
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {activeMonths.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
-                      {activeMonths.map((m) => (
-                        <div
-                          key={m.name}
-                          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-xs"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-muted-foreground">
-                              {m.name} (+{m.novos})
-                            </span>
-                            <span className="font-bold text-foreground">{m.acumulado} total</span>
-                          </div>
-                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                            +{m.taxa}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="h-[190px] lg:h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={clientAcquisitionData}
+                      margin={{ top: 8, right: 12, left: -24, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <RechartsTooltip
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        }}
+                        itemStyle={{ fontSize: "12px", fontWeight: "600" }}
+                        labelStyle={{ fontSize: "12px", color: "#64748b", marginBottom: "2px" }}
+                        formatter={(value: number, _name: string, props: any) => {
+                          const novos = props?.payload?.novos ?? 0;
+                          const taxa = props?.payload?.taxa ?? 0;
+                          return [
+                            `${value} clientes (+${novos} novos | +${taxa}%)`,
+                            "Total",
+                          ];
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="acumulado"
+                        name="Total Acumulado"
+                        stroke="#0f172a"
+                        strokeWidth={2}
+                        dot={{ r: 2, strokeWidth: 1.5, fill: "#ffffff", stroke: "#0f172a" }}
+                        activeDot={{ r: 4, fill: "#2563eb", stroke: "#ffffff", strokeWidth: 1.5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
+
+                {activeMonths.length > 0 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pt-3 border-t border-border/50">
+                    {activeMonths.map((m) => (
+                      <div
+                        key={m.name}
+                        className="flex-1 min-w-[95px] flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-xs"
+                      >
+                        <div className="flex items-baseline gap-1 min-w-0">
+                          <span className="text-[11px] font-semibold text-muted-foreground">{m.name}</span>
+                          <span className="font-bold text-foreground">{m.acumulado}</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-primary shrink-0">
+                          +{m.taxa}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             );
           })()}
