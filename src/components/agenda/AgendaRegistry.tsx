@@ -51,20 +51,41 @@ export function AgendaRegistry({ appointments, clients }: any) {
   }, [filteredAppointments]);
 
   const chartData = [
-    { name: "Concluído", valor: metrics.concluidos, color: "#10b981" },
-    { name: "Agendado", valor: metrics.agendados, color: "#3b82f6" },
-    { name: "Remarcar", valor: metrics.remarcados, color: "#f97316" },
-    { name: "Cancelado", valor: metrics.cancelados, color: "#ef4444" },
+    { name: "Agendado", valor: metrics.agendados, color: "#2563eb" },
+    { name: "Concluído", valor: metrics.concluidos, color: "#0f172a" },
+    { name: "Remarcar", valor: metrics.remarcados, color: "#64748b" },
+    { name: "Cancelado", valor: metrics.cancelados, color: "#cbd5e1" },
   ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "Concluído": return <Badge variant="outline" className="text-emerald-600 border-emerald-500/20 bg-emerald-500/10">Concluído</Badge>;
-      case "Cancelado": return <Badge variant="outline" className="text-red-600 border-red-500/20 bg-red-500/10">Cancelado</Badge>;
-      case "Para Remarcar": return <Badge variant="outline" className="text-orange-600 border-orange-500/20 bg-orange-500/10">Para Remarcar</Badge>;
-      case "Agendado": return <Badge variant="outline" className="text-blue-600 border-blue-500/20 bg-blue-500/10">Agendado</Badge>;
-      case "Confirmado": return <Badge variant="outline" className="text-purple-600 border-purple-500/20 bg-purple-500/10">Confirmado</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
+      case "Concluído":
+        return (
+          <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900">
+            Concluído
+          </Badge>
+        );
+      case "Agendado":
+      case "Confirmado":
+        return (
+          <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold text-primary border-primary/25 bg-primary/10">
+            {status}
+          </Badge>
+        );
+      case "Para Remarcar":
+        return (
+          <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold text-muted-foreground border-border bg-muted/60">
+            Remarcar
+          </Badge>
+        );
+      case "Cancelado":
+        return (
+          <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium text-muted-foreground/70 border-border/60 bg-muted/30">
+            Cancelado
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary" className="text-[10px] px-2 py-0">{status}</Badge>;
     }
   };
 
@@ -77,158 +98,205 @@ export function AgendaRegistry({ appointments, clients }: any) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
-            Registros e Métricas
-          </h2>
-          <p className="text-xs text-muted-foreground">Visão geral do desempenho da sua agenda e histórico completo.</p>
+    <div className="space-y-4">
+      {/* Barra de Filtros Compacta */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 h-10 shadow-2xs flex-1 sm:flex-initial">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="h-8 border-0 shadow-none focus:ring-0 p-0 w-full sm:w-[160px] text-xs font-semibold bg-transparent">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Meses</SelectItem>
+              {availableMonths.map(m => (
+                <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-card border rounded-md px-3 py-1.5 shadow-sm">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-7 border-0 shadow-none focus:ring-0 p-0 w-[160px] text-xs font-medium bg-transparent">
-                <SelectValue placeholder="Mês" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos os Meses</SelectItem>
-                {availableMonths.map(m => (
-                  <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[145px] sm:w-[160px] h-10 rounded-xl text-xs font-semibold bg-card border-border shadow-2xs">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Todos">Todos os Status</SelectItem>
+            <SelectItem value="Concluído">Concluído</SelectItem>
+            <SelectItem value="Agendado">Agendado</SelectItem>
+            <SelectItem value="Confirmado">Confirmado</SelectItem>
+            <SelectItem value="Para Remarcar">Para Remarcar</SelectItem>
+            <SelectItem value="Cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Grade 2x2 no Mobile / 4 Colunas no Desktop (Paleta Noxus) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card rounded-xl border border-border p-3.5 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total</span>
+            <div className="rounded-lg bg-accent p-1.5">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-none">{metrics.total}</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">sessões no período</p>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border border-border p-3.5 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Conclusão</span>
+            <div className="rounded-lg bg-accent p-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-none">{metrics.taxaConclusao}%</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">{metrics.concluidos} finalizadas</p>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border border-border p-3.5 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Remarcação</span>
+            <div className="rounded-lg bg-muted p-1.5">
+              <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-none">{metrics.taxaRemarcacao}%</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">{metrics.remarcados} para remarcar</p>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border border-border p-3.5 shadow-2xs flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Cancelamento</span>
+            <div className="rounded-lg bg-muted p-1.5">
+              <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold text-foreground leading-none">{metrics.taxaCancelamento}%</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">{metrics.cancelados} canceladas</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-sm">
-          <CardContent className="p-4 flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Total no Período</p>
-              <Activity className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold">{metrics.total}</h3>
-            <p className="text-[10px] text-muted-foreground">agendamentos registrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="p-4 flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Taxa de Conclusão</p>
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaConclusao}%</h3>
-            <p className="text-[10px] text-muted-foreground">({metrics.concluidos} sessões finalizadas)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="p-4 flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Taxa de Remarcação</p>
-              <RefreshCw className="w-4 h-4 text-orange-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaRemarcacao}%</h3>
-            <p className="text-[10px] text-muted-foreground">({metrics.remarcados} clientes para remarcar)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="p-4 flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Taxa de Cancelamento</p>
-              <XCircle className="w-4 h-4 text-red-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-foreground">{metrics.taxaCancelamento}%</h3>
-            <p className="text-[10px] text-muted-foreground">({metrics.cancelados} sessões perdidas)</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 shadow-sm flex flex-col border">
-          <CardHeader className="pb-2 border-b bg-muted/10">
-            <CardTitle className="text-sm font-bold text-foreground">Distribuição de Status</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Gráfico de Distribuição Compacto */}
+        <Card className="lg:col-span-1 shadow-2xs flex flex-col border-border rounded-xl">
+          <CardHeader className="py-3 px-4 border-b border-border/60">
+            <CardTitle className="text-sm font-semibold text-foreground">Distribuição de Status</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex items-center justify-center min-h-[250px] pt-6">
-             <ResponsiveContainer width="100%" height={200}>
-               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                 <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} />
-                 <YAxis fontSize={10} tickLine={false} axisLine={false} />
-                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                 <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                   {chartData.map((entry, index) => (
-                     <Cell key={`cell-${index}`} fill={entry.color || 'hsl(var(--primary))'} />
-                   ))}
-                 </Bar>
-               </BarChart>
-             </ResponsiveContainer>
+          <CardContent className="flex-1 flex items-center justify-center p-4">
+            <ResponsiveContainer width="100%" height={170}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "transparent" }}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    border: "1px solid hsl(var(--border))",
+                    backgroundColor: "hsl(var(--card))",
+                  }}
+                />
+                <Bar dataKey="valor" name="Sessões" radius={[4, 4, 0, 0]} maxBarSize={32}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-sm overflow-hidden flex flex-col border">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 bg-muted/10 border-b">
-            <CardTitle className="text-sm font-bold text-foreground">Tabela de Registros</CardTitle>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
-                <SelectValue placeholder="Filtrar Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos os Status</SelectItem>
-                <SelectItem value="Concluído">Concluído</SelectItem>
-                <SelectItem value="Agendado">Agendado</SelectItem>
-                <SelectItem value="Confirmado">Confirmado</SelectItem>
-                <SelectItem value="Para Remarcar">Para Remarcar</SelectItem>
-                <SelectItem value="Cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Lista / Tabela de Registros Responsiva */}
+        <Card className="lg:col-span-2 shadow-2xs overflow-hidden flex flex-col border-border rounded-xl">
+          <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 border-b border-border/60">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Histórico de Registros ({filteredAppointments.length})
+            </CardTitle>
           </CardHeader>
-          <div className="overflow-auto max-h-[350px]">
+
+          {/* Visão Mobile: Lista Compacta sem rolagem lateral */}
+          <div className="sm:hidden divide-y divide-border/60 max-h-[380px] overflow-y-auto">
+            {filteredAppointments.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                Nenhum registro encontrado.
+              </div>
+            ) : (
+              filteredAppointments.map((appt: any) => {
+                const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
+                return (
+                  <div key={appt.id} className="px-4 py-2.5 flex flex-col gap-1 hover:bg-muted/20">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                        {isMentoria && <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" />}
+                        <span className="truncate">{appt.client_name || "Cliente"}</span>
+                      </span>
+                      <span className="text-xs font-bold text-foreground shrink-0">
+                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(appt.value || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">
+                        {appt.date ? format(parseISO(appt.date), "dd/MM/yyyy") : "-"} • {appt.startTime} - {appt.endTime}
+                      </span>
+                      {getStatusBadge(appt.status)}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Visão Desktop: Tabela Completa */}
+          <div className="hidden sm:block overflow-auto max-h-[360px]">
             <Table>
-              <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+              <TableHeader className="sticky top-0 bg-background z-10 shadow-2xs">
                 <TableRow>
-                  <TableHead className="text-xs py-2">Data</TableHead>
-                  <TableHead className="text-xs py-2">Cliente</TableHead>
-                  <TableHead className="text-xs py-2">Horário</TableHead>
-                  <TableHead className="text-xs py-2">Status</TableHead>
-                  <TableHead className="text-xs py-2 text-right">Valor</TableHead>
+                  <TableHead className="text-xs py-2.5">Data</TableHead>
+                  <TableHead className="text-xs py-2.5">Cliente</TableHead>
+                  <TableHead className="text-xs py-2.5">Horário</TableHead>
+                  <TableHead className="text-xs py-2.5">Status</TableHead>
+                  <TableHead className="text-xs py-2.5 text-right">Valor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAppointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-xs text-muted-foreground">
-                      <div className="border-2 border-dashed rounded-xl p-8 max-w-sm mx-auto">
-                        Nenhum registro encontrado com estes filtros.
-                      </div>
+                    <TableCell colSpan={5} className="text-center py-10 text-xs text-muted-foreground">
+                      Nenhum registro encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAppointments.map((appt: any) => {
                     const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
                     return (
-                      <TableRow key={appt.id} className="hover:bg-muted/10">
+                      <TableRow key={appt.id} className="hover:bg-muted/20">
                         <TableCell className="text-xs whitespace-nowrap">
                           {appt.date ? format(parseISO(appt.date), "dd/MM/yyyy") : "-"}
                         </TableCell>
                         <TableCell className="text-xs font-medium">
                           <span className="inline-flex items-center gap-1.5">
                             {isMentoria && (
-                              <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" title="Sessão de Mentoria" />
+                              <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" title="Sessão de Mentoria" />
                             )}
-                            <span>{appt.client_name || "Desconhecido"}</span>
+                            <span>{appt.client_name || "Cliente"}</span>
                           </span>
                         </TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">{appt.startTime} - {appt.endTime}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
+                          {appt.startTime} - {appt.endTime}
+                        </TableCell>
                         <TableCell className="text-xs">{getStatusBadge(appt.status)}</TableCell>
-                        <TableCell className="text-xs text-right whitespace-nowrap">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(appt.value || 0)}
+                        <TableCell className="text-xs font-semibold text-right whitespace-nowrap">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(appt.value || 0)}
                         </TableCell>
                       </TableRow>
                     );
