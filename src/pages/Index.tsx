@@ -227,7 +227,7 @@ const Index = () => {
         m.Lucro = m.Faturamento - m.Despesa;
       });
 
-      // Cálculo de Aquisição de Clientes Mês a Mês + Taxa Percentual
+      // Cálculo de Acúmulo de Clientes Mês a Mês + Taxa de Crescimento sobre a Base Total
       const firstApptByClient: Record<string, string> = {};
       (appts || []).forEach((a: any) => {
         const cid = a.client_id || a.client?.id;
@@ -242,30 +242,41 @@ const Index = () => {
         name: ptBRMonths[i],
         monthIndex: i,
         novos: 0,
+        acumulado: 0,
         taxa: 0,
         taxaLabel: "",
       }));
 
+      let initialBase = 0;
       (clients || []).forEach((c: any) => {
         const rawDate = firstApptByClient[c.id] || (c.created_at ? String(c.created_at).slice(0, 10) : "");
-        if (!rawDate) return;
+        if (!rawDate) {
+          initialBase += 1;
+          return;
+        }
         const d = new Date(rawDate.includes("/") ? rawDate.split("/").reverse().join("-") : rawDate);
-        if (!isNaN(d.getTime()) && d.getFullYear() === currentYear) {
+        if (isNaN(d.getTime()) || d.getFullYear() < currentYear) {
+          initialBase += 1;
+        } else if (d.getFullYear() === currentYear) {
           const m = d.getMonth();
           acqMonths[m].novos += 1;
         }
       });
 
-      acqMonths.forEach((item, idx) => {
-        const prev = idx > 0 ? acqMonths[idx - 1].novos : 0;
+      let runningTotal = initialBase;
+      acqMonths.forEach((item) => {
+        const baseAnterior = runningTotal;
+        runningTotal += item.novos;
+        item.acumulado = runningTotal;
+
         let taxa = 0;
-        if (prev > 0) {
-          taxa = Math.round(((item.novos - prev) / prev) * 100);
+        if (baseAnterior > 0) {
+          taxa = Math.round((item.novos / baseAnterior) * 100);
         } else if (item.novos > 0) {
           taxa = 100;
         }
         item.taxa = taxa;
-        item.taxaLabel = item.novos > 0 ? (taxa > 0 ? `+${taxa}%` : `${taxa}%`) : "";
+        item.taxaLabel = item.novos > 0 ? `+${taxa}%` : "";
       });
 
       setClientAcquisitionData(acqMonths);
@@ -579,7 +590,7 @@ const Index = () => {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Client Acquisition Chart (Month over Month + Percentage Rate) */}
+        {/* Client Acquisition Chart (Cumulative Line + Growth Rate vs Base) */}
         <div className="bg-card rounded-xl border shadow-sm flex flex-col justify-between">
           {(() => {
             const currentMonthIdx = new Date().getMonth();
@@ -591,22 +602,12 @@ const Index = () => {
               <>
                 <div className="p-6 border-b flex items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Aquisição de Clientes ({new Date().getFullYear()})
+                    Acúmulo de Clientes ({new Date().getFullYear()})
                   </h2>
                   {currentMonthItem && (
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        currentTaxa >= 0
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {currentTaxa >= 0 ? (
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      ) : (
-                        <ArrowDownRight className="h-3.5 w-3.5" />
-                      )}
-                      {currentTaxa > 0 ? `+${currentTaxa}%` : `${currentTaxa}%`} ({currentMonthItem.name})
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      +{currentTaxa}% ({currentMonthItem.name})
                     </span>
                   )}
                 </div>
@@ -614,9 +615,9 @@ const Index = () => {
                 <div className="p-6 flex flex-col gap-4">
                   <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
+                      <LineChart
                         data={clientAcquisitionData}
-                        margin={{ top: 18, right: 10, left: -20, bottom: 0 }}
+                        margin={{ top: 20, right: 15, left: -20, bottom: 0 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
@@ -630,25 +631,31 @@ const Index = () => {
                           itemStyle={{ fontSize: "12px", fontWeight: "600" }}
                           labelStyle={{ fontSize: "12px", color: "#64748b", marginBottom: "2px" }}
                           formatter={(value: number, _name: string, props: any) => {
+                            const novos = props?.payload?.novos ?? 0;
                             const taxa = props?.payload?.taxa ?? 0;
-                            const sign = taxa > 0 ? `+${taxa}%` : `${taxa}%`;
-                            return [`${value} clientes (${sign} vs. mês ant.)`, "Aquisição"];
+                            return [
+                              `${value} clientes (+${novos} novos | +${taxa}% na base)`,
+                              "Total Acumulado",
+                            ];
                           }}
                         />
-                        <Bar
-                          dataKey="novos"
-                          name="Novos Clientes"
-                          fill="#2563eb"
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={28}
+                        <Line
+                          type="monotone"
+                          dataKey="acumulado"
+                          name="Total Acumulado"
+                          stroke="#2563eb"
+                          strokeWidth={2.5}
+                          dot={{ r: 3.5, fill: "#2563eb" }}
+                          activeDot={{ r: 5 }}
                         >
                           <LabelList
                             dataKey="taxaLabel"
                             position="top"
+                            offset={8}
                             style={{ fontSize: "10px", fontWeight: 700, fill: "#0f172a" }}
                           />
-                        </Bar>
-                      </BarChart>
+                        </Line>
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
 
@@ -660,17 +667,13 @@ const Index = () => {
                           className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-xs"
                         >
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-muted-foreground">{m.name}</span>
-                            <span className="font-bold text-foreground">{m.novos} clientes</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">
+                              {m.name} (+{m.novos})
+                            </span>
+                            <span className="font-bold text-foreground">{m.acumulado} total</span>
                           </div>
-                          <span
-                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                              m.taxa >= 0
-                                ? "bg-primary/10 text-primary"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {m.taxa > 0 ? `+${m.taxa}%` : `${m.taxa}%`}
+                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                            +{m.taxa}%
                           </span>
                         </div>
                       ))}
