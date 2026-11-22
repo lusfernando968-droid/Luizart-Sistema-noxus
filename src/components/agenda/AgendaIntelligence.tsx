@@ -1,18 +1,39 @@
 import { useMemo, useState } from "react";
 import { format, subDays, subYears, addDays, subMonths } from "date-fns";
-import { Clock, CalendarHeart, History, CalendarClock, MessageCircle, RefreshCw, Search, Phone } from "lucide-react";
+import {
+  Clock,
+  CalendarHeart,
+  History,
+  CalendarClock,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  Phone,
+  ChevronDown,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
-type CategoryKey = "all" | "today" | "tomorrow" | "7days" | "2months" | "1year";
+type SectionKey = "tomorrow" | "7days" | "2months" | "1year" | "today";
 
 export function AgendaIntelligence({ appointments, clients }: any) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [openMenus, setOpenMenus] = useState<Record<SectionKey, boolean>>({
+    tomorrow: false,
+    "7days": false,
+    "2months": false,
+    "1year": false,
+    today: false,
+  });
+
   const today = new Date();
+
+  const toggleMenu = (key: SectionKey) => {
+    setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const getClientObj = (a: any) => {
     const clientObj = clients?.find((c: any) => c.id === a.client_id);
@@ -88,173 +109,200 @@ export function AgendaIntelligence({ appointments, clients }: any) {
   const getStatusBadge = (status: string) => {
     if (status === "Concluído") {
       return (
-        <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold bg-primary/10 text-primary border-primary/25">
+        <Badge
+          variant="outline"
+          className="text-[10px] px-2 py-0 font-semibold bg-primary/10 text-primary border-primary/25"
+        >
           Concluído
         </Badge>
       );
     }
     if (status === "Cancelado") {
       return (
-        <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold bg-muted/40 text-muted-foreground border-border">
+        <Badge
+          variant="outline"
+          className="text-[10px] px-2 py-0 font-semibold bg-muted/40 text-muted-foreground border-border"
+        >
           Cancelado
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="text-[10px] px-2 py-0 font-semibold bg-muted text-foreground border-border">
+      <Badge
+        variant="outline"
+        className="text-[10px] px-2 py-0 font-semibold bg-muted text-foreground border-border"
+      >
         {status || "Agendado"}
       </Badge>
     );
   };
 
-  const renderSection = (
+  const renderDropdownSection = (
+    key: SectionKey,
     title: string,
     icon: React.ReactNode,
     list: any[],
-    emptyMessage: string,
-    context: "today" | "tomorrow" | "7days" | "2months" | "1year",
-    fullWidth = false
+    emptyMessage: string
   ) => {
+    const isSearchingWithResults = search.trim().length > 0 && list.length > 0;
+    const isOpen = openMenus[key] || isSearchingWithResults;
+
     return (
-      <div
-        className={`bg-card rounded-xl border border-border shadow-2xs overflow-hidden flex flex-col ${
-          fullWidth ? "lg:col-span-2" : ""
-        }`}
-      >
-        {/* Cabeçalho Limpo da Seção (Sem textos explicativos) */}
-        <div className="px-3.5 sm:px-4 py-3 border-b border-border/60 bg-muted/20 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {icon}
-            <h3 className="text-xs sm:text-sm font-bold text-foreground">{title}</h3>
+      <div className="bg-card rounded-xl border border-border shadow-2xs overflow-hidden">
+        {/* Botão do Menu Suspenso Clean */}
+        <button
+          type="button"
+          onClick={() => toggleMenu(key)}
+          className="w-full px-3.5 sm:px-4 py-3.5 flex items-center justify-between gap-2 text-left hover:bg-muted/40 active:bg-muted/60 transition-colors focus:outline-hidden"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              {icon}
+            </div>
+            <span className="text-xs sm:text-sm font-bold text-foreground truncate">{title}</span>
           </div>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-              list.length > 0
-                ? "bg-primary/10 text-primary border border-primary/20"
-                : "bg-muted text-muted-foreground border border-border"
-            }`}
-          >
-            {list.length}
-          </span>
-        </div>
 
-        {list.length === 0 ? (
-          <div className="p-7 text-center text-xs text-muted-foreground">{emptyMessage}</div>
-        ) : (
-          <div
-            className={`p-3 sm:p-4 grid grid-cols-1 ${
-              fullWidth ? "md:grid-cols-2" : ""
-            } gap-3`}
-          >
-            {list.map((appt) => {
-              const clientObj = getClientObj(appt);
-              const resolvedName = getClientName(appt);
-              const resolvedStartTime = appt.startTime || appt.start_time || "";
-              const resolvedEndTime = appt.endTime || appt.end_time || "";
-              const timeRange = resolvedStartTime
-                ? `${resolvedStartTime}${resolvedEndTime ? ` - ${resolvedEndTime}` : ""}`
-                : "";
-              const resolvedPhone = clientObj?.phone || "";
-              const cleanDigits = resolvedPhone.replace(/\D/g, "");
-              const hasPhone = cleanDigits.length >= 10;
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                list.length > 0
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "bg-muted text-muted-foreground border border-border"
+              }`}
+            >
+              {list.length}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                isOpen ? "rotate-180 text-foreground" : ""
+              }`}
+            />
+          </div>
+        </button>
 
-              let wppMessage = "";
-              let buttonLabel = "Chamar no WhatsApp";
-              if (context === "today") {
-                wppMessage = `Olá ${resolvedName}! Tudo certo para a nossa sessão de hoje${
-                  resolvedStartTime ? ` às ${resolvedStartTime}` : ""
-                }?`;
-                buttonLabel = "Confirmar Sessão de Hoje";
-              } else if (context === "tomorrow") {
-                wppMessage = `Olá ${resolvedName}! Passando para lembrar da nossa sessão de tatuagem amanhã${
-                  resolvedStartTime ? ` às ${resolvedStartTime}` : ""
-                }. Até lá!`;
-                buttonLabel = "Enviar Lembrete de Amanhã";
-              } else if (context === "7days") {
-                wppMessage = `Fala ${resolvedName}! Como está a cicatrização da tattoo que fizemos há uma semana? Tudo certinho?`;
-                buttonLabel = "Perguntar da Cicatrização";
-              } else if (context === "2months") {
-                wppMessage = `Fala ${resolvedName}! Tudo bem? Já faz 2 meses da nossa última tattoo, ela já deve estar 100% cicatrizada! Bora pensar no próximo projeto?`;
-                buttonLabel = "Chamar p/ Novo Projeto";
-              } else if (context === "1year") {
-                wppMessage = `Oie ${resolvedName}! Sabia que sua tattoo está fazendo 1 ano hoje? Parabéns! Já vamos planejar a próxima?`;
-                buttonLabel = "Mandar Parabéns (1 Ano)";
-              }
+        {/* Conteúdo Expansível do Menu */}
+        {isOpen && (
+          <div className="border-t border-border/60 bg-muted/15">
+            {list.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">{emptyMessage}</div>
+            ) : (
+              <div className="p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {list.map((appt) => {
+                  const clientObj = getClientObj(appt);
+                  const resolvedName = getClientName(appt);
+                  const resolvedStartTime = appt.startTime || appt.start_time || "";
+                  const resolvedEndTime = appt.endTime || appt.end_time || "";
+                  const timeRange = resolvedStartTime
+                    ? `${resolvedStartTime}${resolvedEndTime ? ` - ${resolvedEndTime}` : ""}`
+                    : "";
+                  const resolvedPhone = clientObj?.phone || "";
+                  const cleanDigits = resolvedPhone.replace(/\D/g, "");
+                  const hasPhone = cleanDigits.length >= 10;
 
-              return (
-                <div
-                  key={appt.id}
-                  className="rounded-xl border border-border/80 bg-background overflow-hidden flex flex-col justify-between shadow-2xs hover:border-border transition-colors"
-                >
-                  {/* Topo do Card: Avatar + Nome Padronizado (text-sm) + Etiquetas */}
-                  <div className="p-3.5 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/15">
-                        {clientObj?.avatar_url ? (
-                          <img
-                            src={clientObj.avatar_url}
-                            alt={resolvedName}
-                            className="h-full w-full rounded-xl object-cover"
-                          />
-                        ) : (
-                          resolvedName.charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0 space-y-1">
-                        <span className="font-bold text-sm text-foreground block truncate">
-                          {resolvedName}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                          {timeRange && (
-                            <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
-                              <Clock className="w-3 h-3 text-muted-foreground" />
-                              {timeRange}
+                  let wppMessage = "";
+                  let buttonLabel = "Chamar no WhatsApp";
+                  if (key === "today") {
+                    wppMessage = `Olá ${resolvedName}! Tudo certo para a nossa sessão de hoje${
+                      resolvedStartTime ? ` às ${resolvedStartTime}` : ""
+                    }?`;
+                    buttonLabel = "Confirmar Sessão de Hoje";
+                  } else if (key === "tomorrow") {
+                    wppMessage = `Olá ${resolvedName}! Passando para lembrar da nossa sessão de tatuagem amanhã${
+                      resolvedStartTime ? ` às ${resolvedStartTime}` : ""
+                    }. Até lá!`;
+                    buttonLabel = "Enviar Lembrete de Amanhã";
+                  } else if (key === "7days") {
+                    wppMessage = `Fala ${resolvedName}! Como está a cicatrização da tattoo que fizemos há uma semana? Tudo certinho?`;
+                    buttonLabel = "Perguntar da Cicatrização";
+                  } else if (key === "2months") {
+                    wppMessage = `Fala ${resolvedName}! Tudo bem? Já faz 2 meses da nossa última tattoo, ela já deve estar 100% cicatrizada! Bora pensar no próximo projeto?`;
+                    buttonLabel = "Chamar p/ Novo Projeto";
+                  } else if (key === "1year") {
+                    wppMessage = `Oie ${resolvedName}! Sabia que sua tattoo está fazendo 1 ano hoje? Parabéns! Já vamos planejar a próxima?`;
+                    buttonLabel = "Mandar Parabéns (1 Ano)";
+                  }
+
+                  return (
+                    <div
+                      key={appt.id}
+                      className="rounded-xl border border-border/80 bg-background overflow-hidden flex flex-col justify-between shadow-2xs hover:border-border transition-colors"
+                    >
+                      {/* Topo do Card: Avatar + Nome Padronizado (text-sm) + Etiquetas */}
+                      <div className="p-3.5 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/15">
+                            {clientObj?.avatar_url ? (
+                              <img
+                                src={clientObj.avatar_url}
+                                alt={resolvedName}
+                                className="h-full w-full rounded-xl object-cover"
+                              />
+                            ) : (
+                              resolvedName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <span className="font-bold text-sm text-foreground block truncate">
+                              {resolvedName}
                             </span>
-                          )}
-                          <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
-                            <Phone className="w-3 h-3 text-muted-foreground" />
-                            {formatPhoneDisplay(resolvedPhone)}
-                          </span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                              {timeRange && (
+                                <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                                  <Clock className="w-3 h-3 text-muted-foreground" />
+                                  {timeRange}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
+                                <Phone className="w-3 h-3 text-muted-foreground" />
+                                {formatPhoneDisplay(resolvedPhone)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+
+                        <div className="shrink-0">{getStatusBadge(appt.status)}</div>
+                      </div>
+
+                      {/* Recorte Inferior: Botão Grande Mobile-First */}
+                      <div className="px-2.5 py-2 bg-muted/30 border-t border-border/70">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          disabled={!hasPhone}
+                          onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
+                          className="h-9 w-full text-xs font-semibold gap-2 rounded-lg shadow-2xs"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{buttonLabel}</span>
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="shrink-0">{getStatusBadge(appt.status)}</div>
-                  </div>
-
-                  {/* Recorte Inferior: Botão Grande Mobile-First */}
-                  <div className="px-2.5 py-2 bg-muted/30 border-t border-border/70">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      disabled={!hasPhone}
-                      onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
-                      className="h-9 w-full text-xs font-semibold gap-2 rounded-lg shadow-2xs"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{buttonLabel}</span>
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   };
 
-  const totalCount =
-    categories.todayList.length +
-    categories.tomorrowList.length +
-    categories.sevenDaysList.length +
-    categories.twoMonthsList.length +
-    categories.oneYearList.length;
+  const anyOpen = Object.values(openMenus).some(Boolean);
+  const toggleAllMenus = () => {
+    const nextState = !anyOpen;
+    setOpenMenus({
+      tomorrow: nextState,
+      "7days": nextState,
+      "2months": nextState,
+      "1year": nextState,
+      today: nextState,
+    });
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Barra Superior: Busca + Filtro Rápido */}
-      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+    <div className="space-y-3">
+      {/* Barra Superior: Busca + Botão Expandir/Recolher Todos */}
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-2xs flex items-center justify-between gap-2.5">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -265,84 +313,57 @@ export function AgendaIntelligence({ appointments, clients }: any) {
           />
         </div>
 
-        <div className="flex items-center bg-muted p-1 rounded-xl gap-1 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { id: "all", label: `Todos (${totalCount})` },
-              { id: "tomorrow", label: `Amanhã (${categories.tomorrowList.length})` },
-              { id: "7days", label: `7 Dias (${categories.sevenDaysList.length})` },
-              { id: "2months", label: `2 Meses (${categories.twoMonthsList.length})` },
-              { id: "1year", label: `1 Ano (${categories.oneYearList.length})` },
-              { id: "today", label: `Hoje (${categories.todayList.length})` },
-            ] as { id: CategoryKey; label: string }[]
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveCategory(tab.id)}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-colors ${
-                activeCategory === tab.id
-                  ? "bg-card text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleAllMenus}
+          className="h-10 sm:h-11 px-3 rounded-xl text-xs font-semibold shrink-0"
+        >
+          {anyOpen ? "Recolher Tudo" : "Abrir Tudo"}
+        </Button>
       </div>
 
-      {/* Grid de Seções do Assistente CRM */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {(activeCategory === "all" || activeCategory === "tomorrow") &&
-          renderSection(
-            "Agendamentos de Amanhã",
-            <CalendarClock className="w-3.5 h-3.5 text-primary" />,
-            categories.tomorrowList,
-            "Nenhum agendamento para amanhã.",
-            "tomorrow",
-            activeCategory !== "all"
-          )}
+      {/* Lista de Menus Suspensos Clean */}
+      <div className="space-y-2.5">
+        {renderDropdownSection(
+          "tomorrow",
+          "Agendamentos de Amanhã",
+          <CalendarClock className="w-4 h-4" />,
+          categories.tomorrowList,
+          "Nenhum agendamento para amanhã."
+        )}
 
-        {(activeCategory === "all" || activeCategory === "7days") &&
-          renderSection(
-            "Pós-Tatuagem (7 Dias)",
-            <CalendarHeart className="w-3.5 h-3.5 text-primary" />,
-            categories.sevenDaysList,
-            "Nenhuma tatuagem concluída há 7 dias.",
-            "7days",
-            activeCategory !== "all"
-          )}
+        {renderDropdownSection(
+          "7days",
+          "Pós-Tatuagem (7 Dias)",
+          <CalendarHeart className="w-4 h-4" />,
+          categories.sevenDaysList,
+          "Nenhuma tatuagem concluída há 7 dias."
+        )}
 
-        {(activeCategory === "all" || activeCategory === "2months") &&
-          renderSection(
-            "Retorno Pós-Tattoo (2 Meses)",
-            <RefreshCw className="w-3.5 h-3.5 text-primary" />,
-            categories.twoMonthsList,
-            "Nenhuma tatuagem completou 2 meses hoje.",
-            "2months",
-            activeCategory !== "all"
-          )}
+        {renderDropdownSection(
+          "2months",
+          "Retorno Pós-Tattoo (2 Meses)",
+          <RefreshCw className="w-4 h-4" />,
+          categories.twoMonthsList,
+          "Nenhuma tatuagem completou 2 meses hoje."
+        )}
 
-        {(activeCategory === "all" || activeCategory === "1year") &&
-          renderSection(
-            "Aniversário da Tattoo (1 Ano)",
-            <History className="w-3.5 h-3.5 text-primary" />,
-            categories.oneYearList,
-            "Nenhuma tatuagem completou 1 ano hoje.",
-            "1year",
-            activeCategory !== "all"
-          )}
+        {renderDropdownSection(
+          "1year",
+          "Aniversário da Tattoo (1 Ano)",
+          <History className="w-4 h-4" />,
+          categories.oneYearList,
+          "Nenhuma tatuagem completou 1 ano hoje."
+        )}
 
-        {(activeCategory === "all" || activeCategory === "today") &&
-          renderSection(
-            "Agendamentos de Hoje",
-            <Clock className="w-3.5 h-3.5 text-primary" />,
-            categories.todayList,
-            "Agenda livre hoje.",
-            "today",
-            true
-          )}
+        {renderDropdownSection(
+          "today",
+          "Agendamentos de Hoje",
+          <Clock className="w-4 h-4" />,
+          categories.todayList,
+          "Agenda livre hoje."
+        )}
       </div>
     </div>
   );
