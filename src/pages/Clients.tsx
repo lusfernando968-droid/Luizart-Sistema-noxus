@@ -27,6 +27,7 @@ import { AgendaIntelligence } from "@/components/agenda/AgendaIntelligence";
 import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
 import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
 import { supabase } from "@/lib/supabase";
+import { openWhatsApp } from "@/lib/whatsapp";
 import html2pdf from "html2pdf.js";
 
 interface Client {
@@ -92,6 +93,21 @@ export const getInstagramHandle = (value?: string | null): string => {
 
   const clean = trimmed.replace(/^@+/, "").replace(/\/+$/, "").trim();
   return clean ? `@${clean}` : "";
+};
+
+export const formatPhoneDisplay = (raw?: string | null): string => {
+  if (!raw || raw === "Não informado") return "Sem telefone";
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length >= 12) {
+    digits = digits.slice(2);
+  }
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return raw;
 };
 
 const Clients = () => {
@@ -860,23 +876,33 @@ const Clients = () => {
           </Button>
         </div>
 
-        {/* Abas Superiores */}
-        <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-3">
-          <TabsList className="bg-muted p-1 inline-flex w-max mb-2">
-            <TabsTrigger value="lista" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <Users className="w-3.5 h-3.5" /> Lista de Clientes
+        {/* Abas Superiores (Compactas no Mobile, Completas no Desktop) */}
+        <div className="flex w-full overflow-x-auto no-scrollbar items-center gap-2">
+          <TabsList className="bg-muted p-1 inline-flex w-max mb-1">
+            <TabsTrigger value="lista" className="rounded-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-4 whitespace-nowrap">
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Clientes</span>
+              <span className="hidden sm:inline">Lista de Clientes</span>
             </TabsTrigger>
-            <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <LayoutDashboard className="w-3.5 h-3.5" /> Jornada CRM
+            <TabsTrigger value="jornada" className="rounded-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-4 whitespace-nowrap">
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Jornada</span>
+              <span className="hidden sm:inline">Jornada CRM</span>
             </TabsTrigger>
-            <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <BrainCircuit className="w-3.5 h-3.5" /> Assistente CRM
+            <TabsTrigger value="inteligencia" className="rounded-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-4 whitespace-nowrap">
+              <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Assistente</span>
+              <span className="hidden sm:inline">Assistente CRM</span>
             </TabsTrigger>
-            <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <RefreshCw className="w-3.5 h-3.5" /> Para Remarcar
+            <TabsTrigger value="remarcar" className="rounded-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-4 whitespace-nowrap">
+              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Remarcar</span>
+              <span className="hidden sm:inline">Para Remarcar</span>
             </TabsTrigger>
-            <TabsTrigger value="espera" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4 whitespace-nowrap">
-              <Clock className="w-3.5 h-3.5" /> Lista de Espera
+            <TabsTrigger value="espera" className="rounded-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-4 whitespace-nowrap">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span className="sm:hidden">Espera</span>
+              <span className="hidden sm:inline">Lista de Espera</span>
               {clients.filter(c => c.is_waitlist).length > 0 && (
                 <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary">
                   {clients.filter(c => c.is_waitlist).length}
@@ -887,94 +913,231 @@ const Clients = () => {
         </div>
 
         {/* ABA 1: LISTA DE CLIENTES */}
-        <TabsContent value="lista" className="m-0 space-y-6">
-          <div className="bg-card rounded-xl border shadow-sm text-foreground">
-            <div className="p-4 border-b flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full max-w-md">
+        <TabsContent value="lista" className="m-0 space-y-4">
+          <div className="bg-card rounded-xl border shadow-sm text-foreground overflow-hidden">
+            {/* Barra de Busca + Botão Filtros na Mesma Linha */}
+            <div className="p-3 sm:p-4 border-b flex items-center justify-between gap-2">
+              <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar cliente por nome ou telefone..."
+                  placeholder="Buscar por nome ou telefone..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-accent/20 h-11"
+                  className="pl-9 bg-muted/30 border-border/80 h-10 sm:h-11 rounded-xl text-xs sm:text-sm"
                 />
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-muted-foreground self-end sm:self-auto h-9 px-3 gap-2"
+              <Button
+                variant={showFilters ? "default" : "outline"}
+                size="sm"
+                className="h-10 sm:h-11 px-3 rounded-xl gap-1.5 text-xs font-semibold shrink-0"
                 onClick={() => setShowFilters(!showFilters)}
               >
-                <Filter className="w-4 h-4" />
-                Filtros
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filtros</span>
               </Button>
             </div>
-            
+
             {showFilters && (
-               <div className="px-4 py-3 border-b bg-accent/10 flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2">
-                  <div className="space-y-1.5 w-full max-w-[200px]">
-                     <Label className="text-xs text-muted-foreground font-semibold">Filtrar por Estágio</Label>
-                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="w-full h-9 bg-card text-sm">
-                           <SelectValue placeholder="Todos os Estágios" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="all">Todos os Estágios</SelectItem>
-                           {JOURNEY_STAGES.map(stage => (
-                             <SelectItem key={stage.id} value={stage.id}>{stage.title}</SelectItem>
-                           ))}
-                        </SelectContent>
-                     </Select>
-                  </div>
+              <div className="p-3 sm:p-4 border-b bg-muted/20 grid grid-cols-2 lg:grid-cols-4 gap-2.5 animate-in slide-in-from-top-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground font-semibold">Estágio</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-full h-9 bg-card text-xs rounded-lg">
+                      <SelectValue placeholder="Todos os Estágios" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Estágios</SelectItem>
+                      {JOURNEY_STAGES.map(stage => (
+                        <SelectItem key={stage.id} value={stage.id}>{stage.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="space-y-1.5 w-full max-w-[200px]">
-                     <Label className="text-xs text-muted-foreground font-semibold">Tipo de Cliente</Label>
-                     <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="w-full h-9 bg-card text-sm">
-                           <SelectValue placeholder="Todos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="all">Todos</SelectItem>
-                           <SelectItem value="tattoo">Apenas Tatuagem</SelectItem>
-                           <SelectItem value="student">Apenas Alunos</SelectItem>
-                           <SelectItem value="barter">Apenas Permuta</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground font-semibold">Tipo</Label>
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-full h-9 bg-card text-xs rounded-lg">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="tattoo">Apenas Tatuagem</SelectItem>
+                      <SelectItem value="student">Apenas Alunos</SelectItem>
+                      <SelectItem value="barter">Apenas Permuta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="space-y-1.5 w-full max-w-[200px]">
-                     <Label className="text-xs text-muted-foreground font-semibold">Sessões Realizadas</Label>
-                     <Select value={filterSessions} onValueChange={setFilterSessions}>
-                        <SelectTrigger className="w-full h-9 bg-card text-sm">
-                           <SelectValue placeholder="Todas" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="all">Todas as Contagens</SelectItem>
-                           <SelectItem value="zero">Sem Sessões (Garimpo)</SelectItem>
-                           <SelectItem value="plus">1 ou mais Sessões</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground font-semibold">Sessões</Label>
+                  <Select value={filterSessions} onValueChange={setFilterSessions}>
+                    <SelectTrigger className="w-full h-9 bg-card text-xs rounded-lg">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="zero">Sem Sessões</SelectItem>
+                      <SelectItem value="plus">1+ Sessões</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  <div className="space-y-1.5 w-full max-w-[200px]">
-                     <Label className="text-xs text-muted-foreground font-semibold">Faturamento</Label>
-                     <Select value={filterRevenue} onValueChange={setFilterRevenue}>
-                        <SelectTrigger className="w-full h-9 bg-card text-sm">
-                           <SelectValue placeholder="Qualquer Valor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           <SelectItem value="all">Qualquer Valor</SelectItem>
-                           <SelectItem value="zero">R$ 0,00</SelectItem>
-                           <SelectItem value="low">Até R$ 500,00</SelectItem>
-                           <SelectItem value="medium">R$ 500,00 a R$ 2.000,00</SelectItem>
-                           <SelectItem value="high">Acima de R$ 2.000,00</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
-               </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-muted-foreground font-semibold">Faturamento</Label>
+                  <Select value={filterRevenue} onValueChange={setFilterRevenue}>
+                    <SelectTrigger className="w-full h-9 bg-card text-xs rounded-lg">
+                      <SelectValue placeholder="Qualquer Valor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Qualquer Valor</SelectItem>
+                      <SelectItem value="zero">R$ 0,00</SelectItem>
+                      <SelectItem value="low">Até R$ 500,00</SelectItem>
+                      <SelectItem value="medium">R$ 500 a R$ 2.000</SelectItem>
+                      <SelectItem value="high">Acima de R$ 2.000</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             )}
 
-            <div className="overflow-x-auto">
+            {/* VISÃO MOBILE: Lista Compacta de 2 Andares (Zero Rolagem Lateral) */}
+            <div className="sm:hidden divide-y divide-border/60">
+              {loading ? (
+                <div className="p-10 text-center text-xs text-muted-foreground">Carregando clientes...</div>
+              ) : filtered.length > 0 ? (
+                filtered.map((client) => {
+                  const hasActiveJourney = journeys
+                    .filter(j => j.client_id === client.id)
+                    .some(j => j.status !== "Concluído");
+                  const cleanDigits = (client.phone || "").replace(/\D/g, "");
+                  const hasValidPhone = cleanDigits.length >= 10;
+
+                  return (
+                    <div
+                      key={client.id}
+                      onClick={() => setSelectedClient(client)}
+                      className="px-3.5 py-3 hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer flex flex-col gap-1.5"
+                    >
+                      {/* Andar 1: Avatar + Nome + Selos à esquerda | Estágio + Menu ⋮ à direita */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                            {client.avatar_url ? (
+                              <img src={client.avatar_url} alt={client.name} className="h-full w-full rounded-full object-cover" />
+                            ) : (
+                              client.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            <span className="font-bold text-sm text-foreground truncate">{client.name}</span>
+                            {client.is_student && (
+                              <BookOpen className="w-3.5 h-3.5 text-primary shrink-0" title="Aluno" />
+                            )}
+                            {client.is_barter && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                <RefreshCw className="w-2.5 h-2.5" />
+                                {client.barter_description || "Permuta"}
+                              </span>
+                            )}
+                            {client.is_waitlist && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-muted text-foreground border border-border shrink-0">
+                                <Clock className="w-2.5 h-2.5 text-primary" />
+                                Espera
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-accent border border-border/80 text-foreground">
+                            {client.status}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem onClick={() => setSelectedClient(client)}>
+                                <User className="mr-2 h-4 w-4" /> Visualizar Perfil
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleJourneyAction(client)}>
+                                <Play className="mr-2 h-4 w-4 text-primary" />
+                                <span className="text-primary font-medium">
+                                  {hasActiveJourney ? "Continuar Jornada" : "Iniciar Nova Jornada"}
+                                </span>
+                              </DropdownMenuItem>
+                              {hasValidPhone && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const phoneUrl = cleanDigits.startsWith("55")
+                                      ? `https://wa.me/${cleanDigits}`
+                                      : `https://wa.me/55${cleanDigits}`;
+                                    openWhatsApp(phoneUrl);
+                                  }}
+                                >
+                                  <MessageCircle className="mr-2 h-4 w-4 text-primary" /> Chamar no WhatsApp
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => handleToggleStudent(client)}>
+                                <BookOpen className="mr-2 h-4 w-4" />
+                                {client.is_student ? "Remover Aluno" : "Tornar Aluno"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleBarter(client)}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                {client.is_barter ? "Desativar Permuta" : "Ativar Permuta"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleWaitlist(client)}>
+                                <Clock className="mr-2 h-4 w-4" />
+                                {client.is_waitlist ? "Remover da Espera" : "Colocar na Espera"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditModal(client)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar Cliente
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => deleteClientContextMenu(client)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir Cliente
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      {/* Andar 2: Telefone Formatado à esquerda | Sessões + Faturamento à direita */}
+                      <div className="pl-11 flex items-center justify-between gap-2 text-xs">
+                        <span className="text-muted-foreground truncate">
+                          {formatPhoneDisplay(client.phone)}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-muted-foreground">
+                            {client.sessions || 0} {client.sessions === 1 ? "sessão" : "sessões"}
+                          </span>
+                          <span className="text-muted-foreground/50">•</span>
+                          <span className="font-semibold text-foreground">
+                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                              client.totalInvoiced || 0
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-10 text-center text-xs text-muted-foreground">Nenhum cliente encontrado.</div>
+              )}
+            </div>
+
+            {/* VISÃO DESKTOP: Tabela Completa */}
+            <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1009,7 +1172,7 @@ const Clients = () => {
                                   )}
                                 </div>
                                 <span className="font-bold">{client.name}</span>
-                                {client.is_student && <BookOpen className="w-3.5 h-3.5 text-indigo-500" title="Aluno" />}
+                                {client.is_student && <BookOpen className="w-3.5 h-3.5 text-primary" title="Aluno" />}
                                 {client.is_barter && (
                                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
                                     <RefreshCw className="w-2.5 h-2.5" />
@@ -1029,7 +1192,7 @@ const Clients = () => {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{client.phone}</TableCell>
+                            <TableCell className="text-muted-foreground">{formatPhoneDisplay(client.phone)}</TableCell>
                             <TableCell>
                                <div className="flex items-center gap-1.5 flex-wrap">
                                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-accent border text-foreground">
@@ -1073,8 +1236,10 @@ const Clients = () => {
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => {
                             const number = client.phone.replace(/\D/g, '');
-                            if (number && number.length >= 10) window.open(`https://wa.me/${number}`, '_blank');
-                            else toast.error("Cliente sem número de telefone válido.");
+                            if (number && number.length >= 10) {
+                              const phoneUrl = number.startsWith("55") ? `https://wa.me/${number}` : `https://wa.me/55${number}`;
+                              openWhatsApp(phoneUrl);
+                            } else toast.error("Cliente sem número de telefone válido.");
                           }}>
                             <MessageCircle className="mr-2 h-4 w-4" /> Chamar no WhatsApp
                           </ContextMenuItem>
