@@ -1441,46 +1441,69 @@ const Agenda = () => {
 
       {/* Modal de Cadastro/Edição de Agendamento */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingAppointment ? "Editar Agendamento" : "Novo Agendamento & Sinal"}</DialogTitle>
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden gap-0 rounded-2xl border-border/80">
+          <DialogHeader className="px-5 py-4 border-b border-border/60 bg-muted/20 flex flex-row items-center gap-3 space-y-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col text-left">
+              <DialogTitle className="text-base font-bold text-foreground leading-tight">
+                {editingAppointment ? "Editar Agendamento" : "Novo Agendamento"}
+              </DialogTitle>
+            </div>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5"><User className="w-4 h-4 text-muted-foreground" /> Cliente</Label>
+
+          <div className="px-5 py-4 space-y-3.5 max-h-[78vh] overflow-y-auto">
+            {/* Seleção de Cliente */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Cliente</Label>
               <div className="relative">
                 <Button
                   variant="outline"
                   type="button"
-                  className="w-full justify-between mt-1.5"
+                  className="w-full h-11 justify-between rounded-xl bg-muted/20 hover:bg-muted/40 border-border/80 px-3.5 font-medium"
                   onClick={() => setClientDropdownOpen(prev => !prev)}
                 >
-                  <span className="flex items-center gap-2 truncate">
-                    {formData.client_id
-                      ? clients.find((c) => c.id === formData.client_id)?.name
-                      : "Selecione um cliente..."}
-                    {formData.client_id && clients.find((c) => c.id === formData.client_id)?.is_student && (
-                      <span className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                        <BookOpen className="w-3 h-3" /> Aluno
+                  {(() => {
+                    const selectedClientObj = clients.find((c) => c.id === formData.client_id);
+                    return (
+                      <span className="flex items-center gap-2.5 truncate">
+                        {selectedClientObj ? (
+                          <>
+                            <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                              {selectedClientObj.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="truncate text-foreground font-semibold">
+                              {selectedClientObj.name}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">Selecione um cliente...</span>
+                        )}
+                        {selectedClientObj?.is_student && (
+                          <span className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                            <BookOpen className="w-3 h-3" /> Aluno
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
+                    );
+                  })()}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
                 {clientDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-hidden">
+                  <div className="absolute z-50 mt-1.5 w-full bg-popover border border-border rounded-xl shadow-lg max-h-60 overflow-hidden">
                     <div className="p-2 border-b">
                       <Input
                         placeholder="Buscar cliente..."
                         value={clientSearch}
                         onChange={(e) => setClientSearch(e.target.value)}
-                        className="h-8"
+                        className="h-9 rounded-lg"
                         autoFocus
                       />
                     </div>
                     <div className="max-h-48 overflow-y-auto">
                       {clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-3">Nenhum cliente encontrado.</p>
+                        <p className="text-xs text-muted-foreground text-center py-3">Nenhum cliente encontrado.</p>
                       ) : (
                         clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).map((client) => (
                           <button
@@ -1501,14 +1524,14 @@ const Agenda = () => {
                             <span className="flex items-center truncate">
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4 shrink-0",
+                                  "mr-2 h-4 w-4 shrink-0 text-primary",
                                   formData.client_id === client.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <span className="truncate">{client.name}</span>
+                              <span className="truncate font-medium">{client.name}</span>
                             </span>
                             {client.is_student && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0 ml-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0 ml-2">
                                 <BookOpen className="w-3 h-3" /> Aluno
                               </span>
                             )}
@@ -1525,65 +1548,65 @@ const Agenda = () => {
             {formData.client_id &&
               (clients.find(c => c.id === formData.client_id)?.is_student ||
                 formData.type === "Mentoria") && (
-                <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                    <BookOpen className="w-3.5 h-3.5 text-primary" />
-                    Tipo de Agendamento (Cliente de Mentoria)
+                <div className="p-2.5 rounded-xl border border-border/70 bg-muted/20 space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    Modalidade
                   </Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       size="sm"
                       variant={formData.type === "Mentoria" ? "default" : "outline"}
-                      className="h-9 text-xs gap-1.5 font-semibold"
+                      className="h-9 rounded-lg text-xs gap-1.5 font-semibold"
                       onClick={() => setFormData(prev => ({ ...prev, type: "Mentoria" }))}
                     >
                       <BookOpen className="w-3.5 h-3.5" />
-                      Sessão de Mentoria
+                      Mentoria
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant={formData.type !== "Mentoria" ? "default" : "outline"}
-                      className="h-9 text-xs gap-1.5 font-semibold"
+                      className="h-9 rounded-lg text-xs gap-1.5 font-semibold"
                       onClick={() => setFormData(prev => ({ ...prev, type: "Tatuagem" }))}
                     >
-                      Sessão de Tatuagem
+                      Tatuagem
                     </Button>
                   </div>
                 </div>
               )}
 
             {formData.client_id && formData.type === "Mentoria" && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-primary" /> Pauta / Título da Mentoria
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Pauta da Mentoria
                 </Label>
                 <Input
-                  placeholder="Ex: Encontro Quinzenal de Mentoria"
+                  placeholder="Ex: Encontro Quinzenal"
                   value={formData.notes}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  className="h-11 rounded-xl bg-muted/20 border-border/80"
                 />
               </div>
             )}
 
-            {formData.client_id && formData.type !== "Mentoria" && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <List className="w-4 h-4 text-primary" /> Jornada (Projeto)
+            {formData.client_id && formData.type !== "Mentoria" && clientJourneys.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Jornada (Projeto)
                 </Label>
-                <Select 
-                  value={formData.journey_id || ""} 
+                <Select
+                  value={formData.journey_id || ""}
                   onValueChange={(val) => setFormData(prev => ({ ...prev, journey_id: val }))}
-                  disabled={loadingJourneys || clientJourneys.length === 0}
+                  disabled={loadingJourneys}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={loadingJourneys ? "Carregando..." : clientJourneys.length === 0 ? "Nenhuma jornada encontrada" : "Selecione a jornada..."} />
+                  <SelectTrigger className="w-full h-11 rounded-xl bg-muted/20 border-border/80">
+                    <SelectValue placeholder={loadingJourneys ? "Carregando..." : "Selecione a jornada..."} />
                   </SelectTrigger>
                   <SelectContent>
                     {clientJourneys.map(j => (
                       <SelectItem key={j.id} value={j.id}>
-                        {j.status} {j.status === 'Concluído' ? '(Antiga)' : '(Atual)'} - Criada em {new Date(j.created_at).toLocaleDateString()}
+                        {j.status} {j.status === 'Concluído' ? '(Antiga)' : '(Atual)'} - {new Date(j.created_at).toLocaleDateString()}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1591,31 +1614,32 @@ const Agenda = () => {
               </div>
             )}
 
-            {/* Alerta simples de Bloqueio/Disponibilidade */}
+            {/* Alerta discreto de Horário Restrito */}
             {currentConflict.hasConflict && (
-              <div className="p-2.5 px-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2 font-medium">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
-                <span>Atenção: Horário Indisponível / Restrito</span>
+              <div className="px-3 py-2 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2 font-medium">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Horário fora da grade padrão / restrito</span>
               </div>
             )}
 
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Data da Sessão</Label>
+            {/* Data & Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Data da Sessão</Label>
                 <Input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="h-11 rounded-xl bg-muted/20 border-border/80"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(val) => setFormData(prev => ({ ...prev, status: val }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-xl bg-muted/20 border-border/80 font-medium">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -1630,96 +1654,118 @@ const Agenda = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Horário de Início</Label>
+            {/* Horário de Início & Término */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Início</Label>
                 <Input
                   type="time"
                   value={formData.startTime}
                   onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                  className="h-11 rounded-xl bg-muted/20 border-border/80"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Horário de Término</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Término</Label>
                 <Input
                   type="time"
                   value={formData.endTime}
                   onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                  className="h-11 rounded-xl bg-muted/20 border-border/80"
                 />
               </div>
             </div>
 
+            {/* Bloco Financeiro (Valor Total & Sinal) */}
             {formData.type !== "Mentoria" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Valor Total da Sessão</Label>
-                  <CurrencyInput
-                    value={formData.value}
-                    onChange={(val) => setFormData(prev => ({ ...prev, value: val }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor do Sinal</Label>
-                  <CurrencyInput
-                    value={formData.deposit}
-                    onChange={(val) => setFormData(prev => ({ ...prev, deposit: val }))}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Se houver sinal, exibe campos do Sinal e Link do Drive */}
-            {formData.deposit > 0 && (
-              <div className="bg-accent/20 border border-primary/20 p-3 rounded-xl space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Data do Pagamento do Sinal</Label>
-                  <Input
-                    type="date"
-                    value={formData.deposit_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, deposit_date: e.target.value }))}
-                    className="h-8 text-xs bg-card"
-                  />
+              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Valor da Sessão</Label>
+                    <CurrencyInput
+                      value={formData.value}
+                      onChange={(val) => setFormData(prev => ({ ...prev, value: val }))}
+                      className="h-11 rounded-xl bg-background border-border/80 font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Valor do Sinal</Label>
+                    <CurrencyInput
+                      value={formData.deposit}
+                      onChange={(val) => setFormData(prev => ({ ...prev, deposit: val }))}
+                      className="h-11 rounded-xl bg-background border-border/80 font-semibold"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold flex items-center gap-1">
-                    <LinkIcon className="w-3 h-3 text-primary" /> Link do Comprovante do Sinal (Drive)
-                  </Label>
-                  <Input
-                    placeholder="https://drive.google.com/file/d/..."
-                    value={formData.deposit_link}
-                    onChange={(e) => setFormData(prev => ({ ...prev, deposit_link: e.target.value }))}
-                    className="h-8 text-xs bg-card"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Cole o link do Google Drive para vincular no perfil do cliente e lançar automaticamente no financeiro.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center pt-4">
-              {editingAppointment ? (
-                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDeleteAlertOpen(true)}>
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              ) : <div />}
-
-              <div className="flex gap-2">
-                {editingAppointment && formData.status !== 'Concluído' && (
-                  <Button 
-                    variant="outline"
-                    size="icon"
-                    title="Dar Baixa"
-                    onClick={() => handleSave('Concluído')}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
+                {formData.deposit > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2.5 border-t border-border/60">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground">Data do Sinal</Label>
+                      <Input
+                        type="date"
+                        value={formData.deposit_date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deposit_date: e.target.value }))}
+                        className="h-10 text-xs bg-background rounded-lg"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                        <LinkIcon className="w-3 h-3 text-primary" /> Comprovante (Drive)
+                      </Label>
+                      <Input
+                        placeholder="https://drive.google.com/..."
+                        value={formData.deposit_link}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deposit_link: e.target.value }))}
+                        className="h-10 text-xs bg-background rounded-lg"
+                      />
+                    </div>
+                  </div>
                 )}
-                <Button onClick={() => handleSave()}>
-                  {editingAppointment ? "Atualizar" : "Salvar"}
-                </Button>
               </div>
+            )}
+          </div>
+
+          {/* Rodapé Clean */}
+          <div className="px-5 py-3.5 border-t border-border/60 bg-muted/20 flex items-center justify-between gap-2">
+            {editingAppointment ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-10 px-3 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive text-xs font-semibold gap-1.5"
+                onClick={() => setDeleteAlertOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Excluir</span>
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              {editingAppointment && formData.status !== "Concluído" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-3 rounded-xl text-xs font-semibold gap-1.5 border-border/80"
+                  onClick={() => {
+                    setModalOpen(false);
+                    openCheckout(editingAppointment, { stopPropagation: () => {} } as any);
+                  }}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  <span>Dar Baixa</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                className="h-10 px-5 rounded-xl text-xs sm:text-sm font-semibold"
+                onClick={() => handleSave()}
+              >
+                {editingAppointment ? "Atualizar" : "Salvar"}
+              </Button>
             </div>
           </div>
         </DialogContent>
