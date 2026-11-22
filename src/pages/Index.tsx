@@ -226,10 +226,10 @@ const Index = () => {
       
       setRevenueChartData(monthsData);
       setAppointmentsStatusData([
-        { name: "Confirmados", value: monthlyAppts.filter((a: any) => a.status === 'Confirmado' || a.status === 'Agendado').length, fill: "#9333ea" },
-        { name: "Concluídos", value: monthlyAppts.filter((a: any) => a.status === 'Concluído').length, fill: "#10b981" },
-        { name: "Para Remarcar", value: monthlyAppts.filter((a: any) => a.status === 'Para Remarcar').length, fill: "#f97316" },
-        { name: "Cancelados", value: monthlyAppts.filter((a: any) => a.status === 'Cancelado').length, fill: "#ef4444" } // tailwind red-500
+        { name: "Confirmados", value: monthlyAppts.filter((a: any) => a.status === 'Confirmado' || a.status === 'Agendado').length, fill: "#2563eb" },
+        { name: "Concluídos", value: monthlyAppts.filter((a: any) => a.status === 'Concluído').length, fill: "#0f172a" },
+        { name: "Para Remarcar", value: monthlyAppts.filter((a: any) => a.status === 'Para Remarcar').length, fill: "#64748b" },
+        { name: "Cancelados", value: monthlyAppts.filter((a: any) => a.status === 'Cancelado').length, fill: "#cbd5e1" }
       ]);
 
     } catch (error) {
@@ -652,54 +652,86 @@ const Index = () => {
         </div>
 
         {/* Appointments Status Chart */}
-        <div className="bg-card rounded-xl border shadow-sm p-6 relative">
+        <div className="bg-card rounded-xl border shadow-sm p-6 flex flex-col justify-between">
           <h2 className="text-lg font-semibold text-foreground mb-4">Status de Agendamentos (Mês Atual)</h2>
-          <div className="h-[220px] lg:h-[280px] flex justify-center items-center">
-            {appointmentsStatusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={appointmentsStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {appointmentsStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                    itemStyle={{ color: 'hsl(var(--foreground))' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center text-muted-foreground gap-2">
-                <Calendar className="h-8 w-8 opacity-20" />
-                <p>Sem dados no mês atual</p>
-              </div>
-            )}
+          {(() => {
+            const totalMonthlyAppts = appointmentsStatusData.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+            if (appointmentsStatusData.length === 0 || totalMonthlyAppts === 0) {
+              return (
+                <div className="h-[220px] lg:h-[280px] flex flex-col justify-center items-center text-muted-foreground gap-2">
+                  <Calendar className="h-8 w-8 opacity-20" />
+                  <p className="text-sm">Sem dados no mês atual</p>
+                </div>
+              );
+            }
 
-            {/* Custom Legend */}
-            {appointmentsStatusData.length > 0 && (
-              <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-3">
-                {appointmentsStatusData.map((entry, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.fill }} />
-                    <div className="flex flex-col">
-                      <span className="text-sm text-foreground font-medium leading-tight">{entry.name}</span>
-                      <span className="text-xs text-muted-foreground leading-tight">{entry.value} agendamentos</span>
-                    </div>
+            return (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 my-auto">
+                {/* Gráfico de Rosca com Total Centralizado */}
+                <div className="relative w-full sm:w-1/2 h-[180px] sm:h-[220px] flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={appointmentsStatusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={56}
+                        outerRadius={80}
+                        cornerRadius={4}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {appointmentsStatusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          borderColor: "hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                        }}
+                        itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-bold text-foreground leading-none">{totalMonthlyAppts}</span>
+                    <span className="text-[11px] text-muted-foreground mt-1">No mês</span>
                   </div>
-                ))}
+                </div>
+
+                {/* Legenda Clean (2x2 no Mobile, Lista Lateral no Desktop) */}
+                <div className="w-full sm:w-1/2 grid grid-cols-2 sm:grid-cols-1 gap-2">
+                  {appointmentsStatusData.map((entry, idx) => {
+                    const pct = totalMonthlyAppts > 0 ? Math.round((entry.value / totalMonthlyAppts) * 100) : 0;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border/60 bg-muted/30"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: entry.fill }}
+                          />
+                          <span className="text-xs font-medium text-foreground truncate">
+                            {entry.name}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1 shrink-0">
+                          <span className="text-xs sm:text-sm font-bold text-foreground">{entry.value}</span>
+                          <span className="text-[10px] text-muted-foreground">({pct}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
