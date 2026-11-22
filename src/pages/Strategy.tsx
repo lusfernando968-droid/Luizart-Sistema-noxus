@@ -25,6 +25,15 @@ import {
   Calculator,
   Video,
   Filter,
+  Megaphone,
+  Sparkles,
+  Layers,
+  Repeat,
+  BarChart3,
+  Wallet,
+  Users,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,13 +128,36 @@ const Strategy = () => {
   const [editingProject, setEditingProject] = useState<StrategicItem | null>(null);
   const [projectForm, setProjectForm] = useState({
     title: "",
-    category: "Financeiro",
+    category: "Marketing",
     horizon: "3_meses" as "3_meses" | "anual",
-    target_value: 0,
+    durationMonths: 3,
+    goalType: "investimento" as "investimento" | "aquisicao" | "hibrido" | "faturamento" | "execucao",
+    budgetFrequency: "mensal" as "mensal" | "total",
+    monthlyBudget: 100,
+    target_value: 300,
+    current_value: 0,
+    adsPerMonth: 2,
+    creativeTestsPerMonth: 1,
+    campaignStructure: "Estrutura Padrão + Teste de Criativos",
+    channels: ["Instagram / Meta Ads", "WhatsApp Business"] as string[],
+    creativeFormats: ["Vídeo Tattoo Pronta", "Bastidores / Processo"] as string[],
+    enableAcquisition: false,
+    acquisitionMetric: "conversas_whatsapp" as
+      | "conversas_whatsapp"
+      | "orcamentos"
+      | "sessoes_fechadas"
+      | "leads_qualificados",
+    acquisitionTarget: 15,
+    acquisitionFrequency: "mensal" as "mensal" | "total",
+    acquisitionCurrent: 0,
     progress: 0,
     content: "",
     milestonesText: "",
   });
+  const [newQuickMilestoneText, setNewQuickMilestoneText] = useState("");
+  const [newQuickMilestoneMonth, setNewQuickMilestoneMonth] = useState("Mês 1");
+  const [projectCardMonthFilter, setProjectCardMonthFilter] = useState<Record<string, string>>({});
+  const [newCardMilestoneMonth, setNewCardMilestoneMonth] = useState<Record<string, string>>({});
 
   // Expansão de documentação de projetos
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
@@ -329,36 +361,334 @@ const Strategy = () => {
     }
   };
 
+  const getAcquisitionMetricLabel = (metric?: string) => {
+    switch (metric) {
+      case "conversas_whatsapp":
+        return "Conversas / Leads no WhatsApp";
+      case "orcamentos":
+        return "Orçamentos Qualificados";
+      case "sessoes_fechadas":
+        return "Sessões Fechadas";
+      case "leads_qualificados":
+        return "Novos Seguidores / Leads";
+      default:
+        return "Conversas / Leads no WhatsApp";
+    }
+  };
+
+  const getGoalTypeLabel = (goalType?: string) => {
+    switch (goalType) {
+      case "investimento":
+        return "Meta de Investimento (Tráfego / Estrutura)";
+      case "aquisicao":
+        return "Meta de Aquisição (Leads / Clientes)";
+      case "hibrido":
+        return "Investimento + Aquisição";
+      case "faturamento":
+        return "Meta de Faturamento / Retorno";
+      case "execucao":
+        return "Foco em Execução & Entregas";
+      default:
+        return "Meta Financeira / Execução";
+    }
+  };
+
+  const buildSmartMilestonesList = (cfg: {
+    durationMonths: number;
+    goalType: string;
+    budgetFrequency: string;
+    monthlyBudget: number;
+    target_value: number;
+    adsPerMonth: number;
+    creativeTestsPerMonth: number;
+    enableAcquisition: boolean;
+    acquisitionMetric: string;
+    acquisitionTarget: number;
+    acquisitionFrequency: string;
+  }) => {
+    const months = Math.min(12, Math.max(1, Number(cfg.durationMonths || 3)));
+    const lines: string[] = [];
+    const monthlyVal =
+      cfg.budgetFrequency === "mensal"
+        ? Number(cfg.monthlyBudget || 0)
+        : Math.round(Number(cfg.target_value || 0) / months);
+
+    if (monthlyVal > 0 && (cfg.goalType === "investimento" || cfg.goalType === "hibrido")) {
+      lines.push(
+        `Investir pelo menos R$ ${monthlyVal.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+        })} por mês durante ${months} ${months === 1 ? "mês" : "meses"}`
+      );
+    }
+    if (cfg.adsPerMonth > 0) {
+      lines.push(
+        `Deixar ${cfg.adsPerMonth} ${
+          cfg.adsPerMonth === 1
+            ? "anúncio ativo por mês rodando"
+            : "anúncios diferentes por mês rodando"
+        }`
+      );
+    }
+    if (cfg.creativeTestsPerMonth > 0) {
+      lines.push(
+        `Fazer teste de criativo (${cfg.creativeTestsPerMonth}x por mês) para validar formatos e ganchos`
+      );
+    }
+    if (
+      (cfg.enableAcquisition || cfg.goalType === "aquisicao" || cfg.goalType === "hibrido") &&
+      cfg.acquisitionTarget > 0
+    ) {
+      const acqLabel = getAcquisitionMetricLabel(cfg.acquisitionMetric);
+      lines.push(
+        `Atingir meta de ${cfg.acquisitionTarget} ${acqLabel.toLowerCase()} (${
+          cfg.acquisitionFrequency === "mensal" ? "por mês" : "no ciclo"
+        })`
+      );
+    }
+
+    return lines.join("\n");
+  };
+
+  const applyProjectPreset = (
+    preset: "marketing_padrao" | "teste_criativos" | "campanha_aquisicao" | "meta_faturamento"
+  ) => {
+    if (preset === "marketing_padrao") {
+      const nextCfg = {
+        title: "Projeto estrutura padrão de marketing (anúncio tráfego pago)",
+        category: "Marketing",
+        horizon: "3_meses" as const,
+        durationMonths: 3,
+        goalType: "investimento" as const,
+        budgetFrequency: "mensal" as const,
+        monthlyBudget: 100,
+        target_value: 300,
+        current_value: 0,
+        adsPerMonth: 2,
+        creativeTestsPerMonth: 1,
+        campaignStructure: "Estrutura Padrão + Teste de Criativos",
+        channels: ["Instagram / Meta Ads", "WhatsApp Business"],
+        creativeFormats: ["Vídeo Tattoo Pronta", "Bastidores / Processo", "Carrossel Portfólio"],
+        enableAcquisition: false,
+        acquisitionMetric: "conversas_whatsapp" as const,
+        acquisitionTarget: 15,
+        acquisitionFrequency: "mensal" as const,
+        acquisitionCurrent: 0,
+        progress: 0,
+        content:
+          "Estrutura Padrão de Marketing (Ciclo de 3 Meses):\n• Meta de Investimento: Investir pelo menos R$ 100,00 por mês durante 3 meses (Total mín.: R$ 300,00).\n• Entregas Mensais: Manter 2 anúncios diferentes rodando por mês + realizar teste de criativo.\n• Foco: Consistência de investimento e validação de criativos (a meta de aquisição pode ser ativada opcionalmente quando desejar).",
+      };
+      setProjectForm({
+        ...nextCfg,
+        milestonesText: buildSmartMilestonesList(nextCfg),
+      });
+      toast.success("Template 'Estrutura Padrão de Marketing' aplicado!");
+    } else if (preset === "teste_criativos") {
+      const nextCfg = {
+        title: "Laboratório de Testes de Criativos & Anúncios",
+        category: "Marketing",
+        horizon: "3_meses" as const,
+        durationMonths: 3,
+        goalType: "investimento" as const,
+        budgetFrequency: "mensal" as const,
+        monthlyBudget: 150,
+        target_value: 450,
+        current_value: 0,
+        adsPerMonth: 3,
+        creativeTestsPerMonth: 2,
+        campaignStructure: "Teste A/B de Ganchos, Vídeos e Formatos",
+        channels: ["Instagram / Meta Ads", "Reels / Tráfego"],
+        creativeFormats: [
+          "Vídeo Tattoo Pronta",
+          "Bastidores / Processo",
+          "Storytelling / Autoridade",
+          "Oferta Direta / Agenda Aberta",
+        ],
+        enableAcquisition: false,
+        acquisitionMetric: "conversas_whatsapp" as const,
+        acquisitionTarget: 20,
+        acquisitionFrequency: "mensal" as const,
+        acquisitionCurrent: 0,
+        progress: 0,
+        content:
+          "Projeto focado em encontrar os criativos campeões do estúdio ao longo de 3 meses, testando ganchos visuais e chamadas diferentes.",
+      };
+      setProjectForm({
+        ...nextCfg,
+        milestonesText: buildSmartMilestonesList(nextCfg),
+      });
+      toast.success("Template 'Teste de Criativos' aplicado!");
+    } else if (preset === "campanha_aquisicao") {
+      const nextCfg = {
+        title: "Campanha de Aquisição & Fechamento de Sessões",
+        category: "Marketing",
+        horizon: "3_meses" as const,
+        durationMonths: 3,
+        goalType: "hibrido" as const,
+        budgetFrequency: "mensal" as const,
+        monthlyBudget: 200,
+        target_value: 600,
+        current_value: 0,
+        adsPerMonth: 2,
+        creativeTestsPerMonth: 1,
+        campaignStructure: "Captação Direta p/ WhatsApp & Fechamento",
+        channels: ["Instagram / Meta Ads", "WhatsApp Business", "Remarketing"],
+        creativeFormats: ["Vídeo Tattoo Pronta", "Oferta Direta / Agenda Aberta"],
+        enableAcquisition: true,
+        acquisitionMetric: "conversas_whatsapp" as const,
+        acquisitionTarget: 25,
+        acquisitionFrequency: "mensal" as const,
+        acquisitionCurrent: 0,
+        progress: 0,
+        content:
+          "Projeto híbrido combinando meta de investimento mensal em anúncios com meta clara de aquisição de conversas/orçamentos no WhatsApp.",
+      };
+      setProjectForm({
+        ...nextCfg,
+        milestonesText: buildSmartMilestonesList(nextCfg),
+      });
+      toast.success("Template 'Campanha de Aquisição' aplicado!");
+    } else if (preset === "meta_faturamento") {
+      setProjectForm({
+        title: "Meta de Crescimento & Faturamento do Trimestre",
+        category: "Financeiro",
+        horizon: "3_meses",
+        durationMonths: 3,
+        goalType: "faturamento",
+        budgetFrequency: "total",
+        monthlyBudget: 15000,
+        target_value: 45000,
+        current_value: 0,
+        adsPerMonth: 2,
+        creativeTestsPerMonth: 1,
+        campaignStructure: "Aumento de Ticket Médio + Repescagem CRM",
+        channels: ["WhatsApp Business", "Instagram / Meta Ads"],
+        creativeFormats: ["Vídeo Tattoo Pronta"],
+        enableAcquisition: true,
+        acquisitionMetric: "sessoes_fechadas",
+        acquisitionTarget: 15,
+        acquisitionFrequency: "mensal",
+        acquisitionCurrent: 0,
+        progress: 0,
+        content: "Planejamento financeiro de 90 dias focado em faturamento e fechamento de projetos maiores.",
+        milestonesText:
+          "[Mês 1] Fazer repescagem de clientes em Orçamento no CRM\n[Mês 1] Fechar projetos de fechamento / sessões de maior ticket\n[Mês 2] Revisar precificação e ofertar retorno para clientes antigos\n[Mês 3] Consolidar meta trimestral de caixa",
+      });
+      toast.success("Template 'Meta de Faturamento' aplicado!");
+    }
+  };
+
   // Criar ou Editar Projeto (3 Meses / Anual)
-  const openNewProjectModal = (defaultHorizon: "3_meses" | "anual" = "3_meses") => {
+  const openNewProjectModal = (
+    defaultHorizon: "3_meses" | "anual" = "3_meses",
+    useMarketingPreset = false
+  ) => {
     setEditingProject(null);
-    setProjectForm({
-      title: "",
-      category: "Financeiro",
+    if (useMarketingPreset) {
+      applyProjectPreset("marketing_padrao");
+      setProjectModalOpen(true);
+      return;
+    }
+    const defaultDuration = defaultHorizon === "anual" ? 12 : 3;
+    const defaultCfg = {
+      title: "Projeto estrutura padrão de marketing (anúncio tráfego pago)",
+      category: "Marketing",
       horizon: defaultHorizon,
-      target_value: 0,
+      durationMonths: defaultDuration,
+      goalType: "investimento" as const,
+      budgetFrequency: "mensal" as const,
+      monthlyBudget: 100,
+      target_value: 100 * defaultDuration,
+      current_value: 0,
+      adsPerMonth: 2,
+      creativeTestsPerMonth: 1,
+      campaignStructure: "Estrutura Padrão + Teste de Criativos",
+      channels: ["Instagram / Meta Ads", "WhatsApp Business"],
+      creativeFormats: ["Vídeo Tattoo Pronta", "Bastidores / Processo", "Carrossel Portfólio"],
+      enableAcquisition: false,
+      acquisitionMetric: "conversas_whatsapp" as const,
+      acquisitionTarget: 15,
+      acquisitionFrequency: "mensal" as const,
+      acquisitionCurrent: 0,
       progress: 0,
-      content: "",
-      milestonesText: "",
+      content:
+        "Estrutura Padrão de Marketing:\n• Investimento mínimo: R$ 100,00/mês durante 3 meses (Total: R$ 300,00).\n• Entregas principais: Manter 2 anúncios diferentes rodando por mês e realizar testes de criativo.\n• Observação: Foco na constância de investimento e estrutura (meta de aquisição configurável quando necessário).",
+    };
+    setProjectForm({
+      ...defaultCfg,
+      milestonesText: buildSmartMilestonesList(defaultCfg),
     });
     setProjectModalOpen(true);
   };
 
-  const openEditProjectModal = (proj: StrategicItem) => {
+  const openEditProjectModal = (proj: StrategicItem, forceEnableAcquisition = false) => {
     setEditingProject(proj);
+    const cfg = proj.metadata?.project_config || {};
     const milestones = Array.isArray(proj.metadata?.milestones)
       ? proj.metadata.milestones.map((m: any) => m.title).join("\n")
       : "";
+    const durationMonths = Number(cfg.durationMonths || (proj.horizon === "anual" ? 12 : 3));
+    const budgetFrequency = (cfg.budgetFrequency as "mensal" | "total") || "mensal";
+    const totalVal = Number(proj.target_value || cfg.totalBudget || 0);
+    const monthlyBudget =
+      cfg.monthlyBudget !== undefined
+        ? Number(cfg.monthlyBudget)
+        : budgetFrequency === "mensal" && durationMonths > 0
+        ? Math.round(totalVal / durationMonths)
+        : totalVal;
+
     setProjectForm({
       title: proj.title || "",
-      category: proj.category || "Financeiro",
+      category: proj.category || "Marketing",
       horizon: (proj.horizon as "3_meses" | "anual") || "3_meses",
-      target_value: Number(proj.target_value || 0),
+      durationMonths,
+      goalType: cfg.goalType || "investimento",
+      budgetFrequency,
+      monthlyBudget,
+      target_value: totalVal,
+      current_value: Number(proj.current_value || cfg.investedValue || 0),
+      adsPerMonth: cfg.adsPerMonth !== undefined ? Number(cfg.adsPerMonth) : 2,
+      creativeTestsPerMonth:
+        cfg.creativeTestsPerMonth !== undefined ? Number(cfg.creativeTestsPerMonth) : 1,
+      campaignStructure: cfg.campaignStructure || "Estrutura Padrão + Teste de Criativos",
+      channels: Array.isArray(cfg.channels)
+        ? cfg.channels
+        : ["Instagram / Meta Ads", "WhatsApp Business"],
+      creativeFormats: Array.isArray(cfg.creativeFormats)
+        ? cfg.creativeFormats
+        : ["Vídeo Tattoo Pronta", "Bastidores / Processo"],
+      enableAcquisition: forceEnableAcquisition ? true : Boolean(cfg.enableAcquisition),
+      acquisitionMetric: cfg.acquisitionMetric || "conversas_whatsapp",
+      acquisitionTarget: Number(cfg.acquisitionTarget || 15),
+      acquisitionFrequency: cfg.acquisitionFrequency || "mensal",
+      acquisitionCurrent: Number(cfg.acquisitionCurrent || 0),
       progress: Number(proj.progress || 0),
       content: proj.content || "",
       milestonesText: milestones,
     });
     setProjectModalOpen(true);
+  };
+
+  const inferMilestoneMeta = (title: string) => {
+    const monthMatch = title.match(/^\[(Mês\s*\d+|Setup|Fechamento|Geral|Recorrente)\]\s*/i);
+    const monthTag = monthMatch ? monthMatch[1] : "Geral";
+    const lower = title.toLowerCase();
+    let typeTag = "Entrega";
+    if (lower.includes("investir") || lower.includes("r$") || lower.includes("orçamento")) {
+      typeTag = "Investimento";
+    } else if (lower.includes("anúncio") || lower.includes("anuncio") || lower.includes("tráfego") || lower.includes("trafego")) {
+      typeTag = "Anúncios";
+    } else if (lower.includes("criativo") || lower.includes("teste") || lower.includes("gancho")) {
+      typeTag = "Teste de Criativo";
+    } else if (
+      lower.includes("lead") ||
+      lower.includes("conversa") ||
+      lower.includes("aquisição") ||
+      lower.includes("sessões") ||
+      lower.includes("whatsapp")
+    ) {
+      typeTag = "Aquisição";
+    }
+    return { monthTag, typeTag };
   };
 
   const handleSaveProject = async () => {
@@ -377,8 +707,51 @@ const Strategy = () => {
         .filter(Boolean)
         .map((line) => {
           const found = existingMilestones.find((m: any) => m.title === line);
-          return found || { id: String(Date.now() + Math.random()), title: line, done: false };
+          const meta = inferMilestoneMeta(line);
+          return (
+            found || {
+              id: String(Date.now() + Math.random()),
+              title: line,
+              done: false,
+              monthTag: meta.monthTag,
+              typeTag: meta.typeTag,
+            }
+          );
         });
+
+      const computedTotalTarget =
+        projectForm.goalType === "execucao"
+          ? 0
+          : projectForm.budgetFrequency === "mensal"
+          ? Number(projectForm.monthlyBudget || 0) * Number(projectForm.durationMonths || 1)
+          : Number(projectForm.target_value || 0);
+
+      const monthlyPerCycle =
+        projectForm.budgetFrequency === "mensal"
+          ? Number(projectForm.monthlyBudget || 0)
+          : Number(projectForm.durationMonths || 1) > 0
+          ? Math.round(computedTotalTarget / Number(projectForm.durationMonths || 1))
+          : computedTotalTarget;
+
+      const existingCycles = Array.isArray(editingProject?.metadata?.monthly_cycles)
+        ? editingProject!.metadata.monthly_cycles
+        : [];
+
+      const cycleCount = Math.min(12, Math.max(1, Number(projectForm.durationMonths || 3)));
+      const monthlyCycles = Array.from({ length: cycleCount }, (_, idx) => {
+        const mNum = idx + 1;
+        const prev = existingCycles.find((c: any) => Number(c.month) === mNum);
+        return {
+          month: mNum,
+          label: `Mês ${mNum}`,
+          plannedBudget: monthlyPerCycle,
+          budgetDone: prev ? Boolean(prev.budgetDone) : false,
+          adsTarget: Number(projectForm.adsPerMonth || 0),
+          adsDone: prev ? Boolean(prev.adsDone) : false,
+          creativeTestsTarget: Number(projectForm.creativeTestsPerMonth || 0),
+          creativeTestDone: prev ? Boolean(prev.creativeTestDone) : false,
+        };
+      });
 
       const autoProgress =
         parsedMilestones.length > 0
@@ -392,12 +765,36 @@ const Strategy = () => {
         title: projectForm.title.trim(),
         category: projectForm.category,
         horizon: projectForm.horizon,
-        target_value: projectForm.target_value,
+        target_value: computedTotalTarget,
+        current_value: Number(projectForm.current_value || 0),
         progress: autoProgress,
         content: projectForm.content,
         metadata: {
           ...(editingProject?.metadata || {}),
           milestones: parsedMilestones,
+          monthly_cycles: monthlyCycles,
+          project_config: {
+            durationMonths: Number(projectForm.durationMonths || 3),
+            goalType: projectForm.goalType,
+            budgetFrequency: projectForm.budgetFrequency,
+            monthlyBudget: Number(projectForm.monthlyBudget || 0),
+            totalBudget: computedTotalTarget,
+            investedValue: Number(projectForm.current_value || 0),
+            adsPerMonth: Number(projectForm.adsPerMonth || 0),
+            creativeTestsPerMonth: Number(projectForm.creativeTestsPerMonth || 0),
+            campaignStructure: projectForm.campaignStructure,
+            channels: projectForm.channels,
+            creativeFormats: projectForm.creativeFormats,
+            enableAcquisition: Boolean(
+              projectForm.enableAcquisition ||
+                projectForm.goalType === "aquisicao" ||
+                projectForm.goalType === "hibrido"
+            ),
+            acquisitionMetric: projectForm.acquisitionMetric,
+            acquisitionTarget: Number(projectForm.acquisitionTarget || 0),
+            acquisitionFrequency: projectForm.acquisitionFrequency,
+            acquisitionCurrent: Number(projectForm.acquisitionCurrent || 0),
+          },
         },
         updated_at: new Date().toISOString(),
       };
@@ -408,7 +805,7 @@ const Strategy = () => {
           .update(payload)
           .eq("id", editingProject.id);
         if (error) throw error;
-        toast.success("Projeto atualizado!");
+        toast.success("Configurações do projeto atualizadas!");
       } else {
         const { data, error } = await supabase
           .from("strategic_workspace")
@@ -417,7 +814,7 @@ const Strategy = () => {
           .single();
         if (error) throw error;
         if (data?.id) setExpandedProjectId(data.id);
-        toast.success("Projeto estratégico criado!");
+        toast.success("Projeto estratégico configurado e criado!");
       }
 
       setProjectModalOpen(false);
@@ -425,6 +822,84 @@ const Strategy = () => {
     } catch (e) {
       console.error(e);
       toast.error("Erro ao salvar projeto.");
+    }
+  };
+
+  const handleToggleMonthlyCycleField = async (
+    proj: StrategicItem,
+    monthNumber: number,
+    field: "budgetDone" | "adsDone" | "creativeTestDone"
+  ) => {
+    const cfg = proj.metadata?.project_config || {};
+    const duration = Number(cfg.durationMonths || 3);
+    const monthlyBudget = Number(cfg.monthlyBudget || (proj.target_value ? proj.target_value / duration : 100));
+    const existingCycles = Array.isArray(proj.metadata?.monthly_cycles)
+      ? proj.metadata.monthly_cycles
+      : Array.from({ length: duration }, (_, i) => ({
+          month: i + 1,
+          label: `Mês ${i + 1}`,
+          plannedBudget: monthlyBudget,
+          budgetDone: false,
+          adsTarget: Number(cfg.adsPerMonth || 2),
+          adsDone: false,
+          creativeTestsTarget: Number(cfg.creativeTestsPerMonth || 1),
+          creativeTestDone: false,
+        }));
+
+    const updatedCycles = existingCycles.map((c: any) =>
+      Number(c.month) === monthNumber ? { ...c, [field]: !c[field] } : c
+    );
+
+    const investedFromCycles = updatedCycles.reduce(
+      (acc: number, c: any) => acc + (c.budgetDone ? Number(c.plannedBudget || monthlyBudget || 0) : 0),
+      0
+    );
+
+    try {
+      const { error } = await supabase
+        .from("strategic_workspace")
+        .update({
+          current_value: investedFromCycles,
+          metadata: {
+            ...(proj.metadata || {}),
+            monthly_cycles: updatedCycles,
+            project_config: {
+              ...cfg,
+              investedValue: investedFromCycles,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", proj.id);
+      if (error) throw error;
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao atualizar acompanhamento mensal.");
+    }
+  };
+
+  const handleUpdateAcquisitionProgress = async (proj: StrategicItem, nextValue: number) => {
+    const cfg = proj.metadata?.project_config || {};
+    const safeVal = Math.max(0, nextValue);
+    try {
+      const { error } = await supabase
+        .from("strategic_workspace")
+        .update({
+          metadata: {
+            ...(proj.metadata || {}),
+            project_config: {
+              ...cfg,
+              enableAcquisition: true,
+              acquisitionCurrent: safeVal,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", proj.id);
+      if (error) throw error;
+      fetchStrategicData();
+    } catch (e) {
+      toast.error("Erro ao atualizar indicador de aquisição.");
     }
   };
 
@@ -452,10 +927,25 @@ const Strategy = () => {
   };
 
   const handleAddProjectMilestone = async (proj: StrategicItem) => {
-    const text = (newMilestoneInputs[proj.id] || "").trim();
-    if (!text) return;
+    const rawText = (newMilestoneInputs[proj.id] || "").trim();
+    if (!rawText) return;
+    const monthPrefix = newCardMilestoneMonth[proj.id] || "Geral";
+    const formattedTitle =
+      rawText.startsWith("[") || monthPrefix === "Geral"
+        ? rawText
+        : `[${monthPrefix}] ${rawText}`;
+    const meta = inferMilestoneMeta(formattedTitle);
     const milestones = Array.isArray(proj.metadata?.milestones) ? proj.metadata.milestones : [];
-    const updated = [...milestones, { id: String(Date.now()), title: text, done: false }];
+    const updated = [
+      ...milestones,
+      {
+        id: String(Date.now()),
+        title: formattedTitle,
+        done: false,
+        monthTag: meta.monthTag,
+        typeTag: meta.typeTag,
+      },
+    ];
     const doneCount = updated.filter((m: any) => m.done).length;
     const newProgress = Math.round((doneCount / updated.length) * 100);
 
@@ -1012,7 +1502,7 @@ const Strategy = () => {
                 className="h-9 text-xs gap-1.5 flex-1 sm:flex-initial"
                 onClick={() => openNewProjectModal("3_meses")}
               >
-                <Plus className="w-3.5 h-3.5" /> Projeto 3 Meses
+                <Plus className="w-3.5 h-3.5" /> Novo Projeto
               </Button>
             </div>
           </div>
@@ -1029,7 +1519,7 @@ const Strategy = () => {
                     Nenhum projeto estratégico cadastrado neste filtro.
                   </p>
                   <div className="flex items-center justify-center gap-2">
-                    <Button size="sm" onClick={() => openNewProjectModal("3_meses")} className="gap-1.5">
+                    <Button size="sm" onClick={() => openNewProjectModal("3_meses", true)} className="gap-1.5">
                       <Plus className="w-4 h-4" /> Criar Projeto de 3 Meses
                     </Button>
                     <Button
@@ -1051,6 +1541,34 @@ const Strategy = () => {
                   const milestones = Array.isArray(proj.metadata?.milestones)
                     ? proj.metadata.milestones
                     : [];
+                  const cfg = proj.metadata?.project_config || {};
+                  const durationMonths = Number(cfg.durationMonths || (proj.horizon === "anual" ? 12 : 3));
+                  const goalType = cfg.goalType || "investimento";
+                  const budgetFrequency = cfg.budgetFrequency || "mensal";
+                  const totalBudget = Number(proj.target_value || cfg.totalBudget || 0);
+                  const monthlyBudget =
+                    cfg.monthlyBudget !== undefined
+                      ? Number(cfg.monthlyBudget)
+                      : durationMonths > 0
+                      ? Math.round(totalBudget / durationMonths)
+                      : totalBudget;
+                  const investedValue = Number(proj.current_value || cfg.investedValue || 0);
+
+                  const enableAcquisition = Boolean(
+                    cfg.enableAcquisition || goalType === "aquisicao" || goalType === "hibrido"
+                  );
+                  const acquisitionMetric = cfg.acquisitionMetric || "conversas_whatsapp";
+                  const acquisitionTarget = Number(cfg.acquisitionTarget || 0);
+
+                  const monthlyCycles: any[] = Array.isArray(proj.metadata?.monthly_cycles)
+                    ? proj.metadata.monthly_cycles
+                    : Array.from({ length: Math.min(6, durationMonths) }, (_, i) => ({
+                        month: i + 1,
+                        label: `Mês ${i + 1}`,
+                        plannedBudget: monthlyBudget,
+                        budgetDone: false,
+                      }));
+
                   const isExpanded = expandedProjectId === proj.id;
                   const projectTasks = dailyTasks.filter((t) => t.project_id === proj.id);
                   const projectLogs = journalEntries.filter((j) => j.project_id === proj.id);
@@ -1060,15 +1578,25 @@ const Strategy = () => {
                       key={proj.id}
                       className="bg-card rounded-xl border shadow-sm p-5 flex flex-col justify-between space-y-4"
                     >
-                      <div className="space-y-3">
+                      <div className="space-y-3.5">
+                        {/* Cabeçalho Limpo */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                                {proj.horizon === "anual" ? "Planejamento Anual" : "Projeto 3 Meses"}
+                                {proj.horizon === "anual" ? "Anual" : `${durationMonths} Meses`}
                               </span>
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-muted text-foreground border">
-                                {proj.category || "Geral"}
+                                {proj.category || "Marketing"}
+                              </span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border">
+                                {goalType === "investimento"
+                                  ? "Meta de Investimento"
+                                  : goalType === "aquisicao"
+                                  ? "Meta de Aquisição"
+                                  : goalType === "hibrido"
+                                  ? "Investimento + Aquisição"
+                                  : "Meta de Faturamento"}
                               </span>
                             </div>
                             <h3 className="text-base font-bold text-foreground">{proj.title}</h3>
@@ -1094,40 +1622,94 @@ const Strategy = () => {
                           </div>
                         </div>
 
-                        {/* Barra de Progresso e Alvo */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground font-medium">
-                              {proj.target_value > 0
-                                ? `Alvo: R$ ${Number(proj.target_value).toLocaleString("pt-BR", {
-                                    minimumFractionDigits: 2,
-                                  })}`
-                                : "Progresso de Execução"}
-                            </span>
+                        {/* Resumo Direto da Meta (Investimento / Aquisição) + Progresso */}
+                        <div className="p-3 rounded-xl border bg-muted/20 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {totalBudget > 0 && (
+                                <span className="font-semibold text-foreground">
+                                  {goalType === "faturamento" ? "Meta:" : "Investimento:"}{" "}
+                                  <strong className="text-primary">
+                                    {budgetFrequency === "mensal"
+                                      ? `R$ ${monthlyBudget.toLocaleString("pt-BR")}/mês`
+                                      : `R$ ${totalBudget.toLocaleString("pt-BR")}`}
+                                  </strong>{" "}
+                                  <span className="text-muted-foreground">
+                                    (Total: R$ {totalBudget.toLocaleString("pt-BR")})
+                                  </span>
+                                </span>
+                              )}
+                              {enableAcquisition && acquisitionTarget > 0 && (
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-background border text-foreground">
+                                  Alvo: {acquisitionTarget} {getAcquisitionMetricLabel(acquisitionMetric).toLowerCase()}
+                                </span>
+                              )}
+                            </div>
                             <span className="font-bold text-foreground">{proj.progress || 0}%</span>
                           </div>
-                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+
+                          <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
                               className="h-full bg-primary rounded-full transition-all"
                               style={{ width: `${Math.min(100, Number(proj.progress || 0))}%` }}
                             />
                           </div>
+
+                          {/* Pílulas Simples de Check Mensal (Mês 1, Mês 2, Mês 3) */}
+                          {(goalType === "investimento" || goalType === "hibrido") &&
+                            monthlyCycles.length > 0 &&
+                            monthlyCycles.length <= 6 && (
+                              <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {monthlyCycles.map((cycle: any) => (
+                                    <button
+                                      key={cycle.month}
+                                      type="button"
+                                      onClick={() =>
+                                        handleToggleMonthlyCycleField(
+                                          proj,
+                                          Number(cycle.month),
+                                          "budgetDone"
+                                        )
+                                      }
+                                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 transition-all ${
+                                        cycle.budgetDone
+                                          ? "bg-primary/10 border-primary/30 text-primary"
+                                          : "bg-background text-muted-foreground hover:text-foreground"
+                                      }`}
+                                    >
+                                      {cycle.budgetDone ? (
+                                        <CheckCircle2 className="w-3 h-3 text-primary" />
+                                      ) : (
+                                        <Circle className="w-3 h-3" />
+                                      )}
+                                      {cycle.label}: R${" "}
+                                      {Number(cycle.plannedBudget || monthlyBudget).toLocaleString("pt-BR")}
+                                    </button>
+                                  ))}
+                                </div>
+                                <span className="text-[11px] text-muted-foreground font-medium">
+                                  Investido: R$ {investedValue.toLocaleString("pt-BR")}
+                                </span>
+                              </div>
+                            )}
                         </div>
 
-                        {/* Checklist de Principais Entregas / Marcos do Projeto */}
-                        <div className="space-y-2 pt-1">
+                        {/* Checklist de Principais Entregas */}
+                        <div className="space-y-2">
                           <Label className="text-xs font-semibold text-foreground">
-                            Principais Frentes & Entregas ({milestones.filter((m: any) => m.done).length}/
+                            Principais Entregas ({milestones.filter((m: any) => m.done).length}/
                             {milestones.length})
                           </Label>
+
                           {milestones.length > 0 && (
-                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                            <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                               {milestones.map((m: any) => (
                                 <button
                                   key={m.id}
                                   type="button"
                                   onClick={() => handleToggleProjectMilestone(proj, m.id)}
-                                  className="w-full flex items-center gap-2.5 text-left text-xs p-2 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors"
+                                  className="w-full flex items-center gap-2.5 text-left text-xs p-2 rounded-lg border bg-muted/15 hover:bg-muted/30 transition-colors"
                                 >
                                   {m.done ? (
                                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
@@ -1136,7 +1718,9 @@ const Strategy = () => {
                                   )}
                                   <span
                                     className={`flex-1 ${
-                                      m.done ? "line-through text-muted-foreground" : "text-foreground font-medium"
+                                      m.done
+                                        ? "line-through text-muted-foreground"
+                                        : "text-foreground font-medium"
                                     }`}
                                   >
                                     {m.title}
@@ -1148,7 +1732,7 @@ const Strategy = () => {
 
                           <div className="flex gap-2">
                             <Input
-                              placeholder="Adicionar entrega/marco neste projeto..."
+                              placeholder="Adicionar entrega neste projeto..."
                               value={newMilestoneInputs[proj.id] || ""}
                               onChange={(e) =>
                                 setNewMilestoneInputs((prev) => ({
@@ -1176,7 +1760,7 @@ const Strategy = () => {
                         </div>
                       </div>
 
-                      {/* Rodapé do Card: Documentação e Atalhos */}
+                      {/* Rodapé do Card: Documentação */}
                       <div className="pt-3 border-t space-y-3">
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <div className="flex items-center gap-3 text-muted-foreground">
@@ -1229,10 +1813,10 @@ const Strategy = () => {
                             {editingDocId === proj.id ? (
                               <div className="space-y-2">
                                 <Textarea
-                                  rows={5}
+                                  rows={4}
                                   value={docTempContent}
                                   onChange={(e) => setDocTempContent(e.target.value)}
-                                  placeholder="Documente estratégia, regras, links, roteiros ou aprendizados deste projeto..."
+                                  placeholder="Documente estratégia, regras, links ou aprendizados deste projeto..."
                                   className="text-xs bg-background"
                                 />
                                 <div className="flex justify-end gap-2">
@@ -1249,7 +1833,7 @@ const Strategy = () => {
                                     className="h-8 text-xs"
                                     onClick={() => handleSaveProjectDoc(proj.id)}
                                   >
-                                    Salvar Documentação
+                                    Salvar
                                   </Button>
                                 </div>
                               </div>
@@ -2418,7 +3002,7 @@ const Strategy = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Novo / Editar Projeto Estratégico */}
+      {/* Modal Novo / Editar Projeto Estratégico (Limpo e Direto) */}
       <Dialog open={projectModalOpen} onOpenChange={setProjectModalOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -2426,32 +3010,68 @@ const Strategy = () => {
               {editingProject ? "Editar Projeto Estratégico" : "Novo Projeto / Meta Estratégica"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <div className="space-y-4 py-1">
+            {/* Atalho discreto de modelo */}
+            <div className="flex items-center justify-between gap-2 text-xs bg-muted/30 px-3 py-2 rounded-lg border">
+              <span className="text-muted-foreground font-medium">Modelo rápido:</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => applyProjectPreset("marketing_padrao")}
+                  className="px-2.5 py-1 rounded-md bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
+                >
+                  Estrutura Padrão Marketing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyProjectPreset("campanha_aquisicao")}
+                  className="px-2.5 py-1 rounded-md bg-background border text-foreground font-medium hover:bg-muted transition-colors"
+                >
+                  Aquisição
+                </button>
+              </div>
+            </div>
+
+            {/* Nome do Projeto */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Nome do Projeto / Meta *</Label>
               <Input
-                placeholder="Ex: Projeto 3 Meses - Bater Meta Financeira / Marketing Específico"
+                placeholder="Ex: Projeto estrutura padrão de marketing (anúncio tráfego pago)"
                 value={projectForm.title}
                 onChange={(e) => setProjectForm((prev) => ({ ...prev, title: e.target.value }))}
                 className="h-11"
               />
             </div>
 
+            {/* Horizonte / Duração e Categoria */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Horizonte</Label>
+                <Label className="text-xs font-semibold">Duração / Horizonte</Label>
                 <Select
-                  value={projectForm.horizon}
-                  onValueChange={(val: "3_meses" | "anual") =>
-                    setProjectForm((prev) => ({ ...prev, horizon: val }))
-                  }
+                  value={String(projectForm.durationMonths)}
+                  onValueChange={(val) => {
+                    const months = Number(val);
+                    setProjectForm((prev) => ({
+                      ...prev,
+                      durationMonths: months,
+                      horizon: months >= 12 ? "anual" : "3_meses",
+                      target_value:
+                        prev.budgetFrequency === "mensal"
+                          ? prev.monthlyBudget * months
+                          : prev.target_value,
+                    }));
+                  }}
                 >
                   <SelectTrigger className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="3_meses">Projeto de 3 Meses (90 Dias)</SelectItem>
-                    <SelectItem value="anual">Planejamento Anual</SelectItem>
+                    <SelectItem value="1">Projeto de 1 Mês (30 Dias)</SelectItem>
+                    <SelectItem value="2">Projeto de 2 Meses (60 Dias)</SelectItem>
+                    <SelectItem value="3">Projeto de 3 Meses (90 Dias)</SelectItem>
+                    <SelectItem value="6">Projeto de 6 Meses</SelectItem>
+                    <SelectItem value="12">Planejamento Anual (12 Meses)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2466,8 +3086,8 @@ const Strategy = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Financeiro">Financeiro</SelectItem>
                     <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Financeiro">Financeiro</SelectItem>
                     <SelectItem value="Operação">Operação & Estúdio</SelectItem>
                     <SelectItem value="Mentoria">Cursos & Mentoria</SelectItem>
                   </SelectContent>
@@ -2475,39 +3095,163 @@ const Strategy = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Meta Financeira do Projeto (Opcional)</Label>
-                <CurrencyInput
-                  value={projectForm.target_value}
-                  onChange={(val) => setProjectForm((prev) => ({ ...prev, target_value: val }))}
-                />
+            {/* Tipo de Meta & Valor (Mensal ou Total) */}
+            <div className="p-3.5 rounded-xl border bg-muted/15 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Tipo de Meta</Label>
+                  <Select
+                    value={projectForm.goalType}
+                    onValueChange={(val: any) =>
+                      setProjectForm((prev) => ({
+                        ...prev,
+                        goalType: val,
+                        enableAcquisition:
+                          val === "aquisicao" || val === "hibrido" ? true : prev.enableAcquisition,
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-10 text-xs bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="investimento">Meta de Investimento (Tráfego)</SelectItem>
+                      <SelectItem value="aquisicao">Meta de Aquisição (Leads / Clientes)</SelectItem>
+                      <SelectItem value="hibrido">Investimento + Aquisição</SelectItem>
+                      <SelectItem value="faturamento">Meta de Faturamento (Receita)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">
+                      {projectForm.goalType === "faturamento"
+                        ? "Meta Mensal (R$)"
+                        : "Investimento por Mês (R$)"}
+                    </Label>
+                    <span className="text-[11px] font-semibold text-primary">
+                      Total ({projectForm.durationMonths}m): R${" "}
+                      {(
+                        Number(projectForm.monthlyBudget || 0) * Number(projectForm.durationMonths || 1)
+                      ).toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                  <CurrencyInput
+                    className="h-10 bg-background"
+                    value={projectForm.monthlyBudget}
+                    onChange={(val) =>
+                      setProjectForm((prev) => ({
+                        ...prev,
+                        budgetFrequency: "mensal",
+                        monthlyBudget: val,
+                        target_value: val * prev.durationMonths,
+                      }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Progresso Inicial (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={projectForm.progress}
-                  onChange={(e) =>
-                    setProjectForm((prev) => ({
-                      ...prev,
-                      progress: Math.min(100, Math.max(0, Number(e.target.value || 0))),
-                    }))
-                  }
-                  className="h-11"
-                />
+
+              {/* Meta de Aquisição (Opcional / Configurável) */}
+              <div className="pt-1">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={
+                      projectForm.enableAcquisition ||
+                      projectForm.goalType === "aquisicao" ||
+                      projectForm.goalType === "hibrido"
+                    }
+                    onChange={(e) =>
+                      setProjectForm((prev) => ({
+                        ...prev,
+                        enableAcquisition: e.target.checked,
+                      }))
+                    }
+                    className="rounded border-border accent-primary"
+                  />
+                  <span>Configurar também uma meta de aquisição (leads, orçamentos ou sessões)</span>
+                </label>
+
+                {(projectForm.enableAcquisition ||
+                  projectForm.goalType === "aquisicao" ||
+                  projectForm.goalType === "hibrido") && (
+                  <div className="grid grid-cols-2 gap-2.5 mt-2.5 pt-2.5 border-t">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold">Indicador</Label>
+                      <Select
+                        value={projectForm.acquisitionMetric}
+                        onValueChange={(val: any) =>
+                          setProjectForm((prev) => ({ ...prev, acquisitionMetric: val }))
+                        }
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="conversas_whatsapp">Conversas no WhatsApp</SelectItem>
+                          <SelectItem value="orcamentos">Orçamentos Enviados</SelectItem>
+                          <SelectItem value="sessoes_fechadas">Sessões Fechadas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold">Quantidade Alvo / Mês</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={projectForm.acquisitionTarget}
+                        onChange={(e) =>
+                          setProjectForm((prev) => ({
+                            ...prev,
+                            acquisitionTarget: Math.max(0, Number(e.target.value || 0)),
+                          }))
+                        }
+                        className="h-9 text-xs bg-background"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">
-                Principais Entregas / Marcos (1 por linha)
-              </Label>
+            {/* Principais Entregas / Marcos com Sugestões Limpas */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">
+                  Principais Entregas / Marcos (1 por linha)
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  "Deixar 2 anúncios diferentes por mês rodando",
+                  "Fazer teste de criativo no mês",
+                  `Investir pelo menos R$ ${projectForm.monthlyBudget || 100}/mês`,
+                ].map((sug) => (
+                  <button
+                    key={sug}
+                    type="button"
+                    onClick={() =>
+                      setProjectForm((prev) => ({
+                        ...prev,
+                        milestonesText: prev.milestonesText.trim()
+                          ? `${prev.milestonesText.trim()}\n${sug}`
+                          : sug,
+                      }))
+                    }
+                    className="text-[11px] px-2 py-1 rounded-md border bg-muted/30 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors"
+                  >
+                    + {sug}
+                  </button>
+                ))}
+              </div>
+
               <Textarea
                 rows={4}
-                placeholder={"Ex:\nDefinir oferta e criativos\nGravar 10 vídeos para o público-alvo\nFechar 15 sessões de fechamento"}
+                placeholder={
+                  "Ex:\nInvestir pelo menos R$ 100,00 por mês durante 3 meses\nDeixar 2 anúncios diferentes por mês rodando\nFazer teste de criativo"
+                }
                 value={projectForm.milestonesText}
                 onChange={(e) =>
                   setProjectForm((prev) => ({ ...prev, milestonesText: e.target.value }))
@@ -2516,10 +3260,11 @@ const Strategy = () => {
               />
             </div>
 
+            {/* Documentação do Projeto */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Documentação do Projeto</Label>
+              <Label className="text-xs font-semibold">Documentação do Projeto (Opcional)</Label>
               <Textarea
-                rows={4}
+                rows={3}
                 placeholder="Anotações estratégicas, regras do projeto, links e referências..."
                 value={projectForm.content}
                 onChange={(e) => setProjectForm((prev) => ({ ...prev, content: e.target.value }))}
@@ -2527,6 +3272,7 @@ const Strategy = () => {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setProjectModalOpen(false)}>
               Cancelar
