@@ -13,7 +13,8 @@ import {
   Phone,
   CheckCircle2,
   LinkIcon,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ const Index = () => {
   const [appointmentsStatusData, setAppointmentsStatusData] = useState<any[]>([]);
   const [pendingAnamnesisAlerts, setPendingAnamnesisAlerts] = useState<any[]>([]);
   const [tomorrowAppointments, setTomorrowAppointments] = useState<any[]>([]);
+  const [tomorrowDropdownOpen, setTomorrowDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
@@ -176,6 +178,7 @@ const Index = () => {
       setTomorrowAppointments(tomorrowAppts.map(a => ({
         id: a.id,
         name: a.client?.name || "Cliente",
+        phone: a.client?.phone || "",
         time: `${a.start_time || a.startTime || ""} - ${a.end_time || a.endTime || ""}`,
       })));
 
@@ -437,41 +440,52 @@ const Index = () => {
         </div>
       )}
 
-      {/* Tomorrow Confirmation Alert */}
+      {/* Confirmações para Amanhã (Menu Suspenso Clean) */}
       {tomorrowAppointments.length > 0 && (
-        <div className="mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <Calendar className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Confirmações para Amanhã ({tomorrowAppointments.length})</h3>
-              <p className="text-sm text-muted-foreground">Envie mensagem rápida para confirmar presença dos clientes de amanhã.</p>
+        <div className="mb-3 rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setTomorrowDropdownOpen(prev => !prev)}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between gap-2 text-left hover:bg-muted/50 transition-colors focus:outline-hidden"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Calendar className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                Confirmações para Amanhã
+              </span>
+              <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold rounded-full bg-primary/10 text-primary">
+                {tomorrowAppointments.length}
+              </span>
             </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {tomorrowAppointments.slice(0, 2).map((appt, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-sm bg-background p-3 rounded-lg border shadow-sm">
-                <div className="flex flex-col min-w-0">
-                  <span className="font-medium text-foreground truncate">{appt.name}</span>
-                  <span className="text-xs text-muted-foreground">Amanhã às {appt.time}</span>
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                tomorrowDropdownOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {tomorrowDropdownOpen && (
+            <div className="px-3 pb-3 pt-2 border-t border-border/60 flex flex-col gap-1.5 bg-muted/20">
+              {tomorrowAppointments.map((appt, i) => (
+                <div key={appt.id || i} className="flex items-center justify-between gap-2 text-xs sm:text-sm bg-background px-3 py-2 rounded-lg border border-border/80">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-foreground truncate">{appt.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">• {appt.time}</span>
+                  </div>
+                  <a
+                    href={`https://wa.me/55${(appt.phone || "").replace(/\D/g, '')}?text=${encodeURIComponent(
+                      `Olá ${appt.name}! Passando para confirmar seu horário amanhã, dia ${new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('pt-BR')}, às ${appt.time}. Podemos confirmar?`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md text-xs font-semibold transition-colors shrink-0"
+                  >
+                    <Phone className="h-3 w-3" /> Confirmar
+                  </a>
                 </div>
-                <a
-                  href={`https://wa.me/55${(appt.phone || "").replace(/\D/g, '')}?text=${encodeURIComponent(
-                    `Olá ${appt.name}! Passando para confirmar seu horário amanhã, dia ${new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('pt-BR')}, às ${appt.time}. Podemos confirmar?`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md text-xs font-bold transition-colors shrink-0"
-                >
-                  <Phone className="h-3 w-3" /> Confirmar
-                </a>
-              </div>
-            ))}
-            {tomorrowAppointments.length > 2 && (
-              <p className="text-xs text-center text-muted-foreground">
-                + {tomorrowAppointments.length - 2} outros agendamentos para amanhã
-              </p>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
