@@ -31,6 +31,9 @@ import { supabase, supabasePublic } from "@/lib/supabase";
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  LabelList,
   LineChart,
   Line,
   Legend,
@@ -75,6 +78,7 @@ const Index = () => {
   const [todayClients, setTodayClients] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
+  const [clientAcquisitionData, setClientAcquisitionData] = useState<any[]>([]);
   const [appointmentsStatusData, setAppointmentsStatusData] = useState<any[]>([]);
   const [pendingAnamnesisAlerts, setPendingAnamnesisAlerts] = useState<any[]>([]);
   const [tomorrowAppointments, setTomorrowAppointments] = useState<any[]>([]);
@@ -223,6 +227,48 @@ const Index = () => {
         m.Lucro = m.Faturamento - m.Despesa;
       });
 
+      // Cálculo de Aquisição de Clientes Mês a Mês + Taxa Percentual
+      const firstApptByClient: Record<string, string> = {};
+      (appts || []).forEach((a: any) => {
+        const cid = a.client_id || a.client?.id;
+        if (!cid || !a.date || a.status === "Cancelado") return;
+        const normDate = a.date.includes("/") ? a.date.split("/").reverse().join("-") : a.date;
+        if (!firstApptByClient[cid] || normDate < firstApptByClient[cid]) {
+          firstApptByClient[cid] = normDate;
+        }
+      });
+
+      const acqMonths = Array.from({ length: 12 }, (_, i) => ({
+        name: ptBRMonths[i],
+        monthIndex: i,
+        novos: 0,
+        taxa: 0,
+        taxaLabel: "",
+      }));
+
+      (clients || []).forEach((c: any) => {
+        const rawDate = firstApptByClient[c.id] || (c.created_at ? String(c.created_at).slice(0, 10) : "");
+        if (!rawDate) return;
+        const d = new Date(rawDate.includes("/") ? rawDate.split("/").reverse().join("-") : rawDate);
+        if (!isNaN(d.getTime()) && d.getFullYear() === currentYear) {
+          const m = d.getMonth();
+          acqMonths[m].novos += 1;
+        }
+      });
+
+      acqMonths.forEach((item, idx) => {
+        const prev = idx > 0 ? acqMonths[idx - 1].novos : 0;
+        let taxa = 0;
+        if (prev > 0) {
+          taxa = Math.round(((item.novos - prev) / prev) * 100);
+        } else if (item.novos > 0) {
+          taxa = 100;
+        }
+        item.taxa = taxa;
+        item.taxaLabel = item.novos > 0 ? (taxa > 0 ? `+${taxa}%` : `${taxa}%`) : "";
+      });
+
+      setClientAcquisitionData(acqMonths);
 
       const monthlyAppts = (appts || []).filter((a: any) => a.date && a.date.startsWith(thisMonth));
       
@@ -533,69 +579,107 @@ const Index = () => {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Clients */}
-        <div className="bg-card rounded-xl border shadow-sm">
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-semibold text-foreground">
-              Próximos Clientes Hoje
-            </h2>
-          </div>
-          <div className="divide-y min-h-[200px]">
-            {loading ? (
-              <div className="p-12 text-center text-muted-foreground">Carregando...</div>
-            ) : todayClients.length > 0 ? (
-              todayClients.map((client, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-4 px-6 hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-primary">
-                      {client.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {client.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {client.type}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-foreground">
-                      {client.time}
-                    </span>
+        {/* Client Acquisition Chart (Month over Month + Percentage Rate) */}
+        <div className="bg-card rounded-xl border shadow-sm flex flex-col justify-between">
+          {(() => {
+            const currentMonthIdx = new Date().getMonth();
+            const currentMonthItem = clientAcquisitionData[currentMonthIdx];
+            const currentTaxa = currentMonthItem?.taxa ?? 0;
+            const activeMonths = clientAcquisitionData.filter((m) => m.novos > 0).slice(-4);
+
+            return (
+              <>
+                <div className="p-6 border-b flex items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Aquisição de Clientes ({new Date().getFullYear()})
+                  </h2>
+                  {currentMonthItem && (
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${client.status === "Confirmado" || client.status === "Concluído"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-warning/10 text-warning"
-                        }`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        currentTaxa >= 0
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
                     >
-                      {client.status}
+                      {currentTaxa >= 0 ? (
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5" />
+                      )}
+                      {currentTaxa > 0 ? `+${currentTaxa}%` : `${currentTaxa}%`} ({currentMonthItem.name})
                     </span>
-                    {client.status === 'Concluído' ? (
-                      <span className="text-xs text-muted-foreground flex items-center ml-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-primary" /> Baixa Concluída
-                      </span>
-                    ) : client.status !== 'Cancelado' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs px-2 rounded-full border-primary/20 text-primary hover:bg-primary/10 ml-2"
-                        onClick={() => openCheckout(client)}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        Pendente (Dar Baixa)
-                      </Button>
-                    ) : null}
-                  </div>
+                  )}
                 </div>
-              ))
-            ) : (
-              <div className="p-12 text-center text-muted-foreground">Nenhum agendamento para hoje.</div>
-            )}
-          </div>
+
+                <div className="p-6 flex flex-col gap-4">
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={clientAcquisitionData}
+                        margin={{ top: 18, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <RechartsTooltip
+                          contentStyle={{
+                            borderRadius: "8px",
+                            border: "1px solid #e2e8f0",
+                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                          }}
+                          itemStyle={{ fontSize: "12px", fontWeight: "600" }}
+                          labelStyle={{ fontSize: "12px", color: "#64748b", marginBottom: "2px" }}
+                          formatter={(value: number, _name: string, props: any) => {
+                            const taxa = props?.payload?.taxa ?? 0;
+                            const sign = taxa > 0 ? `+${taxa}%` : `${taxa}%`;
+                            return [`${value} clientes (${sign} vs. mês ant.)`, "Aquisição"];
+                          }}
+                        />
+                        <Bar
+                          dataKey="novos"
+                          name="Novos Clientes"
+                          fill="#2563eb"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={28}
+                        >
+                          <LabelList
+                            dataKey="taxaLabel"
+                            position="top"
+                            style={{ fontSize: "10px", fontWeight: 700, fill: "#0f172a" }}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {activeMonths.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
+                      {activeMonths.map((m) => (
+                        <div
+                          key={m.name}
+                          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-xs"
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-muted-foreground">{m.name}</span>
+                            <span className="font-bold text-foreground">{m.novos} clientes</span>
+                          </div>
+                          <span
+                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                              m.taxa >= 0
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {m.taxa > 0 ? `+${m.taxa}%` : `${m.taxa}%`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Recent Payments */}
