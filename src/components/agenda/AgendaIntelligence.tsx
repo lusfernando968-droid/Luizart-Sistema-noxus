@@ -8,10 +8,8 @@ import {
   MessageCircle,
   RefreshCw,
   Search,
-  Phone,
   ChevronDown,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { openWhatsApp } from "@/lib/whatsapp";
@@ -106,37 +104,6 @@ export function AgendaIntelligence({ appointments, clients }: any) {
     openWhatsApp(url);
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === "Concluído") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[10px] px-2 py-0 font-semibold bg-primary/10 text-primary border-primary/25"
-        >
-          Concluído
-        </Badge>
-      );
-    }
-    if (status === "Cancelado") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[10px] px-2 py-0 font-semibold bg-muted/40 text-muted-foreground border-border"
-        >
-          Cancelado
-        </Badge>
-      );
-    }
-    return (
-      <Badge
-        variant="outline"
-        className="text-[10px] px-2 py-0 font-semibold bg-muted text-foreground border-border"
-      >
-        {status || "Agendado"}
-      </Badge>
-    );
-  };
-
   const renderDropdownSection = (
     key: SectionKey,
     title: string,
@@ -153,10 +120,10 @@ export function AgendaIntelligence({ appointments, clients }: any) {
         <button
           type="button"
           onClick={() => toggleMenu(key)}
-          className="w-full px-3.5 sm:px-4 py-3.5 flex items-center justify-between gap-2 text-left hover:bg-muted/40 active:bg-muted/60 transition-colors focus:outline-hidden"
+          className="w-full px-3.5 py-2.5 sm:py-3 flex items-center justify-between gap-2 text-left hover:bg-muted/40 active:bg-muted/60 transition-colors focus:outline-hidden"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
               {icon}
             </div>
             <span className="text-xs sm:text-sm font-bold text-foreground truncate">{title}</span>
@@ -180,102 +147,84 @@ export function AgendaIntelligence({ appointments, clients }: any) {
           </div>
         </button>
 
-        {/* Conteúdo Expansível do Menu */}
+        {/* Conteúdo Expansível do Menu: Cards Compactos com Botão Discreto */}
         {isOpen && (
           <div className="border-t border-border/60 bg-muted/15">
             {list.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">{emptyMessage}</div>
+              <div className="p-5 text-center text-xs text-muted-foreground">{emptyMessage}</div>
             ) : (
-              <div className="p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-2.5 sm:p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                 {list.map((appt) => {
                   const clientObj = getClientObj(appt);
                   const resolvedName = getClientName(appt);
                   const resolvedStartTime = appt.startTime || appt.start_time || "";
-                  const resolvedEndTime = appt.endTime || appt.end_time || "";
-                  const timeRange = resolvedStartTime
-                    ? `${resolvedStartTime}${resolvedEndTime ? ` - ${resolvedEndTime}` : ""}`
-                    : "";
                   const resolvedPhone = clientObj?.phone || "";
                   const cleanDigits = resolvedPhone.replace(/\D/g, "");
                   const hasPhone = cleanDigits.length >= 10;
 
                   let wppMessage = "";
-                  let buttonLabel = "Chamar no WhatsApp";
                   if (key === "today") {
                     wppMessage = `Olá ${resolvedName}! Tudo certo para a nossa sessão de hoje${
                       resolvedStartTime ? ` às ${resolvedStartTime}` : ""
                     }?`;
-                    buttonLabel = "Confirmar Sessão de Hoje";
                   } else if (key === "tomorrow") {
                     wppMessage = `Olá ${resolvedName}! Passando para lembrar da nossa sessão de tatuagem amanhã${
                       resolvedStartTime ? ` às ${resolvedStartTime}` : ""
                     }. Até lá!`;
-                    buttonLabel = "Enviar Lembrete de Amanhã";
                   } else if (key === "7days") {
                     wppMessage = `Fala ${resolvedName}! Como está a cicatrização da tattoo que fizemos há uma semana? Tudo certinho?`;
-                    buttonLabel = "Perguntar da Cicatrização";
                   } else if (key === "2months") {
                     wppMessage = `Fala ${resolvedName}! Tudo bem? Já faz 2 meses da nossa última tattoo, ela já deve estar 100% cicatrizada! Bora pensar no próximo projeto?`;
-                    buttonLabel = "Chamar p/ Novo Projeto";
                   } else if (key === "1year") {
                     wppMessage = `Oie ${resolvedName}! Sabia que sua tattoo está fazendo 1 ano hoje? Parabéns! Já vamos planejar a próxima?`;
-                    buttonLabel = "Mandar Parabéns (1 Ano)";
                   }
 
                   return (
                     <div
                       key={appt.id}
-                      className="rounded-xl border border-border/80 bg-background overflow-hidden flex flex-col justify-between shadow-2xs hover:border-border transition-colors"
+                      className="rounded-lg border border-border/70 bg-background px-3 py-2 flex items-center justify-between gap-2.5 hover:border-border transition-colors"
                     >
-                      {/* Topo do Card: Avatar + Nome Padronizado (text-sm) + Etiquetas */}
-                      <div className="p-3.5 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 border border-primary/15">
-                            {clientObj?.avatar_url ? (
-                              <img
-                                src={clientObj.avatar_url}
-                                alt={resolvedName}
-                                className="h-full w-full rounded-xl object-cover"
-                              />
-                            ) : (
-                              resolvedName.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div className="min-w-0 space-y-1">
-                            <span className="font-bold text-sm text-foreground block truncate">
+                      {/* Esquerda: Avatar Compacto + Nome e Sublinha Única */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                          {clientObj?.avatar_url ? (
+                            <img
+                              src={clientObj.avatar_url}
+                              alt={resolvedName}
+                              className="h-full w-full rounded-full object-cover"
+                            />
+                          ) : (
+                            resolvedName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs sm:text-sm text-foreground truncate">
                               {resolvedName}
                             </span>
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                              {timeRange && (
-                                <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
-                                  <Clock className="w-3 h-3 text-muted-foreground" />
-                                  {timeRange}
-                                </span>
-                              )}
-                              <span className="inline-flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md border border-border/60 font-medium text-foreground/80">
-                                <Phone className="w-3 h-3 text-muted-foreground" />
-                                {formatPhoneDisplay(resolvedPhone)}
+                            {resolvedStartTime && (
+                              <span className="px-1.5 py-0.2 rounded bg-muted text-[10px] font-semibold text-muted-foreground shrink-0">
+                                {resolvedStartTime}
                               </span>
-                            </div>
+                            )}
                           </div>
+                          <span className="text-[11px] text-muted-foreground block truncate">
+                            {formatPhoneDisplay(resolvedPhone)}
+                          </span>
                         </div>
-
-                        <div className="shrink-0">{getStatusBadge(appt.status)}</div>
                       </div>
 
-                      {/* Recorte Inferior: Largo para Toque no Mobile, Compacto à Direita no Web */}
-                      <div className="px-3 py-2 bg-muted/30 border-t border-border/70 flex items-center justify-end">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          disabled={!hasPhone}
-                          onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
-                          className="h-8 w-full sm:w-auto sm:px-3.5 text-xs font-semibold gap-1.5 rounded-lg shadow-2xs"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">{buttonLabel}</span>
-                        </Button>
-                      </div>
+                      {/* Direita: Botão Discreto e Compacto */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!hasPhone}
+                        onClick={() => handleWhatsApp(resolvedPhone, wppMessage)}
+                        className="h-7 sm:h-8 px-2.5 text-[11px] font-semibold gap-1.5 rounded-lg bg-muted/30 border-border/80 hover:bg-accent text-foreground shrink-0"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>Chamar</span>
+                      </Button>
                     </div>
                   );
                 })}
@@ -324,11 +273,11 @@ export function AgendaIntelligence({ appointments, clients }: any) {
       </div>
 
       {/* Lista de Menus Suspensos Clean */}
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {renderDropdownSection(
           "tomorrow",
           "Agendamentos de Amanhã",
-          <CalendarClock className="w-4 h-4" />,
+          <CalendarClock className="w-3.5 h-3.5" />,
           categories.tomorrowList,
           "Nenhum agendamento para amanhã."
         )}
@@ -336,7 +285,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
         {renderDropdownSection(
           "7days",
           "Pós-Tatuagem (7 Dias)",
-          <CalendarHeart className="w-4 h-4" />,
+          <CalendarHeart className="w-3.5 h-3.5" />,
           categories.sevenDaysList,
           "Nenhuma tatuagem concluída há 7 dias."
         )}
@@ -344,7 +293,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
         {renderDropdownSection(
           "2months",
           "Retorno Pós-Tattoo (2 Meses)",
-          <RefreshCw className="w-4 h-4" />,
+          <RefreshCw className="w-3.5 h-3.5" />,
           categories.twoMonthsList,
           "Nenhuma tatuagem completou 2 meses hoje."
         )}
@@ -352,7 +301,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
         {renderDropdownSection(
           "1year",
           "Aniversário da Tattoo (1 Ano)",
-          <History className="w-4 h-4" />,
+          <History className="w-3.5 h-3.5" />,
           categories.oneYearList,
           "Nenhuma tatuagem completou 1 ano hoje."
         )}
@@ -360,7 +309,7 @@ export function AgendaIntelligence({ appointments, clients }: any) {
         {renderDropdownSection(
           "today",
           "Agendamentos de Hoje",
-          <Clock className="w-4 h-4" />,
+          <Clock className="w-3.5 h-3.5" />,
           categories.todayList,
           "Agenda livre hoje."
         )}
