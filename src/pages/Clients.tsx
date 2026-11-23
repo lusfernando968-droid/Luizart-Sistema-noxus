@@ -16,7 +16,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon, Droplet } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
@@ -50,6 +50,7 @@ interface Client {
   is_waitlist?: boolean;
   waitlist_notes?: string;
   waitlist_added_at?: string;
+  uses_anesthetic_cream?: boolean;
 
   lastVisit?: string;
 }
@@ -253,7 +254,8 @@ const Clients = () => {
         barter_history: Array.isArray(c.barter_history) ? c.barter_history : [],
         is_waitlist: Boolean(c.is_waitlist),
         waitlist_notes: c.waitlist_notes || "",
-        waitlist_added_at: c.waitlist_added_at || ""
+        waitlist_added_at: c.waitlist_added_at || "",
+        uses_anesthetic_cream: Boolean(c.uses_anesthetic_cream)
       }));
 
       setClients(formatted);
@@ -626,6 +628,29 @@ const Clients = () => {
     } catch (e) {
       console.error(e);
       toast.error("Erro ao atualizar status de permuta.");
+    }
+  };
+
+  const handleToggleAnestheticCream = async (client: Client) => {
+    try {
+      const newStatus = !client.uses_anesthetic_cream;
+      const { error } = await supabase
+        .from('clientes')
+        .update({ uses_anesthetic_cream: newStatus })
+        .eq('id', client.id);
+      if (error) throw error;
+      toast.success(
+        newStatus
+          ? "Pomada anestésica ativada (+1h automática na agenda)!"
+          : "Pomada anestésica removida do cliente."
+      );
+      if (selectedClient?.id === client.id) {
+        setSelectedClient({ ...client, uses_anesthetic_cream: newStatus });
+      }
+      await fetchClients();
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao atualizar pomada anestésica.");
     }
   };
 
@@ -1092,6 +1117,10 @@ const Clients = () => {
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 {client.is_barter ? "Desativar Permuta" : "Ativar Permuta"}
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleAnestheticCream(client)}>
+                                <Droplet className="mr-2 h-4 w-4" />
+                                {client.uses_anesthetic_cream ? "Remover Pomada Anestésica" : "Usa Pomada Anestésica (+1h)"}
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleToggleWaitlist(client)}>
                                 <Clock className="mr-2 h-4 w-4" />
                                 {client.is_waitlist ? "Remover da Espera" : "Colocar na Espera"}
@@ -1230,6 +1259,10 @@ const Clients = () => {
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {client.is_barter ? "Desativar Permuta" : "Ativar Permuta"}
                           </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleToggleAnestheticCream(client)}>
+                            <Droplet className="mr-2 h-4 w-4" />
+                            {client.uses_anesthetic_cream ? "Remover Pomada Anestésica" : "Usa Pomada Anestésica (+1h)"}
+                          </ContextMenuItem>
                           <ContextMenuItem onClick={() => handleToggleWaitlist(client)}>
                             <Clock className="mr-2 h-4 w-4" />
                             {client.is_waitlist ? "Remover da Lista de Espera" : "Colocar na Lista de Espera"}
@@ -1298,6 +1331,12 @@ const Clients = () => {
                               <span className="bg-muted text-foreground border border-border px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <Clock className="w-3 h-3 text-primary" />
                                 Lista de Espera
+                              </span>
+                            )}
+                            {selectedClient.uses_anesthetic_cream && (
+                              <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                <Droplet className="w-3 h-3" />
+                                Pomada Anestésica (+1h)
                               </span>
                             )}
                           </div>
@@ -1393,6 +1432,10 @@ const Clients = () => {
                             <DropdownMenuItem onClick={() => handleToggleBarter(selectedClient)}>
                               <RefreshCw className="h-4 w-4 mr-2" />
                               {selectedClient.is_barter ? 'Desativar Permuta' : 'Ativar Permuta'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleAnestheticCream(selectedClient)}>
+                              <Droplet className="h-4 w-4 mr-2" />
+                              {selectedClient.uses_anesthetic_cream ? 'Remover Pomada Anestésica' : 'Este cliente é Pomada Anestésica'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleToggleWaitlist(selectedClient)}>
                               <Clock className="h-4 w-4 mr-2" />

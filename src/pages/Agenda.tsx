@@ -28,7 +28,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange, BookOpen, Droplet } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
@@ -140,6 +140,21 @@ const Agenda = () => {
   
   const [clientJourneys, setClientJourneys] = useState<any[]>([]);
   const [loadingJourneys, setLoadingJourneys] = useState(false);
+  const anestheticExtraAppliedRef = useRef(false);
+
+  const shiftTimeByMinutes = (time: string, deltaMinutes: number) => {
+    const [h, m] = (time || "09:00").split(":").map(Number);
+    const total = Math.max(0, Math.min(23 * 60 + 59, (h || 0) * 60 + (m || 0) + deltaMinutes));
+    const nh = Math.floor(total / 60);
+    const nm = total % 60;
+    return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    if (!modalOpen) {
+      anestheticExtraAppliedRef.current = false;
+    }
+  }, [modalOpen]);
 
   useEffect(() => {
     if (formData.client_id) {
@@ -1516,12 +1531,29 @@ const Agenda = () => {
                             type="button"
                             className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
                             onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                client_id: client.id,
-                                journey_id: "",
-                                type: client.is_student ? "Mentoria" : "Tatuagem"
-                              }));
+                              const nextType = client.is_student ? "Mentoria" : "Tatuagem";
+                              const shouldApplyAnesthetic =
+                                !editingAppointment &&
+                                Boolean(client.uses_anesthetic_cream) &&
+                                nextType !== "Mentoria";
+
+                              setFormData(prev => {
+                                let nextEndTime = prev.endTime;
+                                if (shouldApplyAnesthetic && !anestheticExtraAppliedRef.current) {
+                                  nextEndTime = shiftTimeByMinutes(prev.endTime || "10:00", 60);
+                                  anestheticExtraAppliedRef.current = true;
+                                } else if (!shouldApplyAnesthetic && anestheticExtraAppliedRef.current) {
+                                  nextEndTime = shiftTimeByMinutes(prev.endTime || "11:00", -60);
+                                  anestheticExtraAppliedRef.current = false;
+                                }
+                                return {
+                                  ...prev,
+                                  client_id: client.id,
+                                  journey_id: "",
+                                  type: nextType,
+                                  endTime: nextEndTime
+                                };
+                              });
                               setClientDropdownOpen(false);
                               setClientSearch("");
                             }}
@@ -1535,11 +1567,18 @@ const Agenda = () => {
                               />
                               <span className="truncate font-medium">{client.name}</span>
                             </span>
-                            {client.is_student && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0 ml-2">
-                                <BookOpen className="w-3 h-3" /> Aluno
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1 shrink-0 ml-2">
+                              {client.uses_anesthetic_cream && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  <Droplet className="w-3 h-3" /> +1h
+                                </span>
+                              )}
+                              {client.is_student && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  <BookOpen className="w-3 h-3" /> Aluno
+                                </span>
+                              )}
+                            </span>
                           </button>
                         ))
                       )}
@@ -1563,7 +1602,16 @@ const Agenda = () => {
                       size="sm"
                       variant={formData.type === "Mentoria" ? "default" : "outline"}
                       className="h-9 rounded-lg text-xs gap-1.5 font-semibold"
-                      onClick={() => setFormData(prev => ({ ...prev, type: "Mentoria" }))}
+                      onClick={() => {
+                        setFormData(prev => {
+                          let nextEndTime = prev.endTime;
+                          if (!editingAppointment && anestheticExtraAppliedRef.current) {
+                            nextEndTime = shiftTimeByMinutes(prev.endTime || "11:00", -60);
+                            anestheticExtraAppliedRef.current = false;
+                          }
+                          return { ...prev, type: "Mentoria", endTime: nextEndTime };
+                        });
+                      }}
                     >
                       <BookOpen className="w-3.5 h-3.5" />
                       Mentoria
@@ -1573,7 +1621,21 @@ const Agenda = () => {
                       size="sm"
                       variant={formData.type !== "Mentoria" ? "default" : "outline"}
                       className="h-9 rounded-lg text-xs gap-1.5 font-semibold"
-                      onClick={() => setFormData(prev => ({ ...prev, type: "Tatuagem" }))}
+                      onClick={() => {
+                        const selectedClientObj = clients.find(c => c.id === formData.client_id);
+                        setFormData(prev => {
+                          let nextEndTime = prev.endTime;
+                          if (
+                            !editingAppointment &&
+                            selectedClientObj?.uses_anesthetic_cream &&
+                            !anestheticExtraAppliedRef.current
+                          ) {
+                            nextEndTime = shiftTimeByMinutes(prev.endTime || "10:00", 60);
+                            anestheticExtraAppliedRef.current = true;
+                          }
+                          return { ...prev, type: "Tatuagem", endTime: nextEndTime };
+                        });
+                      }}
                     >
                       Tatuagem
                     </Button>
@@ -1660,24 +1722,49 @@ const Agenda = () => {
             </div>
 
             {/* Horário de Início & Término */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">Início</Label>
-                <Input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
-                  className="h-11 rounded-xl bg-muted/20 border-border/80"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">Término</Label>
-                <Input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="h-11 rounded-xl bg-muted/20 border-border/80"
-                />
+            <div className="space-y-1.5">
+              {formData.client_id &&
+                formData.type !== "Mentoria" &&
+                clients.find(c => c.id === formData.client_id)?.uses_anesthetic_cream && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-[11px] font-semibold">
+                    <Droplet className="w-3.5 h-3.5" />
+                    <span>Pomada Anestésica (+1h)</span>
+                  </div>
+                )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Início</Label>
+                  <Input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setFormData(prev => {
+                        if (!editingAppointment && prev.startTime && prev.endTime && newStart) {
+                          const [sh, sm] = prev.startTime.split(":").map(Number);
+                          const [eh, em] = prev.endTime.split(":").map(Number);
+                          const currentDuration = Math.max(30, (eh * 60 + em) - (sh * 60 + sm));
+                          return {
+                            ...prev,
+                            startTime: newStart,
+                            endTime: shiftTimeByMinutes(newStart, currentDuration)
+                          };
+                        }
+                        return { ...prev, startTime: newStart };
+                      });
+                    }}
+                    className="h-11 rounded-xl bg-muted/20 border-border/80"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Término</Label>
+                  <Input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="h-11 rounded-xl bg-muted/20 border-border/80"
+                  />
+                </div>
               </div>
             </div>
 
