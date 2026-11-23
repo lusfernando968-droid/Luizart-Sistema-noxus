@@ -331,12 +331,16 @@ const Index = () => {
 
       // 2. Insert into financial if Recebido
       if (checkoutData.status === 'Recebido') {
+        const isMentoriaCheckout =
+          String(selectedCheckout.name || "").toLowerCase().includes("mentoria") ||
+          String(selectedCheckout.style || "").toLowerCase().includes("mentoria");
         const { error: finError } = await supabase.from('financial_transactions').insert([{
           description: `Sessão de Tattoo - ${selectedCheckout.name}`,
           type: "entrada",
           value: checkoutData.value,
           date: new Date().toISOString().split("T")[0],
           status: "Pago",
+          category: isMentoriaCheckout ? "mentoria" : "tatuagem",
           drive_link: checkoutData.driveLink,
           appointment_id: selectedCheckout.id
         }]);

@@ -691,6 +691,7 @@ const Agenda = () => {
               date: formData.deposit_date || formData.date,
               type: "entrada",
               status: "Pago",
+              category: "sinal",
               drive_link: formData.deposit_link,
               is_deductible: false,
               appointment_id: savedApptId
@@ -868,12 +869,16 @@ const Agenda = () => {
 
       // 2. Se for "Recebido", lançar no financeiro
       if (checkoutData.status === 'Recebido') {
+        const isMentoriaCheckout =
+          String(selectedCheckout.client_name || "").toLowerCase().includes("mentoria") ||
+          String(selectedCheckout.style || "").toLowerCase().includes("mentoria");
         const { error: finError } = await supabase.from('financial_transactions').insert([{
           description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
           type: "entrada",
           value: checkoutData.value,
           date: new Date().toISOString().split("T")[0],
           status: "Pago",
+          category: isMentoriaCheckout ? "mentoria" : "tatuagem",
           drive_link: checkoutData.driveLink,
           appointment_id: selectedCheckout.id
         }]);

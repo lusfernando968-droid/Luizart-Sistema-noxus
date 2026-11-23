@@ -6,10 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
-import { ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet, DollarSign, Activity } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet, DollarSign, Activity, PieChart } from "lucide-react";
+import {
+  PRIMARY_FINANCIAL_CATEGORIES,
+  FinancialCategory,
+  resolveFinancialCategory,
+  getFinancialCategoryLabel,
+} from "@/lib/financialCategories";
 
 export function FinancialRegistry({ transactions }: any) {
   const [typeFilter, setTypeFilter] = useState("Todos");
+  const [categoryFilter, setCategoryFilter] = useState<FinancialCategory | "Todos">("Todos");
   const currentYyyyMm = format(new Date(), "yyyy-MM");
   const [monthFilter, setMonthFilter] = useState(currentYyyyMm);
 
@@ -47,6 +54,56 @@ export function FinancialRegistry({ transactions }: any) {
       return true;
     }).sort((a: any, b: any) => parseBrazilianDate(b.date).getTime() - parseBrazilianDate(a.date).getTime());
   }, [transactions, typeFilter, monthFilter]);
+
+  const categoryBreakdown = useMemo(() => {
+    const entradas = filteredTransactions.filter((t: any) => t.type === "entrada");
+    const totals: Record<FinancialCategory, { value: number; count: number }> = {
+      tatuagem: { value: 0, count: 0 },
+      sinal: { value: 0, count: 0 },
+      mentoria: { value: 0, count: 0 },
+      aula: { value: 0, count: 0 },
+      produto: { value: 0, count: 0 },
+      outros: { value: 0, count: 0 },
+    };
+
+    entradas.forEach((t: any) => {
+      const cat = resolveFinancialCategory(t);
+      totals[cat].value += Number(t.value) || 0;
+      totals[cat].count += 1;
+    });
+
+    const totalEntradas = entradas.reduce((acc: number, t: any) => acc + (Number(t.value) || 0), 0);
+
+    const items = PRIMARY_FINANCIAL_CATEGORIES.map((meta) => {
+      const data = totals[meta.key];
+      const percent = totalEntradas > 0 ? (data.value / totalEntradas) * 100 : 0;
+      return {
+        ...meta,
+        value: data.value,
+        count: data.count,
+        percent,
+      };
+    });
+
+    if (totals.outros.count > 0) {
+      items.push({
+        key: "outros",
+        label: "Outros",
+        value: totals.outros.value,
+        count: totals.outros.count,
+        percent: totalEntradas > 0 ? (totals.outros.value / totalEntradas) * 100 : 0,
+      });
+    }
+
+    return items;
+  }, [filteredTransactions]);
+
+  const tableTransactions = useMemo(() => {
+    if (categoryFilter === "Todos") return filteredTransactions;
+    return filteredTransactions.filter(
+      (t: any) => t.type === "entrada" && resolveFinancialCategory(t) === categoryFilter
+    );
+  }, [filteredTransactions, categoryFilter]);
 
   const metrics = useMemo(() => {
     const totalEntradas = filteredTransactions
@@ -224,6 +281,68 @@ export function FinancialRegistry({ transactions }: any) {
         </div>
       </div>
 
+      {typeFilter !== "saida" && (
+        <Card className="border-border shadow-sm">
+          <CardHeader className="py-4 flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <PieChart className="w-4 h-4 text-foreground" />
+              Repartição de Faturamento
+            </CardTitle>
+            {categoryFilter !== "Todos" && (
+              <button
+                type="button"
+                onClick={() => setCategoryFilter("Todos")}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Limpar filtro
+              </button>
+            )}
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className={`grid grid-cols-2 sm:grid-cols-3 ${categoryBreakdown.length > 5 ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-3`}>
+              {categoryBreakdown.map((item) => {
+                const isSelected = categoryFilter === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setCategoryFilter(isSelected ? "Todos" : item.key)}
+                    className={`text-left rounded-lg border p-3 transition-colors ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-border bg-card hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-medium text-muted-foreground truncate">
+                        {item.label}
+                      </span>
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        {item.percent.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="text-base sm:text-lg font-bold text-foreground mt-1">
+                      R$ {item.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isSelected ? "bg-primary" : "bg-foreground/75"
+                        }`}
+                        style={{ width: `${Math.min(100, item.percent)}%` }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1.5">
+                      {item.count} {item.count === 1 ? "lançamento" : "lançamentos"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-border shadow-sm">
         <CardHeader className="py-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -254,11 +373,16 @@ export function FinancialRegistry({ transactions }: any) {
       </Card>
 
       <Card className="border-border shadow-sm overflow-hidden">
-        <CardHeader className="py-4 bg-muted/30 border-b">
+        <CardHeader className="py-4 bg-muted/30 border-b flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-sm font-semibold">Histórico Detalhado</CardTitle>
+          {categoryFilter !== "Todos" && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {getFinancialCategoryLabel(categoryFilter)}
+            </Badge>
+          )}
         </CardHeader>
         <div className="overflow-x-auto">
-          {filteredTransactions.length === 0 ? (
+          {tableTransactions.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma transação encontrada com os filtros atuais.</div>
           ) : (
             <Table>
@@ -266,18 +390,28 @@ export function FinancialRegistry({ transactions }: any) {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-semibold text-xs">Data</TableHead>
                   <TableHead className="font-semibold text-xs">Descrição</TableHead>
+                  <TableHead className="font-semibold text-xs">Categoria</TableHead>
                   <TableHead className="font-semibold text-xs">Tipo</TableHead>
                   <TableHead className="font-semibold text-xs text-right">Valor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.map((t: any) => (
+                {tableTransactions.map((t: any) => (
                   <TableRow key={t.id} className="hover:bg-accent/30 transition-colors">
                     <TableCell className="text-xs font-medium whitespace-nowrap">
                       {t.date ? format(parseBrazilianDate(t.date), "dd/MM/yyyy") : "-"}
                     </TableCell>
                     <TableCell className="text-xs">
                       {t.description}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {t.type === 'entrada' ? (
+                        <Badge variant="secondary" className="text-[11px] font-medium">
+                          {getFinancialCategoryLabel(resolveFinancialCategory(t))}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {t.type === 'entrada' ? (

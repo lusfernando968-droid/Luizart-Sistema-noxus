@@ -16,7 +16,8 @@ import { FiscalShieldCard } from "@/components/financial/FiscalShieldCard";
 import { ReceiptGeneratorModal } from "@/components/financial/ReceiptGeneratorModal";
 import { TaxReportModal } from "@/components/financial/TaxReportModal";
 import { FinancialRegistry } from "@/components/financial/FinancialRegistry";
-import { FileSpreadsheet, LineChart } from "lucide-react";
+import { FileSpreadsheet, LineChart, Tag } from "lucide-react";
+import { ALL_FINANCIAL_CATEGORIES, FinancialCategory } from "@/lib/financialCategories";
 
 interface Transaction {
   id: string;
@@ -25,6 +26,7 @@ interface Transaction {
   date: string;
   type: "entrada" | "saida";
   status: string;
+  category?: FinancialCategory | null;
   driveLink?: string;
   isDeductible?: boolean;
 }
@@ -62,6 +64,7 @@ const Financial = () => {
     date: new Date().toISOString().split("T")[0],
     type: "entrada" as "entrada" | "saida",
     status: "Pago",
+    category: "tatuagem" as FinancialCategory,
     driveLink: "",
     isDeductible: false
   });
@@ -80,6 +83,7 @@ const Financial = () => {
         date: typeof t.date === 'string' && t.date.includes('-') ? t.date.substring(0, 10).split('-').reverse().join('/') : String(t.date || ''),
         type: t.type as "entrada" | "saida",
         status: t.status,
+        category: t.category || null,
         driveLink: t.driveLink || t.drive_link,
         isDeductible: t.isDeductible || t.is_deductible
       }));
@@ -120,6 +124,7 @@ const Financial = () => {
         date: formData.date,
         type: formData.type,
         status: formData.status,
+        category: formData.type === "entrada" ? formData.category : null,
         drive_link: formData.driveLink,
         is_deductible: formData.isDeductible
       };
@@ -135,6 +140,7 @@ const Financial = () => {
         date: new Date().toISOString().split("T")[0],
         type: "entrada",
         status: "Pago",
+        category: "tatuagem",
         driveLink: "",
         isDeductible: false
       });
@@ -503,6 +509,27 @@ const Financial = () => {
                 </Select>
               </div>
             </div>
+
+            {formData.type === "entrada" && (
+              <div>
+                <Label className="flex items-center gap-1.5 text-xs"><Tag className="w-3.5 h-3.5 text-muted-foreground" /> Categoria</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(v) => setFormData({ ...formData, category: v as FinancialCategory })}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_FINANCIAL_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Campo de Link do Google Drive */}
             <div>
