@@ -16,7 +16,7 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator
 } from "@/components/ui/context-menu";
-import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon, Droplet } from "lucide-react";
+import { Search, Plus, Phone, Instagram, ChevronRight, ChevronDown, ChevronUp, Camera, User, CheckCircle2, AlertCircle, Pencil, Trash2, MessageCircle, Clock, ExternalLink, Filter, Calendar, MessageSquare, ClipboardList, HeartPulse, CheckCircle, List, LayoutDashboard, FileText, Users, History, Target, Ghost, BookOpen, Play, MoreVertical, BrainCircuit, RefreshCw, FileSpreadsheet, Zap, Table as TableIcon, Droplet, Settings } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
@@ -157,6 +157,8 @@ const Clients = () => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [tempNotes, setTempNotes] = useState("");
   const [notesExpanded, setNotesExpanded] = useState(true);
+  const [sessionsExpanded, setSessionsExpanded] = useState(false);
+  const [clientActionsModalOpen, setClientActionsModalOpen] = useState(false);
 
   // Permuta States
   const [barterExpanded, setBarterExpanded] = useState(true);
@@ -189,6 +191,8 @@ const Clients = () => {
       setBarterMoveAmount(0);
       setBarterMoveNote("");
       setBarterExpanded(true);
+      setSessionsExpanded(false);
+      setClientActionsModalOpen(false);
     }
   }, [selectedClient?.id]);
 
@@ -1298,14 +1302,14 @@ const Clients = () => {
         </TabsContent>
 
         <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
-          <DialogContent className="w-[95vw] sm:w-[95vw] sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
+          <DialogContent className="w-[96vw] sm:w-[95vw] sm:max-w-[780px] max-h-[92vh] overflow-y-auto p-0 border-0 gap-0 bg-transparent shadow-none">
             <div className="bg-background rounded-xl overflow-x-hidden w-full">
               {selectedClient && (
-                <div className="space-y-6 p-4 sm:p-6">
-                  <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pr-6 sm:pr-8 md:pr-0">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="h-16 w-16 rounded-full bg-primary/10 text-primary font-bold text-xl flex items-center justify-center shrink-0">
+                <div className="space-y-3.5 sm:space-y-5 p-3 sm:p-5">
+                  <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 text-foreground space-y-4">
+                    <div className="flex items-start justify-between gap-3 pr-7 sm:pr-8">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                        <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-primary/10 text-primary font-bold text-lg sm:text-xl flex items-center justify-center shrink-0">
                           {selectedClient.avatar_url ? (
                             <img src={selectedClient.avatar_url} alt={selectedClient.name} className="h-full w-full rounded-full object-cover" />
                           ) : (
@@ -1313,34 +1317,34 @@ const Clients = () => {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className="text-2xl font-bold leading-tight truncate">{selectedClient.name}</h2>
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <h2 className="text-lg sm:text-2xl font-bold leading-tight truncate">{selectedClient.name}</h2>
                             {selectedClient.is_student && (
-                              <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <BookOpen className="w-3 h-3" />
                                 Aluno
                               </span>
                             )}
                             {selectedClient.is_barter && (
-                              <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <RefreshCw className="w-3 h-3" />
                                 Permuta{selectedClient.barter_description ? `: ${selectedClient.barter_description}` : ""}
                               </span>
                             )}
                             {selectedClient.is_waitlist && (
-                              <span className="bg-muted text-foreground border border-border px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="bg-muted text-foreground border border-border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <Clock className="w-3 h-3 text-primary" />
                                 Lista de Espera
                               </span>
                             )}
                             {selectedClient.uses_anesthetic_cream && (
-                              <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                                 <Droplet className="w-3 h-3" />
                                 Pomada Anestésica (+1h)
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium truncate mt-1 flex-wrap">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground font-medium mt-1 flex-wrap">
                             {selectedClient.phone && selectedClient.phone !== "Não informado" ? (
                               <a
                                 href={`https://wa.me/55${selectedClient.phone.replace(/\D/g, '')}`}
@@ -1375,105 +1379,37 @@ const Clients = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pt-1 md:justify-end shrink-0 md:max-w-[50%]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem 
-                              className="text-primary font-medium focus:bg-primary/10 focus:text-primary"
-                              onClick={async () => {
-                                const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
-                                const latestJourney = clientJourneys.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-                                
-                                if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
-                                  try {
-                                    const { data, error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
-                                    if (error) throw error;
-                                    await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
-                                    toast.success("Nova jornada criada! Ela já está disponível no histórico.");
-                                    await fetchClients();
-                                  } catch (e) {
-                                    console.error(e);
-                                    toast.error("Erro ao criar jornada.");
-                                  }
-                                } else {
-                                  setPlaybookJourneyId(latestJourney.id);
-                                  setPlaybookClient(selectedClient);
-                                  setPlaybookModalOpen(true);
-                                }
-                              }}
-                            >
-                              <Play className="h-4 w-4 mr-2" />
-                              {journeys.filter(j => j.client_id === selectedClient.id).some(j => j.status !== 'Concluído') ? "Continuar Jornada" : "Iniciar Nova Jornada"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={async () => {
-                                try {
-                                  const newStatus = !selectedClient.is_student;
-                                  const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', selectedClient.id);
-                                  if (error) throw error;
-                                  toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
-                                  setSelectedClient({ ...selectedClient, is_student: newStatus });
-                                  await fetchClients();
-                                } catch (e) {
-                                  console.error(e);
-                                  toast.error("Erro ao atualizar status de aluno.");
-                                }
-                              }}
-                            >
-                              <BookOpen className="h-4 w-4 mr-2" />
-                              {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleBarter(selectedClient)}>
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              {selectedClient.is_barter ? 'Desativar Permuta' : 'Ativar Permuta'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleAnestheticCream(selectedClient)}>
-                              <Droplet className="h-4 w-4 mr-2" />
-                              {selectedClient.uses_anesthetic_cream ? 'Remover Pomada Anestésica' : 'Este cliente é Pomada Anestésica'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleWaitlist(selectedClient)}>
-                              <Clock className="h-4 w-4 mr-2" />
-                              {selectedClient.is_waitlist ? 'Remover da Lista de Espera' : 'Colocar na Lista de Espera'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditModal(selectedClient)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Editar Cliente
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleDeleteClient} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir Cliente
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setClientActionsModalOpen(true)}
+                        className="h-9 w-9 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
+                        title="Ações do cliente"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </Button>
                     </div>
 
-                    <div className="pt-4 border-t border-border/60">
-                      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">CRM:</span>
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">{selectedClient.status}</span>
+                    <div className="pt-3.5 border-t border-border/60">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-medium text-muted-foreground block">CRM</span>
+                          <span className="inline-block bg-primary/10 text-primary px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider">{selectedClient.status}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">Sessões:</span>
-                          <span>{selectedClient.sessions}</span>
+
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-medium text-muted-foreground block">Sessões</span>
+                          <span className="font-semibold text-foreground">{selectedClient.sessions}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">Última Visita:</span>
-                          <span>{selectedClient.lastVisit || 'N/A'}</span>
+
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-medium text-muted-foreground block">Última Visita</span>
+                          <span className="font-semibold text-foreground">{selectedClient.lastVisit || 'N/A'}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">Faturamento:</span>
+
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-medium text-muted-foreground block">Faturamento</span>
                           <span className="font-bold text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedClient.totalInvoiced || 0)}</span>
                         </div>
                       </div>
@@ -1780,7 +1716,7 @@ const Clients = () => {
                   </div>
 
                   {/* Aba de Jornadas / Projetos do Cliente */}
-                    <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
+                    <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 text-foreground space-y-4">
                       <div className="flex items-center justify-between border-b pb-3">
                         <div className="flex items-center gap-3">
                           <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
@@ -1897,18 +1833,33 @@ const Clients = () => {
                       </div>
                     </div>
 
-                    {/* Aba de Histórico e Comprovantes do Cliente */}
-                  <div className="bg-card rounded-xl border shadow-sm p-6 text-foreground space-y-4">
-                    <div className="flex items-center justify-between border-b pb-3">
-                      <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
-                        <History className="h-4 w-4 text-primary" />
-                        Histórico de Agendamentos & Comprovantes no Drive
-                      </h3>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {clientSessions.length} registros
-                      </span>
-                    </div>
+                    {/* Aba de Histórico e Comprovantes do Cliente (Expansível) */}
+                  <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 text-foreground space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setSessionsExpanded(!sessionsExpanded)}
+                      className={`w-full flex items-center justify-between gap-2 text-left ${sessionsExpanded ? "border-b pb-3" : ""}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <History className="h-4 w-4 text-primary shrink-0" />
+                        <h3 className="font-bold text-sm sm:text-base text-foreground truncate">
+                          Histórico de Agendamentos & Comprovantes
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[11px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                          {clientSessions.length}
+                        </span>
+                        {sessionsExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
 
+                    {sessionsExpanded && (
+                      <div className="pt-1 animate-in fade-in duration-150">
                     {loadingSessions ? (
                       <p className="text-xs text-center p-4 text-muted-foreground">Carregando histórico financeiro...</p>
                     ) : clientSessions.length > 0 ? (
@@ -2026,10 +1977,150 @@ const Clients = () => {
                         Nenhum agendamento ou recebimento registrado para este cliente.
                       </p>
                     )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mini Janela (Pop-up) de Ações do Cliente */}
+        <Dialog open={clientActionsModalOpen} onOpenChange={setClientActionsModalOpen}>
+          <DialogContent className="w-[92vw] sm:max-w-[380px] rounded-xl p-5">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Settings className="h-4 w-4 text-primary" />
+                {selectedClient?.name || "Ações do Cliente"}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedClient && (
+              <div className="flex flex-col gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-medium text-primary hover:text-primary hover:bg-primary/10"
+                  onClick={async () => {
+                    setClientActionsModalOpen(false);
+                    const clientJourneys = journeys.filter(j => j.client_id === selectedClient.id);
+                    const latestJourney = clientJourneys.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+                    if (clientJourneys.length === 0 || (latestJourney && latestJourney.status === 'Concluído')) {
+                      try {
+                        const { error } = await supabase.from('journeys').insert([{ client_id: selectedClient.id, status: 'Orçamento' }]).select().single();
+                        if (error) throw error;
+                        await supabase.from('clientes').update({ status: 'Orçamento' }).eq('id', selectedClient.id);
+                        toast.success("Nova jornada criada! Ela já está disponível no histórico.");
+                        await fetchClients();
+                      } catch (e) {
+                        console.error(e);
+                        toast.error("Erro ao criar jornada.");
+                      }
+                    } else {
+                      setPlaybookJourneyId(latestJourney.id);
+                      setPlaybookClient(selectedClient);
+                      setPlaybookModalOpen(true);
+                    }
+                  }}
+                >
+                  <Play className="h-4 w-4 mr-2.5 shrink-0" />
+                  {journeys.filter(j => j.client_id === selectedClient.id).some(j => j.status !== 'Concluído') ? "Continuar Jornada" : "Iniciar Nova Jornada"}
+                </Button>
+
+                <div className="h-px bg-border my-1" />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-normal"
+                  onClick={async () => {
+                    setClientActionsModalOpen(false);
+                    try {
+                      const newStatus = !selectedClient.is_student;
+                      const { error } = await supabase.from('clientes').update({ is_student: newStatus }).eq('id', selectedClient.id);
+                      if (error) throw error;
+                      toast.success(newStatus ? "Registrado como aluno!" : "Removido dos alunos.");
+                      setSelectedClient({ ...selectedClient, is_student: newStatus });
+                      await fetchClients();
+                    } catch (e) {
+                      console.error(e);
+                      toast.error("Erro ao atualizar status de aluno.");
+                    }
+                  }}
+                >
+                  <BookOpen className="h-4 w-4 mr-2.5 shrink-0 text-muted-foreground" />
+                  {selectedClient.is_student ? 'Remover Aluno' : 'Registrar como Aluno'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-normal"
+                  onClick={() => {
+                    setClientActionsModalOpen(false);
+                    handleToggleBarter(selectedClient);
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2.5 shrink-0 text-muted-foreground" />
+                  {selectedClient.is_barter ? 'Desativar Permuta' : 'Ativar Permuta'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-normal"
+                  onClick={() => {
+                    setClientActionsModalOpen(false);
+                    handleToggleAnestheticCream(selectedClient);
+                  }}
+                >
+                  <Droplet className="h-4 w-4 mr-2.5 shrink-0 text-muted-foreground" />
+                  {selectedClient.uses_anesthetic_cream ? 'Remover Pomada Anestésica' : 'Este cliente é Pomada Anestésica'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-normal"
+                  onClick={() => {
+                    setClientActionsModalOpen(false);
+                    handleToggleWaitlist(selectedClient);
+                  }}
+                >
+                  <Clock className="h-4 w-4 mr-2.5 shrink-0 text-muted-foreground" />
+                  {selectedClient.is_waitlist ? 'Remover da Lista de Espera' : 'Colocar na Lista de Espera'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-normal"
+                  onClick={() => {
+                    setClientActionsModalOpen(false);
+                    openEditModal(selectedClient);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2.5 shrink-0 text-muted-foreground" />
+                  Editar Cliente
+                </Button>
+
+                <div className="h-px bg-border my-1" />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="justify-start h-10 px-3 text-sm font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    setClientActionsModalOpen(false);
+                    handleDeleteClient();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2.5 shrink-0" />
+                  Excluir Cliente
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
