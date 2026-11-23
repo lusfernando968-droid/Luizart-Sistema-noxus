@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend, PieChart as RechartsPieChart, Pie } from "recharts";
 import { ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet, DollarSign, Activity, PieChart } from "lucide-react";
 import {
   PRIMARY_FINANCIAL_CATEGORIES,
@@ -13,6 +13,15 @@ import {
   resolveFinancialCategory,
   getFinancialCategoryLabel,
 } from "@/lib/financialCategories";
+
+const CATEGORY_COLORS: Record<FinancialCategory, string> = {
+  tatuagem: "#1e293b",
+  sinal: "#2563eb",
+  mentoria: "#0d9488",
+  aula: "#d97706",
+  produto: "#7c3aed",
+  outros: "#94a3b8",
+};
 
 export function FinancialRegistry({ transactions }: any) {
   const [typeFilter, setTypeFilter] = useState("Todos");
@@ -82,6 +91,7 @@ export function FinancialRegistry({ transactions }: any) {
         value: data.value,
         count: data.count,
         percent,
+        color: CATEGORY_COLORS[meta.key],
       };
     });
 
@@ -92,11 +102,17 @@ export function FinancialRegistry({ transactions }: any) {
         value: totals.outros.value,
         count: totals.outros.count,
         percent: totalEntradas > 0 ? (totals.outros.value / totalEntradas) * 100 : 0,
+        color: CATEGORY_COLORS.outros,
       });
     }
 
     return items;
   }, [filteredTransactions]);
+
+  const pieChartData = useMemo(
+    () => categoryBreakdown.filter((item) => item.value > 0),
+    [categoryBreakdown]
+  );
 
   const tableTransactions = useMemo(() => {
     if (categoryFilter === "Todos") return filteredTransactions;
@@ -170,20 +186,17 @@ export function FinancialRegistry({ transactions }: any) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
-            Registros e Métricas Financeiras
-          </h2>
-          <p className="text-xs text-muted-foreground">Visão geral das suas movimentações e histórico completo.</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-card border rounded-md px-3 py-1.5 shadow-sm">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+          <FileSpreadsheet className="w-5 h-5 text-primary shrink-0" />
+          Registros e Métricas
+        </h2>
+
+        <div className="grid grid-cols-1 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-card border rounded-md px-3 py-1.5 shadow-sm w-full sm:w-auto">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="h-7 border-0 shadow-none focus:ring-0 p-0 w-[160px] text-xs font-medium bg-transparent">
+              <SelectTrigger className="h-7 border-0 shadow-none focus:ring-0 p-0 w-full sm:w-[160px] text-xs font-medium bg-transparent">
                 <SelectValue placeholder="Mês" />
               </SelectTrigger>
               <SelectContent>
@@ -195,10 +208,10 @@ export function FinancialRegistry({ transactions }: any) {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2 bg-card border rounded-md px-3 py-1.5 shadow-sm">
-            <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-2 bg-card border rounded-md px-3 py-1.5 shadow-sm w-full sm:w-auto">
+            <Activity className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="h-7 border-0 shadow-none focus:ring-0 p-0 w-[130px] text-xs font-medium bg-transparent">
+              <SelectTrigger className="h-7 border-0 shadow-none focus:ring-0 p-0 w-full sm:w-[140px] text-xs font-medium bg-transparent">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -212,8 +225,8 @@ export function FinancialRegistry({ transactions }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="col-span-1 md:col-span-3 border-border shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <Card className="col-span-1 lg:col-span-3 border-border shadow-sm min-w-0">
           <CardHeader className="py-4">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-foreground" />
@@ -223,13 +236,14 @@ export function FinancialRegistry({ transactions }: any) {
           <CardContent className="pb-4">
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip 
                     cursor={{fill: 'rgba(0,0,0,0.05)'}}
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     itemStyle={{ fontSize: '13px', fontWeight: '600' }}
                     labelStyle={{ fontSize: '12px', color: '#64748b' }}
+                    formatter={(value: number) => `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   />
                   <Bar dataKey="valor" radius={[4, 4, 0, 0]} maxBarSize={60}>
                     {chartData.map((entry, index) => (
@@ -242,7 +256,7 @@ export function FinancialRegistry({ transactions }: any) {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
           <Card className="border-border shadow-sm bg-card">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
@@ -250,7 +264,7 @@ export function FinancialRegistry({ transactions }: any) {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-foreground">R$ {metrics.totalEntradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-lg sm:text-xl font-bold text-foreground">R$ {metrics.totalEntradas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">{metrics.qtdEntradas} transações</div>
             </CardContent>
           </Card>
@@ -262,7 +276,7 @@ export function FinancialRegistry({ transactions }: any) {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-foreground">R$ {metrics.totalSaidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-lg sm:text-xl font-bold text-foreground">R$ {metrics.totalSaidas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">{metrics.qtdSaidas} transações</div>
             </CardContent>
           </Card>
@@ -274,7 +288,7 @@ export function FinancialRegistry({ transactions }: any) {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl font-bold text-foreground">R$ {metrics.saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+              <div className="text-lg sm:text-xl font-bold text-foreground">R$ {metrics.saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
               <div className="text-[10px] text-muted-foreground mt-1">Neste período</div>
             </CardContent>
           </Card>
@@ -298,46 +312,101 @@ export function FinancialRegistry({ transactions }: any) {
               </button>
             )}
           </CardHeader>
-          <CardContent className="pb-4">
-            <div className={`grid grid-cols-2 sm:grid-cols-3 ${categoryBreakdown.length > 5 ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-3`}>
-              {categoryBreakdown.map((item) => {
-                const isSelected = categoryFilter === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setCategoryFilter(isSelected ? "Todos" : item.key)}
-                    className={`text-left rounded-lg border p-3 transition-colors ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:bg-muted/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-medium text-muted-foreground truncate">
-                        {item.label}
-                      </span>
-                      <span className="text-[11px] font-semibold text-muted-foreground">
-                        {item.percent.toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="text-base sm:text-lg font-bold text-foreground mt-1">
-                      R$ {item.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </div>
-                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          isSelected ? "bg-primary" : "bg-foreground/75"
-                        }`}
-                        style={{ width: `${Math.min(100, item.percent)}%` }}
+          <CardContent className="pb-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="lg:col-span-5 h-[220px] sm:h-[240px] w-full flex items-center justify-center">
+                {pieChartData.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center">
+                    Sem entradas no período
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={pieChartData}
+                        dataKey="value"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius="52%"
+                        outerRadius="82%"
+                        paddingAngle={2}
+                        onClick={(entry) => {
+                          if (!entry?.key) return;
+                          setCategoryFilter(
+                            categoryFilter === entry.key ? "Todos" : (entry.key as FinancialCategory)
+                          );
+                        }}
+                        className="cursor-pointer focus:outline-none"
+                      >
+                        {pieChartData.map((entry) => (
+                          <Cell
+                            key={entry.key}
+                            fill={entry.color}
+                            opacity={
+                              categoryFilter === "Todos" || categoryFilter === entry.key ? 1 : 0.35
+                            }
+                            stroke="transparent"
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                        }}
+                        itemStyle={{ fontSize: "13px", fontWeight: "600" }}
+                        formatter={(value: number, name: string, item: any) => [
+                          `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} (${(item?.payload?.percent ?? 0).toFixed(1)}%)`,
+                          name,
+                        ]}
                       />
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-1.5">
-                      {item.count} {item.count === 1 ? "lançamento" : "lançamentos"}
-                    </div>
-                  </button>
-                );
-              })}
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {categoryBreakdown.map((item) => {
+                  const isSelected = categoryFilter === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setCategoryFilter(isSelected ? "Todos" : item.key)}
+                      className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 text-left transition-colors ${
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-card hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground truncate">
+                            {item.label}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {item.count} {item.count === 1 ? "lançamento" : "lançamentos"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs sm:text-sm font-bold text-foreground">
+                          R$ {item.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] font-medium text-muted-foreground">
+                          {item.percent.toFixed(1)}%
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -381,52 +450,94 @@ export function FinancialRegistry({ transactions }: any) {
             </Badge>
           )}
         </CardHeader>
-        <div className="overflow-x-auto">
+        <div>
           {tableTransactions.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma transação encontrada com os filtros atuais.</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="font-semibold text-xs">Data</TableHead>
-                  <TableHead className="font-semibold text-xs">Descrição</TableHead>
-                  <TableHead className="font-semibold text-xs">Categoria</TableHead>
-                  <TableHead className="font-semibold text-xs">Tipo</TableHead>
-                  <TableHead className="font-semibold text-xs text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="md:hidden divide-y">
                 {tableTransactions.map((t: any) => (
-                  <TableRow key={t.id} className="hover:bg-accent/30 transition-colors">
-                    <TableCell className="text-xs font-medium whitespace-nowrap">
-                      {t.date ? format(parseBrazilianDate(t.date), "dd/MM/yyyy") : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {t.description}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {t.type === 'entrada' ? (
-                        <Badge variant="secondary" className="text-[11px] font-medium">
-                          {getFinancialCategoryLabel(resolveFinancialCategory(t))}
+                  <div key={t.id} className="p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground leading-snug">
+                        {t.description}
+                      </span>
+                      <span
+                        className={`text-xs font-bold whitespace-nowrap shrink-0 ${
+                          t.type === "entrada" ? "text-emerald-600" : "text-red-600"
+                        }`}
+                      >
+                        {t.type === "entrada" ? "+" : "-"} R$ {Number(t.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground">
+                        {t.date ? format(parseBrazilianDate(t.date), "dd/MM/yyyy") : "-"}
+                      </span>
+                      {t.type === "entrada" ? (
+                        <>
+                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/20 bg-emerald-500/10">
+                            Entrada
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px] font-medium">
+                            {getFinancialCategoryLabel(resolveFinancialCategory(t))}
+                          </Badge>
+                        </>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-red-600 border-red-500/20 bg-red-500/10">
+                          Saída
                         </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {t.type === 'entrada' ? (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-500/20 bg-emerald-500/10">Entrada</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-red-600 border-red-500/20 bg-red-500/10">Saída</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className={`text-xs text-right font-bold whitespace-nowrap ${t.type === 'entrada' ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {t.type === 'entrada' ? '+' : '-'} R$ {Number(t.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold text-xs">Data</TableHead>
+                      <TableHead className="font-semibold text-xs">Descrição</TableHead>
+                      <TableHead className="font-semibold text-xs">Categoria</TableHead>
+                      <TableHead className="font-semibold text-xs">Tipo</TableHead>
+                      <TableHead className="font-semibold text-xs text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tableTransactions.map((t: any) => (
+                      <TableRow key={t.id} className="hover:bg-accent/30 transition-colors">
+                        <TableCell className="text-xs font-medium whitespace-nowrap">
+                          {t.date ? format(parseBrazilianDate(t.date), "dd/MM/yyyy") : "-"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {t.description}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {t.type === 'entrada' ? (
+                            <Badge variant="secondary" className="text-[11px] font-medium">
+                              {getFinancialCategoryLabel(resolveFinancialCategory(t))}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {t.type === 'entrada' ? (
+                            <Badge variant="outline" className="text-emerald-600 border-emerald-500/20 bg-emerald-500/10">Entrada</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-red-600 border-red-500/20 bg-red-500/10">Saída</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className={`text-xs text-right font-bold whitespace-nowrap ${t.type === 'entrada' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {t.type === 'entrada' ? '+' : '-'} R$ {Number(t.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </div>
       </Card>

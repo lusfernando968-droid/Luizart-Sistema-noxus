@@ -17,7 +17,7 @@ import { ReceiptGeneratorModal } from "@/components/financial/ReceiptGeneratorMo
 import { TaxReportModal } from "@/components/financial/TaxReportModal";
 import { FinancialRegistry } from "@/components/financial/FinancialRegistry";
 import { FileSpreadsheet, LineChart, Tag } from "lucide-react";
-import { ALL_FINANCIAL_CATEGORIES, FinancialCategory } from "@/lib/financialCategories";
+import { ALL_FINANCIAL_CATEGORIES, FinancialCategory, resolveFinancialCategory, getFinancialCategoryLabel } from "@/lib/financialCategories";
 
 interface Transaction {
   id: string;
@@ -231,21 +231,23 @@ const Financial = () => {
       <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="page-title">Financeiro & Proteção Fiscal</h1>
-          <p className="page-subtitle">Controle de fluxo de caixa, recibos e blindagem do Imposto de Renda</p>
+          <p className="page-subtitle">Fluxo de caixa, recibos e proteção fiscal</p>
         </div>
-        <Button onClick={() => setModalOpen(true)} className="gap-2">
+        <Button onClick={() => setModalOpen(true)} className="gap-2 w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Nova Transação
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-muted p-1 inline-flex w-max">
-          <TabsTrigger value="fluxo" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
-            <LineChart className="w-3.5 h-3.5" /> Fluxo de Caixa
+        <TabsList className="bg-muted p-1 grid w-full grid-cols-2 sm:inline-flex sm:w-auto">
+          <TabsTrigger value="fluxo" className="rounded-sm flex items-center justify-center gap-2 text-xs font-semibold px-3 sm:px-4">
+            <LineChart className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Fluxo de Caixa</span>
           </TabsTrigger>
-          <TabsTrigger value="registro" className="rounded-sm flex items-center gap-2 text-xs font-semibold px-4">
-            <FileSpreadsheet className="w-3.5 h-3.5" /> Registros & Métricas
+          <TabsTrigger value="registro" className="rounded-sm flex items-center justify-center gap-2 text-xs font-semibold px-3 sm:px-4">
+            <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Registros & Métricas</span>
           </TabsTrigger>
         </TabsList>
         
@@ -315,14 +317,14 @@ const Financial = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-card rounded-xl border shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-b">
-          <div className="flex items-center gap-1">
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b">
+          <div className="grid grid-cols-3 sm:flex items-center gap-1 w-full sm:w-auto">
             {(["all", "entrada", "saida"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-center ${tab === t
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   }`}
@@ -332,11 +334,11 @@ const Financial = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
             <Button variant="outline" size="icon" onClick={handlePrevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium w-36 text-center capitalize">
+            <span className="text-sm font-medium flex-1 sm:flex-none sm:w-36 text-center capitalize">
               {MONTHS[selectedMonth]} {selectedYear}
             </span>
             <Button variant="outline" size="icon" onClick={handleNextMonth}>
@@ -345,89 +347,162 @@ const Financial = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div>
           {loading ? (
             <div className="p-8 text-center text-sm text-muted-foreground font-medium">Carregando transações...</div>
           ) : filtered.length > 0 ? (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-accent/30 text-left">
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Comprovante Drive</th>
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Valor</th>
-                  <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+            <>
+              {/* Mobile Cards */}
+              <div className="md:hidden divide-y">
                 {filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-accent/30 transition-colors">
-                    <td className="p-4 text-sm font-medium text-foreground">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        <span>{t.description}</span>
-                        {t.isDeductible && (
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary dark:text-primary border-primary/20 w-fit whitespace-nowrap">
-                            Livro Caixa (Dedutível)
-                          </Badge>
-                        )}
+                  <div key={t.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-semibold text-foreground leading-snug break-words">
+                          {t.description}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">{t.date}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${t.type === "entrada" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                            {t.type === "entrada" ? "Entrada" : "Saída"}
+                          </span>
+                          {t.type === "entrada" && (
+                            <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-medium">
+                              {getFinancialCategoryLabel(resolveFinancialCategory(t))}
+                            </Badge>
+                          )}
+                          {t.isDeductible && (
+                            <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary border-primary/20">
+                              Livro Caixa
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{t.date}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.type === "entrada" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                        }`}>
-                        {t.type === "entrada" ? "Entrada" : "Saída"}
+                      <span className={`text-sm font-bold whitespace-nowrap shrink-0 ${t.type === "entrada" ? "text-primary" : "text-destructive"}`}>
+                        {t.type === "entrada" ? "+" : "-"} R$ {t.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
-                    </td>
-                    <td className="p-4 text-center">
-                      {t.driveLink ? (
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      {t.driveLink && (
                         <a
                           href={t.driveLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-primary text-xs font-medium hover:underline"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent text-primary text-xs font-medium"
                         >
                           <LinkIcon className="w-3 h-3 text-primary" />
-                          <span>Ver Drive</span>
+                          <span>Drive</span>
                           <ExternalLink className="w-3 h-3 opacity-70" />
                         </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground font-mono">-</span>
                       )}
-                    </td>
-                    <td className={`p-4 text-sm text-right font-bold ${t.type === "entrada" ? "text-primary" : "text-destructive"
-                      }`}>
-                      {t.type === "entrada" ? "+" : "-"} R$ {t.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {t.type === "entrada" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenReceipt(t)}
-                            className="h-8 px-2 text-xs text-muted-foreground hover:text-primary gap-1"
-                            title="Emitir Recibo"
-                          >
-                            <FileCheck className="h-3.5 w-3.5 text-primary" />
-                            <span>Recibo</span>
-                          </Button>
-                        )}
+                      {t.type === "entrada" && (
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteTransaction(t.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenReceipt(t)}
+                          className="h-8 px-2.5 text-xs gap-1"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <FileCheck className="h-3.5 w-3.5 text-primary" />
+                          <span>Recibo</span>
                         </Button>
-                      </div>
-                    </td>
-                  </tr>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteTransaction(t.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-accent/30 text-left">
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Comprovante Drive</th>
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Valor</th>
+                      <th className="p-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filtered.map((t) => (
+                      <tr key={t.id} className="hover:bg-accent/30 transition-colors">
+                        <td className="p-4 text-sm font-medium text-foreground">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            <span>{t.description}</span>
+                            {t.isDeductible && (
+                              <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary dark:text-primary border-primary/20 w-fit whitespace-nowrap">
+                                Livro Caixa (Dedutível)
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">{t.date}</td>
+                        <td className="p-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.type === "entrada" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                            }`}>
+                            {t.type === "entrada" ? "Entrada" : "Saída"}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center whitespace-nowrap">
+                          {t.driveLink ? (
+                            <a
+                              href={t.driveLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-accent text-primary text-xs font-medium hover:underline"
+                            >
+                              <LinkIcon className="w-3 h-3 text-primary" />
+                              <span>Ver Drive</span>
+                              <ExternalLink className="w-3 h-3 opacity-70" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground font-mono">-</span>
+                          )}
+                        </td>
+                        <td className={`p-4 text-sm text-right font-bold whitespace-nowrap ${t.type === "entrada" ? "text-primary" : "text-destructive"
+                          }`}>
+                          {t.type === "entrada" ? "+" : "-"} R$ {t.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            {t.type === "entrada" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenReceipt(t)}
+                                className="h-8 px-2 text-xs text-muted-foreground hover:text-primary gap-1"
+                                title="Emitir Recibo"
+                              >
+                                <FileCheck className="h-3.5 w-3.5 text-primary" />
+                                <span>Recibo</span>
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteTransaction(t.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma transação encontrada neste período.</div>
           )}
@@ -442,7 +517,7 @@ const Financial = () => {
 
       {/* Transaction Modal (Com suporte a Link do Google Drive e Livro Caixa) */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="w-[95vw] sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Transação Financeira</DialogTitle>
           </DialogHeader>
@@ -457,7 +532,7 @@ const Financial = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="flex items-center gap-1.5 text-xs"><Banknote className="w-3.5 h-3.5 text-muted-foreground" /> Valor</Label>
                 <CurrencyInput
@@ -477,7 +552,7 @@ const Financial = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="flex items-center gap-1.5 text-xs"><RefreshCw className="w-3.5 h-3.5 text-muted-foreground" /> Tipo</Label>
                 <Select
