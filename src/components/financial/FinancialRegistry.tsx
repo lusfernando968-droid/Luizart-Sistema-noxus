@@ -464,7 +464,7 @@ export function FinancialRegistry({ transactions }: any) {
                       </span>
                       <span
                         className={`text-xs font-bold whitespace-nowrap shrink-0 ${
-                          t.type === "entrada" ? "text-emerald-600" : "text-red-600"
+                          t.type === "entrada" ? "text-primary" : "text-destructive"
                         }`}
                       >
                         {t.type === "entrada" ? "+" : "-"} R$ {Number(t.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -476,7 +476,7 @@ export function FinancialRegistry({ transactions }: any) {
                       </span>
                       {t.type === "entrada" ? (
                         <>
-                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/20 bg-emerald-500/10">
+                          <Badge variant="outline" className="text-[10px] text-primary border-primary/20 bg-primary/10">
                             Entrada
                           </Badge>
                           <Badge variant="secondary" className="text-[10px] font-medium">
@@ -484,7 +484,7 @@ export function FinancialRegistry({ transactions }: any) {
                           </Badge>
                         </>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] text-red-600 border-red-500/20 bg-red-500/10">
+                        <Badge variant="outline" className="text-[10px] text-destructive border-destructive/20 bg-destructive/10">
                           Saída
                         </Badge>
                       )}
@@ -524,12 +524,12 @@ export function FinancialRegistry({ transactions }: any) {
                         </TableCell>
                         <TableCell>
                           {t.type === 'entrada' ? (
-                            <Badge variant="outline" className="text-emerald-600 border-emerald-500/20 bg-emerald-500/10">Entrada</Badge>
+                            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">Entrada</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-red-600 border-red-500/20 bg-red-500/10">Saída</Badge>
+                            <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">Saída</Badge>
                           )}
                         </TableCell>
-                        <TableCell className={`text-xs text-right font-bold whitespace-nowrap ${t.type === 'entrada' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <TableCell className={`text-xs text-right font-bold whitespace-nowrap ${t.type === 'entrada' ? 'text-primary' : 'text-destructive'}`}>
                           {t.type === 'entrada' ? '+' : '-'} R$ {Number(t.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
