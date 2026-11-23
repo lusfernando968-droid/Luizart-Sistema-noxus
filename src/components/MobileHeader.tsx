@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { User, LogOut, X, ChevronRight, Menu, LayoutDashboard, Calendar, Users, DollarSign, GraduationCap, Target } from "lucide-react";
+import { User, LogOut, X, ChevronRight, Menu, LayoutDashboard, Calendar, Users, DollarSign, GraduationCap, Target, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -62,6 +62,7 @@ export function MobileHeader() {
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
   ] : [
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { title: "Jornada (Teste)", path: "/jornada-teste", icon: Trophy },
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
