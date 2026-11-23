@@ -72,20 +72,20 @@ interface MemberProfile {
 // HELPERS
 // =============================================
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  ADMIN:      { label: "Proprietário / Admin",    color: "text-primary",    bg: "bg-primary/10 border-primary/30" },
-  TATUADOR:   { label: "Tatuador(a)",             color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-  ASSISTENTE: { label: "Assistente",              color: "text-blue-400",   bg: "bg-blue-500/10 border-blue-500/20" },
-  RECEPCAO:   { label: "Recepção / Atendimento",  color: "text-primary",bg: "bg-primary/10 border-primary/20" },
+  ADMIN:      { label: "Proprietário / Admin",    color: "text-primary",    bg: "bg-primary/10 border-primary/25" },
+  TATUADOR:   { label: "Tatuador(a)",             color: "text-foreground", bg: "bg-muted border-border" },
+  ASSISTENTE: { label: "Assistente",              color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
+  RECEPCAO:   { label: "Recepção / Atendimento",  color: "text-primary",    bg: "bg-primary/10 border-primary/20" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  "Concluído":        { label: "Concluído",        color: "text-emerald-500" },
-  "Agendado":         { label: "Agendado",         color: "text-amber-500" },
-  "Confirmado":       { label: "Confirmado",       color: "text-blue-500" },
+  "Concluído":        { label: "Concluído",        color: "text-primary" },
+  "Agendado":         { label: "Agendado",         color: "text-muted-foreground" },
+  "Confirmado":       { label: "Confirmado",       color: "text-foreground" },
   "Cancelado":        { label: "Cancelado",        color: "text-destructive" },
-  "Orçamento":        { label: "Orçamento",        color: "text-indigo-400" },
-  "Sessão Agendada":  { label: "Sessão Agendada",  color: "text-amber-500" },
-  "Onboarding":       { label: "Onboarding",       color: "text-purple-400" },
+  "Orçamento":        { label: "Orçamento",        color: "text-muted-foreground" },
+  "Sessão Agendada":  { label: "Sessão Agendada",  color: "text-primary" },
+  "Onboarding":       { label: "Onboarding",       color: "text-muted-foreground" },
 };
 
 const formatDate = (d: string) => {
@@ -465,65 +465,79 @@ export default function Team() {
     const statusD = profileData?.statusData || [];
     const funnelD = profileData?.clientFunnelData || [];
 
-    const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'];
-    const FUNNEL_COLORS = ['#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#22c55e'];
+    const SYSTEM_PIE_COLORS = [
+      "hsl(var(--primary))",
+      "hsl(220 40% 18%)",
+      "hsl(217 60% 38%)",
+      "hsl(213 94% 68%)",
+      "hsl(220 14% 52%)",
+      "hsl(214 25% 78%)",
+    ];
+    const totalStatusCount = statusD.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+    const pieStatusData = statusD.filter((item) => item.value > 0);
 
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-5 sm:space-y-6 animate-fade-in">
         {/* Back button */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedMember(null)}>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedMember(null)} className="-ml-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Equipe
           </Button>
         </div>
 
         {/* Profile header */}
-        <div className="bg-card rounded-2xl border shadow-sm p-5 sm:p-7">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
-            <div className="flex items-center gap-5">
+        <div className="bg-card rounded-2xl border shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
               {/* Avatar */}
-              <div className={`h-20 w-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-lg`}
-                style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.6))" }}>
+              <div
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl flex items-center justify-center text-xl sm:text-2xl font-bold text-primary-foreground shrink-0 shadow-sm bg-primary"
+              >
                 {selectedMember.name?.charAt(0) || "?"}
               </div>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedMember.name || "Colaborador"}</h2>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">{selectedMember.name || "Colaborador"}</h2>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
                   {getRoleBadge(selectedMember.role)}
                   {selectedMember.isActive ? (
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30 font-medium">
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
                       <CheckCircle2 className="h-3 w-3" /> Ativo
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30 font-medium">
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-medium">
                       <XCircle className="h-3 w-3" /> Desativado
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 font-mono bg-muted px-2 py-1 rounded-lg border">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 font-mono bg-muted px-2 py-0.5 rounded-md border text-foreground/80">
                     <Key className="h-3 w-3" /> {selectedMember.accessCode}
                   </span>
                   {selectedMember.whatsapp && (
-                    <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {selectedMember.whatsapp}</span>
+                    <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {selectedMember.whatsapp}</span>
                   )}
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Desde {formatDate(selectedMember.createdAt)}</span>
+                  <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> Desde {formatDate(selectedMember.createdAt)}</span>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
             {selectedMember.role !== "ADMIN" && (
-              <div className="flex items-center gap-3 sm:flex-col sm:items-end">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Acesso</span>
+              <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 border-t sm:pt-0 sm:border-t-0 shrink-0">
+                <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg border">
+                  <span className="text-xs font-medium text-muted-foreground">Acesso</span>
                   {updatingId === selectedMember.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Switch checked={selectedMember.isActive} onCheckedChange={() => toggleMemberStatus(selectedMember.id, selectedMember.isActive)} className="data-[state=checked]:bg-primary" />
                   )}
                 </div>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteMember(selectedMember.id)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteMember(selectedMember.id)}
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive h-9"
+                >
                   <Trash2 className="h-4 w-4 mr-1.5" /> Remover
                 </Button>
               </div>
@@ -539,39 +553,44 @@ export default function Team() {
         ) : s ? (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               {[
-                { label: "Clientes Cadastrados", value: s.clientsCreated, icon: <UsersIcon className="h-5 w-5" />, color: "text-primary bg-primary/10" },
-                { label: "Agendamentos Criados", value: s.totalAppointments, icon: <Calendar className="h-5 w-5" />, color: "text-purple-400 bg-purple-500/10" },
-                { label: "Sessões Concluídas", value: s.completedAppointments, icon: <CheckCircle2 className="h-5 w-5" />, color: "text-primary bg-primary/10" },
-                { label: "Sinais Coletados", value: `R$ ${s.totalDepositsCollected.toLocaleString("pt-BR")}`, icon: <DollarSign className="h-5 w-5" />, color: "text-warning bg-warning/10" },
-                { label: "Faturamento Gerado", value: `R$ ${s.totalRevenue.toLocaleString("pt-BR")}`, icon: <TrendingUp className="h-5 w-5" />, color: "text-primary bg-primary/10" },
+                { label: "Clientes Cadastrados", value: s.clientsCreated, icon: <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5" />, highlight: false },
+                { label: "Agendamentos Criados", value: s.totalAppointments, icon: <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />, highlight: false },
+                { label: "Sessões Concluídas", value: s.completedAppointments, icon: <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />, highlight: false },
+                { label: "Sinais Coletados", value: `R$ ${s.totalDepositsCollected.toLocaleString("pt-BR")}`, icon: <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />, highlight: true },
+                { label: "Faturamento Gerado", value: `R$ ${s.totalRevenue.toLocaleString("pt-BR")}`, icon: <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />, highlight: true, spanMobile: true },
               ].map(kpi => (
-                <div key={kpi.label} className="bg-card rounded-2xl border shadow-sm p-4 space-y-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${kpi.color}`}>{kpi.icon}</div>
+                <div
+                  key={kpi.label}
+                  className={`bg-card rounded-xl border shadow-sm p-3.5 sm:p-4 space-y-2.5 ${kpi.spanMobile ? "col-span-2 lg:col-span-1" : ""}`}
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${kpi.highlight ? "bg-primary/10 text-primary" : "bg-muted text-foreground"}`}>
+                    {kpi.icon}
+                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground leading-tight">{kpi.label}</p>
-                    <p className="text-xl font-bold mt-0.5">{kpi.value}</p>
+                    <p className="text-lg sm:text-xl font-bold text-foreground mt-0.5">{kpi.value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* GRÁFICOS PRINCIPAIS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               
               {/* Gráfico 1: Faturamento e Sessões */}
-              <div className="bg-card rounded-2xl border shadow-sm p-5 space-y-5">
-                <h3 className="font-bold flex items-center gap-2 text-sm">
-                  <TrendingUp className="h-4 w-4 text-primary" /> Faturamento e Sessões (Últimos 6 meses)
+              <div className="bg-card rounded-2xl border shadow-sm p-4 sm:p-5 space-y-4 min-w-0">
+                <h3 className="font-bold flex items-center gap-2 text-sm text-foreground">
+                  <TrendingUp className="h-4 w-4 text-primary shrink-0" /> Faturamento e Sessões (Últimos 6 meses)
                 </h3>
-                <div className="h-[250px] w-full">
+                <div className="h-[240px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthly} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <BarChart data={monthly} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="month" tickFormatter={formatMonth} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} tickFormatter={v => `R$${v}`} />
-                      <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                      <XAxis dataKey="month" tickFormatter={formatMonth} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={v => `R$${v}`} />
+                      <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
                         labelFormatter={formatMonth}
@@ -581,38 +600,82 @@ export default function Team() {
                         ]}
                       />
                       <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Bar yAxisId="left" dataKey="revenue" name="Faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                      <Bar yAxisId="right" dataKey="sessions" name="Sessões" fill="hsl(var(--primary)/0.3)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Bar yAxisId="left" dataKey="revenue" name="Faturamento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                      <Bar yAxisId="right" dataKey="sessions" name="Sessões" fill="hsl(220 40% 18%)" radius={[4, 4, 0, 0]} maxBarSize={36} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               {/* Gráfico 2: Status dos Agendamentos / Funil de Atendimento */}
-              <div className="bg-card rounded-2xl border shadow-sm p-5 space-y-5 flex flex-col">
-                <h3 className="font-bold flex items-center gap-2 text-sm">
-                  <PieChartIcon className="h-4 w-4 text-primary" /> {selectedMember.role === "RECEPCAO" ? "Distribuição do Atendimento & Agendamentos" : "Distribuição de Agendamentos"}
+              <div className="bg-card rounded-2xl border shadow-sm p-4 sm:p-5 space-y-4 flex flex-col min-w-0">
+                <h3 className="font-bold flex items-center gap-2 text-sm text-foreground">
+                  <PieChartIcon className="h-4 w-4 text-primary shrink-0" /> {selectedMember.role === "RECEPCAO" ? "Distribuição do Atendimento & Agendamentos" : "Distribuição de Agendamentos"}
                 </h3>
-                <div className="flex-1 min-h-[250px] w-full flex items-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={statusD}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={85}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {statusD.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
-                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center flex-1">
+                  <div className="sm:col-span-6 h-[210px] w-full flex items-center justify-center">
+                    {pieStatusData.length === 0 ? (
+                      <div className="text-xs text-muted-foreground text-center">Sem registros</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieStatusData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="54%"
+                            outerRadius="84%"
+                            paddingAngle={2}
+                            dataKey="value"
+                            nameKey="name"
+                          >
+                            {pieStatusData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${entry.name}`}
+                                fill={SYSTEM_PIE_COLORS[index % SYSTEM_PIE_COLORS.length]}
+                                stroke="transparent"
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              borderColor: 'hsl(var(--border))',
+                              borderRadius: '8px',
+                            }}
+                            formatter={(value: number, name: string) => {
+                              const pct = totalStatusCount > 0 ? ((value / totalStatusCount) * 100).toFixed(1) : "0.0";
+                              return [`${value} (${pct}%)`, name];
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-6 space-y-2">
+                    {statusD.map((item, index) => {
+                      const pct = totalStatusCount > 0 ? ((item.value / totalStatusCount) * 100).toFixed(1) : "0.0";
+                      return (
+                        <div
+                          key={item.name}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: SYSTEM_PIE_COLORS[index % SYSTEM_PIE_COLORS.length] }}
+                            />
+                            <span className="text-xs font-medium text-foreground truncate">{item.name}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-bold text-foreground">{item.value}</span>
+                            <span className="text-[11px] text-muted-foreground ml-1.5">({pct}%)</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
