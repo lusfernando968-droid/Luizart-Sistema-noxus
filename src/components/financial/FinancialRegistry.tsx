@@ -15,12 +15,12 @@ import {
 } from "@/lib/financialCategories";
 
 const CATEGORY_COLORS: Record<FinancialCategory, string> = {
-  tatuagem: "#1e293b",
-  sinal: "#2563eb",
-  mentoria: "#0d9488",
-  aula: "#d97706",
-  produto: "#7c3aed",
-  outros: "#94a3b8",
+  tatuagem: "hsl(var(--primary))",
+  sinal: "hsl(220 40% 18%)",
+  mentoria: "hsl(217 60% 38%)",
+  aula: "hsl(213 94% 68%)",
+  produto: "hsl(220 14% 52%)",
+  outros: "hsl(214 25% 78%)",
 };
 
 export function FinancialRegistry({ transactions }: any) {
