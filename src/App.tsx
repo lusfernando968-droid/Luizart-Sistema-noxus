@@ -19,6 +19,7 @@ import Mentorship from "./pages/Mentorship";
 import Strategy from "./pages/Strategy";
 import CareerTest from "./pages/CareerTest";
 import Settings from "./pages/Settings";
+import Inventory from "./pages/Inventory";
 import { Layout } from "@/components/Layout";
 
 // Authenticated layout wrapper
@@ -28,7 +29,7 @@ const AuthLayout = () => {
   const isAssistant = user?.role === 'ASSISTANT' || user?.name?.includes('Gabriel');
   const path = window.location.pathname;
 
-  if (isAssistant && (path === '/dashboard' || path === '/cursos' || path === '/mentorias' || path === '/equipe' || path === '/estrategia')) {
+  if (isAssistant && (path === '/dashboard' || path === '/cursos' || path === '/mentorias' || path === '/equipe' || path === '/estrategia' || path === '/estoque')) {
     return <Navigate to="/agenda" replace />;
   }
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/clientes" element={<Clients />} />
               <Route path="/financeiro" element={<Financial />} />
+              <Route path="/estoque" element={<Inventory />} />
               <Route path="/equipe" element={<Team />} />
               <Route path="/perfil" element={<Profile />} />
               <Route path="/cursos" element={<Courses />} />

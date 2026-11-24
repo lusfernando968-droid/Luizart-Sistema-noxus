@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { User, LogOut, X, ChevronRight, Menu, LayoutDashboard, Calendar, Users, DollarSign, GraduationCap, Target, Trophy } from "lucide-react";
+import { User, LogOut, X, ChevronRight, Menu, LayoutDashboard, Calendar, Users, DollarSign, GraduationCap, Target, Trophy, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -21,7 +21,9 @@ export function MobileHeader() {
         const parsed = JSON.parse(userStr);
         setUser({ email: parsed.email, name: parsed.name });
         setRole(parsed.role);
-      } catch (e) {}
+      } catch {
+        // Ignora JSON inválido no localStorage
+      }
     }
 
     const fetchUser = async () => {
@@ -66,6 +68,7 @@ export function MobileHeader() {
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+    { title: "Estoque", path: "/estoque", icon: Package },
     { title: "Cursos", path: "/cursos", icon: GraduationCap },
     { title: "Mentorias", path: "/mentorias", icon: Target },
     { title: "Meu Perfil", path: "/perfil", icon: User },

@@ -26,6 +26,7 @@ import {
   Target,
   Compass,
   Trophy,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ export function AppSidebar() {
     { title: "Agenda", path: "/agenda", icon: Calendar },
     { title: "Clientes", path: "/clientes", icon: Users },
     { title: "Financeiro", path: "/financeiro", icon: DollarSign },
+    { title: "Estoque", path: "/estoque", icon: Package },
     { title: "Cursos", path: "/cursos", icon: GraduationCap },
     { title: "Mentorias", path: "/mentorias", icon: Target },
   ];
