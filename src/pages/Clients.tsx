@@ -29,6 +29,7 @@ import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
 import { supabase } from "@/lib/supabase";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { formatCancellationSummary } from "@/lib/cancellations";
+import { formatCheckoutProductsWithTotal } from "@/lib/checkoutProducts";
 import html2pdf from "html2pdf.js";
 
 interface Client {
@@ -1916,6 +1917,13 @@ const Clients = () => {
                                 <div className="px-2.5 py-1.5 rounded-lg bg-muted/40 border border-border/60 text-[11px] text-muted-foreground">
                                   <span className="font-semibold text-foreground">Motivo:</span>{" "}
                                   {formatCancellationSummary(session).summary}
+                                </div>
+                              )}
+
+                              {Array.isArray(session.additional_products) && session.additional_products.length > 0 && (
+                                <div className="px-2.5 py-1.5 rounded-lg bg-muted/40 border border-border/60 text-[11px] text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Produtos adicionais:</span>{" "}
+                                  {formatCheckoutProductsWithTotal(session.additional_products)}
                                 </div>
                               )}
 

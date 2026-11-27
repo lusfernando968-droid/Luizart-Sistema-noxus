@@ -3,6 +3,7 @@ export const INVENTORY_CATEGORIES = [
   "Tintas & Pigmentos",
   "Descartáveis & EPI",
   "Higienização & Cuidados",
+  "Produtos / Pós-sessão",
   "Equipamentos & Outros",
 ] as const;
 
@@ -26,6 +27,8 @@ export interface InventoryItem {
   quantity: number;
   min_quantity: number;
   unit_cost: number;
+  is_sellable?: boolean;
+  sale_price?: number;
   batch_number: string;
   expiration_date: string | null;
   supplier: string;

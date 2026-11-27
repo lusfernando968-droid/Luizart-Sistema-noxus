@@ -31,11 +31,18 @@ import {
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange, BookOpen, Droplet } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
 import { CancellationReasonFields } from "@/components/agenda/CancellationReasonFields";
+import { CheckoutProductsSection } from "@/components/agenda/CheckoutProductsSection";
 import {
   buildCancellationPayload,
   CancelledBy,
   validateCancellationInput,
 } from "@/lib/cancellations";
+import {
+  calculateProductsTotal,
+  formatCheckoutProductsSummary,
+  processCheckoutAdditionalProducts,
+  type CheckoutProductSelection,
+} from "@/lib/checkoutProducts";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -70,6 +77,7 @@ interface Appointment {
   cancellation_reason?: string | null;
   cancellation_notes?: string | null;
   cancelled_at?: string | null;
+  additional_products?: CheckoutProductSelection[] | null;
 }
 
 const Agenda = () => {
@@ -106,6 +114,9 @@ const Agenda = () => {
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [selectedCheckout, setSelectedCheckout] = useState<Appointment | null>(null);
+  const [checkoutSaving, setCheckoutSaving] = useState(false);
+  const [checkoutProductQty, setCheckoutProductQty] = useState<Record<string, number>>({});
+  const [checkoutSelectedProducts, setCheckoutSelectedProducts] = useState<CheckoutProductSelection[]>([]);
   const [reallocateModalOpen, setReallocateModalOpen] = useState(false);
   const [freedSlot, setFreedSlot] = useState<FreedSlotInfo | null>(null);
   const [contextMenuData, setContextMenuData] = useState<{ x: number, y: number, appt: Appointment } | null>(null);
@@ -224,7 +235,8 @@ const Agenda = () => {
         cancelled_by: a.cancelled_by || null,
         cancellation_reason: a.cancellation_reason || null,
         cancellation_notes: a.cancellation_notes || null,
-        cancelled_at: a.cancelled_at || null
+        cancelled_at: a.cancelled_at || null,
+        additional_products: Array.isArray(a.additional_products) ? a.additional_products : []
       }));
 
       setAppointments(formatted);
@@ -901,6 +913,8 @@ const Agenda = () => {
     e.stopPropagation();
     const matchedClient = clients.find(c => c.id === appt.client_id);
     setSelectedCheckout(appt);
+    setCheckoutProductQty({});
+    setCheckoutSelectedProducts([]);
     setCheckoutData({
       status: matchedClient?.is_barter ? 'Permuta' : 'Recebido',
       value: Math.max(0, (appt.value || 0) - (appt.deposit || 0)),
@@ -915,7 +929,8 @@ const Agenda = () => {
   };
 
   const handleCheckout = async () => {
-    if (!selectedCheckout) return;
+    if (!selectedCheckout || checkoutSaving) return;
+    setCheckoutSaving(true);
     try {
       // 1. Atualizar o agendamento
       const apptStatus =
@@ -939,6 +954,20 @@ const Agenda = () => {
         }
       }
 
+      const canSellProducts =
+        checkoutData.status === 'Recebido' ||
+        checkoutData.status === 'Permuta' ||
+        checkoutData.status === 'Apenas Consulta';
+      const productsToProcess = canSellProducts ? checkoutSelectedProducts : [];
+
+      const { productsTotal } = await processCheckoutAdditionalProducts({
+        appointmentId: selectedCheckout.id,
+        clientName: selectedCheckout.client_name || "Cliente",
+        checkoutStatus: checkoutData.status,
+        selectedProducts: productsToProcess,
+        driveLink: checkoutData.driveLink,
+      });
+
       const cancellationFields = buildCancellationPayload(
         apptStatus,
         {
@@ -952,17 +981,28 @@ const Agenda = () => {
         }
       );
 
+      const previousProducts = Array.isArray(selectedCheckout.additional_products)
+        ? selectedCheckout.additional_products
+        : [];
+      const appointmentUpdate: Record<string, any> = {
+        status: apptStatus,
+        ...cancellationFields,
+      };
+      if (productsToProcess.length > 0) {
+        appointmentUpdate.additional_products = [...previousProducts, ...productsToProcess];
+      }
+
       const { error: apptError } = await supabase
         .from('appointments')
-        .update({ status: apptStatus, ...cancellationFields })
+        .update(appointmentUpdate)
         .eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
 
-      // 2. Se for "Recebido", lançar no financeiro
-      if (checkoutData.status === 'Recebido') {
+      // 2. Se for "Recebido", lançar no financeiro (sessão)
+      if (checkoutData.status === 'Recebido' && (Number(checkoutData.value) > 0 || productsToProcess.length === 0)) {
         const isMentoriaCheckout =
           String(selectedCheckout.client_name || "").toLowerCase().includes("mentoria") ||
-          String(selectedCheckout.style || "").toLowerCase().includes("mentoria");
+          String((selectedCheckout as any).style || "").toLowerCase().includes("mentoria");
         const { error: finError } = await supabase.from('financial_transactions').insert([{
           description: `Sessão de Tattoo - ${selectedCheckout.client_name}`,
           type: "entrada",
@@ -980,15 +1020,19 @@ const Agenda = () => {
       if (checkoutData.status === 'Permuta' && selectedCheckout.client_id) {
         const matchedClient = clients.find(c => c.id === selectedCheckout.client_id);
         const currentBalance = Number(matchedClient?.barter_balance || 0);
-        const deductAmount = Number(checkoutData.value || 0);
+        const deductAmount = Number(checkoutData.value || 0) + productsTotal;
         const newBalance = currentBalance - deductAmount;
+        const productsSummary =
+          productsToProcess.length > 0
+            ? ` + ${formatCheckoutProductsSummary(productsToProcess)}`
+            : "";
         const historyEntry = {
           id: String(Date.now()),
           date: new Date().toISOString().split("T")[0],
           type: "abatimento",
           amount: -deductAmount,
           balance_after: newBalance,
-          note: `Baixa de sessão (${selectedCheckout.date ? selectedCheckout.date.split('-').reverse().join('/') : "Tatuagem"})`
+          note: `Baixa de sessão (${selectedCheckout.date ? selectedCheckout.date.split('-').reverse().join('/') : "Tatuagem"})${productsSummary}`
         };
         const currentHistory = Array.isArray(matchedClient?.barter_history) ? matchedClient.barter_history : [];
 
@@ -1008,6 +1052,8 @@ const Agenda = () => {
       toast.success(
         checkoutData.status === 'Permuta'
           ? "Sessão abatida no saldo de permuta!"
+          : productsToProcess.length > 0
+          ? "Baixa e saída de estoque registradas!"
           : "Sessão baixada com sucesso!"
       );
       setCheckoutModalOpen(false);
@@ -1026,9 +1072,11 @@ const Agenda = () => {
         });
         setReallocateModalOpen(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Erro ao dar baixa na sessão.");
+      toast.error(error?.message || "Erro ao dar baixa na sessão.");
+    } finally {
+      setCheckoutSaving(false);
     }
   };
 
@@ -1950,7 +1998,7 @@ const Agenda = () => {
 
       {/* Modal de Baixa de Sessão */}
       <Dialog open={checkoutModalOpen} onOpenChange={setCheckoutModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[460px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finalizar Sessão (Dar Baixa)</DialogTitle>
           </DialogHeader>
@@ -2014,7 +2062,7 @@ const Agenda = () => {
             {checkoutData.status === 'Permuta' && (() => {
               const checkoutClient = clients.find(c => c.id === selectedCheckout?.client_id);
               const currentBalance = Number(checkoutClient?.barter_balance || 0);
-              const deductVal = Number(checkoutData.value || 0);
+              const deductVal = Number(checkoutData.value || 0) + calculateProductsTotal(checkoutSelectedProducts);
               const afterBalance = currentBalance - deductVal;
 
               return (
@@ -2109,10 +2157,27 @@ const Agenda = () => {
                 </div>
               </>
             )}
+
+            {(checkoutData.status === 'Recebido' ||
+              checkoutData.status === 'Permuta' ||
+              checkoutData.status === 'Apenas Consulta') && (
+              <CheckoutProductsSection
+                open={checkoutModalOpen}
+                sessionStatus={checkoutData.status}
+                sessionValue={checkoutData.value}
+                quantities={checkoutProductQty}
+                onQuantitiesChange={(nextQty, nextSelected) => {
+                  setCheckoutProductQty(nextQty);
+                  setCheckoutSelectedProducts(nextSelected);
+                }}
+              />
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCheckoutModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCheckout}>Confirmar Baixa</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCheckoutModalOpen(false)} disabled={checkoutSaving}>Cancelar</Button>
+            <Button onClick={handleCheckout} disabled={checkoutSaving}>
+              {checkoutSaving ? "Salvando..." : "Confirmar Baixa"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

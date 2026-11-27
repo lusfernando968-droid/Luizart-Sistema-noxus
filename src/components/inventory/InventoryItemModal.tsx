@@ -31,6 +31,7 @@ interface InventoryItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: InventoryItem | null;
+  defaultSellable?: boolean;
   onSaved: () => void;
 }
 
@@ -41,6 +42,8 @@ const DEFAULT_FORM = {
   quantity: "0",
   min_quantity: "5",
   unit_cost: 0,
+  is_sellable: false,
+  sale_price: 0,
   batch_number: "",
   expiration_date: "",
   supplier: "",
@@ -51,6 +54,7 @@ export function InventoryItemModal({
   open,
   onOpenChange,
   editingItem,
+  defaultSellable = false,
   onSaved,
 }: InventoryItemModalProps) {
   const [form, setForm] = useState(DEFAULT_FORM);
@@ -72,6 +76,8 @@ export function InventoryItemModal({
         quantity: String(editingItem.quantity ?? 0),
         min_quantity: String(editingItem.min_quantity ?? 5),
         unit_cost: Number(editingItem.unit_cost) || 0,
+        is_sellable: Boolean(editingItem.is_sellable),
+        sale_price: Number(editingItem.sale_price) || 0,
         batch_number: editingItem.batch_number || "",
         expiration_date: editingItem.expiration_date
           ? editingItem.expiration_date.slice(0, 10)
@@ -80,13 +86,17 @@ export function InventoryItemModal({
         notes: editingItem.notes || "",
       });
     } else {
-      setForm(DEFAULT_FORM);
+      setForm({
+        ...DEFAULT_FORM,
+        category: defaultSellable ? "Produtos / Pós-sessão" : DEFAULT_FORM.category,
+        is_sellable: defaultSellable,
+      });
     }
     setLaunchFinancial(false);
     setExpenseValue(0);
     setExpenseDate(new Date().toISOString().split("T")[0]);
     setIsDeductible(true);
-  }, [open, editingItem]);
+  }, [open, editingItem, defaultSellable]);
 
   useEffect(() => {
     if (!editingItem) {
@@ -112,6 +122,10 @@ export function InventoryItemModal({
       toast.error("Estoque mínimo inválido.");
       return;
     }
+    if (form.is_sellable && (Number(form.sale_price) || 0) <= 0) {
+      toast.error("Informe o preço de venda do produto.");
+      return;
+    }
 
     setSaving(true);
     let createdFinancialId: string | null = null;
@@ -124,6 +138,8 @@ export function InventoryItemModal({
         quantity,
         min_quantity: minQuantity,
         unit_cost: Number(form.unit_cost) || 0,
+        is_sellable: Boolean(form.is_sellable),
+        sale_price: form.is_sellable ? Number(form.sale_price) || 0 : 0,
         batch_number: form.batch_number.trim(),
         expiration_date: form.expiration_date || null,
         supplier: form.supplier.trim(),
@@ -329,6 +345,38 @@ export function InventoryItemModal({
                 className="mt-1"
               />
             </div>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="inv-sellable"
+                checked={form.is_sellable}
+                onCheckedChange={(checked) =>
+                  setForm({ ...form, is_sellable: Boolean(checked) })
+                }
+              />
+              <label
+                htmlFor="inv-sellable"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Produto adicional para venda na baixa
+              </label>
+            </div>
+
+            {form.is_sellable && (
+              <div>
+                <Label htmlFor="inv-sale-price" className="text-xs">
+                  Preço de Venda (Fixo)
+                </Label>
+                <CurrencyInput
+                  id="inv-sale-price"
+                  value={form.sale_price}
+                  onChange={(value) => setForm({ ...form, sale_price: value })}
+                  className="mt-1 bg-background"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

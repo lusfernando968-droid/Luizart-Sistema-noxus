@@ -12,6 +12,7 @@ import {
   computeCancellationAnalytics,
   formatCancellationSummary,
 } from "@/lib/cancellations";
+import { formatCheckoutProductsWithTotal } from "@/lib/checkoutProducts";
 
 export function AgendaRegistry({ appointments, clients }: any) {
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -494,6 +495,7 @@ export function AgendaRegistry({ appointments, clients }: any) {
               const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
               const cancelInfo =
                 appt.status === "Cancelado" ? formatCancellationSummary(appt) : null;
+              const productsSummary = formatCheckoutProductsWithTotal(appt.additional_products);
               return (
                 <div key={appt.id} className="px-4 py-2.5 flex flex-col gap-1 hover:bg-muted/20">
                   <div className="flex items-center justify-between gap-2">
@@ -515,6 +517,11 @@ export function AgendaRegistry({ appointments, clients }: any) {
                   {cancelInfo && cancelInfo.hasClassification && (
                     <span className="text-[11px] text-muted-foreground truncate">
                       {cancelInfo.summary}
+                    </span>
+                  )}
+                  {productsSummary && (
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      Produtos: {productsSummary}
                     </span>
                   )}
                 </div>
@@ -547,6 +554,7 @@ export function AgendaRegistry({ appointments, clients }: any) {
                   const isMentoria = appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1";
                   const cancelInfo =
                     appt.status === "Cancelado" ? formatCancellationSummary(appt) : null;
+                  const productsSummary = formatCheckoutProductsWithTotal(appt.additional_products);
                   return (
                     <TableRow key={appt.id} className="hover:bg-muted/20">
                       <TableCell className="text-xs whitespace-nowrap">
@@ -572,6 +580,11 @@ export function AgendaRegistry({ appointments, clients }: any) {
                           {cancelInfo && cancelInfo.hasClassification && (
                             <span className="text-[11px] text-muted-foreground">
                               {cancelInfo.summary}
+                            </span>
+                          )}
+                          {productsSummary && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Produtos: {productsSummary}
                             </span>
                           )}
                         </div>

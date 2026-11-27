@@ -236,6 +236,15 @@ export default function Inventory() {
           </Badge>
         ) : null}
 
+        {item.is_sellable && Number(item.sale_price) > 0 && (
+          <Badge
+            variant="outline"
+            className="text-[11px] border-primary/30 bg-primary/10 text-primary"
+          >
+            Venda {formatCurrencyBRL(Number(item.sale_price))}
+          </Badge>
+        )}
+
         {exp.status === "expired" && (
           <Badge variant="destructive" className="text-[11px]">
             Vencido
