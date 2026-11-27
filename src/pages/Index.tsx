@@ -27,6 +27,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { WaitlistReallocateModal, FreedSlotInfo } from "@/components/crm/WaitlistReallocateModal";
+import { CancellationReasonFields } from "@/components/agenda/CancellationReasonFields";
+import {
+  buildCancellationPayload,
+  CancelledBy,
+  computeCancellationAnalytics,
+  validateCancellationInput,
+} from "@/lib/cancellations";
 import { supabase, supabasePublic } from "@/lib/supabase";
 import {
   AreaChart,
@@ -80,6 +87,12 @@ const Index = () => {
   const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
   const [clientAcquisitionData, setClientAcquisitionData] = useState<any[]>([]);
   const [appointmentsStatusData, setAppointmentsStatusData] = useState<any[]>([]);
+  const [monthlyCancelSummary, setMonthlyCancelSummary] = useState<{
+    totalCancelled: number;
+    byClient: number;
+    byStudio: number;
+    topReason?: string;
+  }>({ totalCancelled: 0, byClient: 0, byStudio: 0 });
   const [pendingAnamnesisAlerts, setPendingAnamnesisAlerts] = useState<any[]>([]);
   const [tomorrowAppointments, setTomorrowAppointments] = useState<any[]>([]);
   const [tomorrowDropdownOpen, setTomorrowDropdownOpen] = useState(false);
@@ -94,7 +107,10 @@ const Index = () => {
     value: 0,
     paymentMethod: 'Pix',
     driveLink: '',
-    barterDescription: ''
+    barterDescription: '',
+    cancelledBy: "" as CancelledBy | "",
+    cancellationReason: "",
+    cancellationNotes: ""
   });
 
   const fetchDashboardData = async () => {
@@ -178,7 +194,11 @@ const Index = () => {
         is_barter: Boolean(a.client?.is_barter),
         barter_description: a.client?.barter_description || "",
         barter_balance: Number(a.client?.barter_balance || 0),
-        barter_history: Array.isArray(a.client?.barter_history) ? a.client.barter_history : []
+        barter_history: Array.isArray(a.client?.barter_history) ? a.client.barter_history : [],
+        cancelled_by: a.cancelled_by || null,
+        cancellation_reason: a.cancellation_reason || null,
+        cancellation_notes: a.cancellation_notes || null,
+        cancelled_at: a.cancelled_at || null
       })));
 
       setTomorrowAppointments(tomorrowAppts.map(a => ({
@@ -282,7 +302,17 @@ const Index = () => {
       setClientAcquisitionData(acqMonths);
 
       const monthlyAppts = (appts || []).filter((a: any) => a.date && a.date.startsWith(thisMonth));
-      
+      const cancelStats = computeCancellationAnalytics(monthlyAppts);
+      const topClassifiedReason = cancelStats.byReason.find((r) => r.actor !== "nao_informado");
+      setMonthlyCancelSummary({
+        totalCancelled: cancelStats.totalCancelled,
+        byClient: cancelStats.byClient,
+        byStudio: cancelStats.byStudio,
+        topReason: topClassifiedReason
+          ? `${topClassifiedReason.reason} (${topClassifiedReason.count}x)`
+          : undefined,
+      });
+
       setRevenueChartData(monthsData);
       setAppointmentsStatusData([
         { name: "Confirmados", value: monthlyAppts.filter((a: any) => a.status === 'Confirmado' || a.status === 'Agendado').length, fill: "#2563eb" },
@@ -309,7 +339,10 @@ const Index = () => {
       value: Math.max(0, Number(appt.value || 0) - Number(appt.deposit || 0)),
       paymentMethod: 'Pix',
       driveLink: '',
-      barterDescription: appt.barter_description || ''
+      barterDescription: appt.barter_description || '',
+      cancelledBy: appt.cancelled_by || "",
+      cancellationReason: appt.cancellation_reason || "",
+      cancellationNotes: appt.cancellation_notes || "",
     });
     setCheckoutModalOpen(true);
   };
@@ -326,7 +359,36 @@ const Index = () => {
           : checkoutData.status === 'Para Remarcar'
           ? 'Para Remarcar'
           : 'Cancelado';
-      const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
+
+      if (apptStatus === 'Cancelado') {
+        const cancellationError = validateCancellationInput({
+          cancelledBy: checkoutData.cancelledBy,
+          reason: checkoutData.cancellationReason,
+          notes: checkoutData.cancellationNotes,
+        });
+        if (cancellationError) {
+          toast.error(cancellationError);
+          return;
+        }
+      }
+
+      const cancellationFields = buildCancellationPayload(
+        apptStatus,
+        {
+          cancelledBy: checkoutData.cancelledBy,
+          reason: checkoutData.cancellationReason,
+          notes: checkoutData.cancellationNotes,
+        },
+        {
+          status: selectedCheckout.status,
+          cancelled_at: selectedCheckout.cancelled_at,
+        }
+      );
+
+      const { error: apptError } = await supabase
+        .from('appointments')
+        .update({ status: apptStatus, ...cancellationFields })
+        .eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
 
       // 2. Insert into financial if Recebido
@@ -822,6 +884,20 @@ const Index = () => {
               </div>
             );
           })()}
+
+          {monthlyCancelSummary.totalCancelled > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground font-medium">
+                Cancelamentos: <strong className="text-foreground">Cliente {monthlyCancelSummary.byClient}</strong> •{" "}
+                <strong className="text-foreground">Estúdio {monthlyCancelSummary.byStudio}</strong>
+              </span>
+              {monthlyCancelSummary.topReason && (
+                <span className="px-2 py-0.5 rounded-md bg-muted/60 border border-border/60 text-[11px] font-medium text-foreground">
+                  Principal: {monthlyCancelSummary.topReason}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -863,6 +939,22 @@ const Index = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {checkoutData.status === 'Cancelado' && (
+              <CancellationReasonFields
+                cancelledBy={checkoutData.cancelledBy}
+                reason={checkoutData.cancellationReason}
+                notes={checkoutData.cancellationNotes}
+                onChange={(next) =>
+                  setCheckoutData((prev) => ({
+                    ...prev,
+                    cancelledBy: next.cancelledBy,
+                    cancellationReason: next.reason,
+                    cancellationNotes: next.notes,
+                  }))
+                }
+              />
+            )}
 
             {checkoutData.status === 'Permuta' && (() => {
               const currentBalance = Number(selectedCheckout?.barter_balance || 0);

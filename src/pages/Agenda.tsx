@@ -30,6 +30,12 @@ import {
 } from "@/components/ui/context-menu";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, User, Calendar, Clock, RefreshCw, FileSpreadsheet, CheckCircle2, Trash2, ChevronsUpDown, Link as LinkIcon, ExternalLink, DollarSign, List, Settings, AlertTriangle, CalendarOff, Info, Lock, Ban, UserCheck, CalendarRange, BookOpen, Droplet } from "lucide-react";
 import { AgendaConfigModal, AgendaConfig, AgendaBlock } from "@/components/agenda/AgendaConfigModal";
+import { CancellationReasonFields } from "@/components/agenda/CancellationReasonFields";
+import {
+  buildCancellationPayload,
+  CancelledBy,
+  validateCancellationInput,
+} from "@/lib/cancellations";
 import FullCalendar from "@fullcalendar/react";
 import { EventContentArg } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -60,6 +66,10 @@ interface Appointment {
   status: string;
   type?: string;
   notes?: string;
+  cancelled_by?: CancelledBy | null;
+  cancellation_reason?: string | null;
+  cancellation_notes?: string | null;
+  cancelled_at?: string | null;
 }
 
 const Agenda = () => {
@@ -113,23 +123,32 @@ const Agenda = () => {
     value: 0,
     paymentMethod: 'Pix',
     driveLink: '',
-    barterDescription: ''
+    barterDescription: '',
+    cancelledBy: "" as CancelledBy | "",
+    cancellationReason: "",
+    cancellationNotes: ""
   });
 
-  const [formData, setFormData] = useState({
+  const createDefaultFormData = (overrides: Record<string, any> = {}) => ({
     client_id: "",
     journey_id: "",
     type: "Tatuagem",
     notes: "",
-    date: "",
+    date: new Date().toISOString().split("T")[0],
     startTime: "09:00",
     endTime: "10:00",
     status: "Agendado",
     value: 0,
     deposit: 0,
     deposit_date: new Date().toISOString().split("T")[0],
-    deposit_link: ""
+    deposit_link: "",
+    cancelledBy: "" as CancelledBy | "",
+    cancellationReason: "",
+    cancellationNotes: "",
+    ...overrides,
   });
+
+  const [formData, setFormData] = useState(() => createDefaultFormData({ date: "" }));
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -201,7 +220,11 @@ const Agenda = () => {
         deposit_link: a.deposit_link || a.deposit_drive_link || "",
         status: a.status || "Agendado",
         type: a.type || "Tatuagem",
-        notes: a.notes || ""
+        notes: a.notes || "",
+        cancelled_by: a.cancelled_by || null,
+        cancellation_reason: a.cancellation_reason || null,
+        cancellation_notes: a.cancellation_notes || null,
+        cancelled_at: a.cancelled_at || null
       }));
 
       setAppointments(formatted);
@@ -487,22 +510,41 @@ const Agenda = () => {
 
   const handleDateClick = (arg: { dateStr: string }) => {
     setEditingAppointment(null);
-    setFormData({
-      client_id: "",
-      journey_id: "",
-      type: "Tatuagem",
-      notes: "",
-      date: arg.dateStr.includes("T") ? arg.dateStr.split("T")[0] : arg.dateStr,
-      startTime: arg.dateStr.includes("T") ? arg.dateStr.split("T")[1].substring(0, 5) : "09:00",
-      endTime: arg.dateStr.includes("T") ?
-        new Date(new Date(arg.dateStr).getTime() + 60 * 60 * 1000).toTimeString().substring(0, 5) :
-        "10:00",
-      status: "Agendado",
-      value: 0,
-      deposit: 0,
-      deposit_date: new Date().toISOString().split("T")[0],
-      deposit_link: ""
-    });
+    setFormData(
+      createDefaultFormData({
+        date: arg.dateStr.includes("T") ? arg.dateStr.split("T")[0] : arg.dateStr,
+        startTime: arg.dateStr.includes("T") ? arg.dateStr.split("T")[1].substring(0, 5) : "09:00",
+        endTime: arg.dateStr.includes("T")
+          ? new Date(new Date(arg.dateStr).getTime() + 60 * 60 * 1000).toTimeString().substring(0, 5)
+          : "10:00",
+      })
+    );
+    setModalOpen(true);
+  };
+
+  const openEditWithAppointment = (appt: Appointment, statusOverride?: string) => {
+    setEditingAppointment(appt);
+    const normalizedType =
+      appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1" ? "Mentoria" : "Tatuagem";
+    setFormData(
+      createDefaultFormData({
+        client_id: appt.client_id || "",
+        journey_id: appt.journey_id || "",
+        type: normalizedType,
+        notes: appt.notes || "",
+        date: appt.date,
+        startTime: appt.startTime,
+        endTime: appt.endTime,
+        status: statusOverride || appt.status,
+        value: appt.value,
+        deposit: appt.deposit,
+        deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
+        deposit_link: appt.deposit_link || "",
+        cancelledBy: appt.cancelled_by || "",
+        cancellationReason: appt.cancellation_reason || "",
+        cancellationNotes: appt.cancellation_notes || "",
+      })
+    );
     setModalOpen(true);
   };
 
@@ -519,24 +561,7 @@ const Agenda = () => {
 
     const appt = appointments.find(a => a.id === arg.event.id);
     if (appt) {
-      setEditingAppointment(appt);
-      const normalizedType =
-        appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1" ? "Mentoria" : "Tatuagem";
-      setFormData({
-        client_id: appt.client_id || "",
-        journey_id: appt.journey_id || "",
-        type: normalizedType,
-        notes: appt.notes || "",
-        date: appt.date,
-        startTime: appt.startTime,
-        endTime: appt.endTime,
-        status: appt.status,
-        value: appt.value,
-        deposit: appt.deposit,
-        deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
-        deposit_link: appt.deposit_link || ""
-      });
-      setModalOpen(true);
+      openEditWithAppointment(appt);
     }
   };
 
@@ -585,6 +610,31 @@ const Agenda = () => {
       const finalStatus = typeof overrideStatus === 'string' ? overrideStatus : formData.status;
       const isMentoria = formData.type === "Mentoria";
 
+      if (finalStatus === "Cancelado") {
+        const cancellationError = validateCancellationInput({
+          cancelledBy: formData.cancelledBy,
+          reason: formData.cancellationReason,
+          notes: formData.cancellationNotes,
+        });
+        if (cancellationError) {
+          toast.error(cancellationError);
+          return;
+        }
+      }
+
+      const cancellationFields = buildCancellationPayload(
+        finalStatus,
+        {
+          cancelledBy: formData.cancelledBy,
+          reason: formData.cancellationReason,
+          notes: formData.cancellationNotes,
+        },
+        {
+          status: editingAppointment?.status,
+          cancelled_at: editingAppointment?.cancelled_at,
+        }
+      );
+
       const userStr = localStorage.getItem("noxus_user");
       const loggedUser = userStr ? JSON.parse(userStr) : null;
 
@@ -600,6 +650,7 @@ const Agenda = () => {
         deposit: formData.deposit,
         deposit_date: formData.deposit_date || null,
         user_id: loggedUser?.id || null,
+        ...cancellationFields,
       };
 
       let savedApptId = editingAppointment?.id;
@@ -790,20 +841,13 @@ const Agenda = () => {
 
   const handleSelect = (arg: any) => {
     setEditingAppointment(null);
-    setFormData({
-      client_id: "",
-      journey_id: "",
-      type: "Tatuagem",
-      notes: "",
-      date: arg.startStr.split("T")[0],
-      startTime: arg.startStr.includes("T") ? arg.startStr.split("T")[1].substring(0, 5) : "09:00",
-      endTime: arg.endStr.includes("T") ? arg.endStr.split("T")[1].substring(0, 5) : "10:00",
-      status: "Agendado",
-      value: 0,
-      deposit: 0,
-      deposit_date: new Date().toISOString().split("T")[0],
-      deposit_link: ""
-    });
+    setFormData(
+      createDefaultFormData({
+        date: arg.startStr.split("T")[0],
+        startTime: arg.startStr.includes("T") ? arg.startStr.split("T")[1].substring(0, 5) : "09:00",
+        endTime: arg.endStr.includes("T") ? arg.endStr.split("T")[1].substring(0, 5) : "10:00",
+      })
+    );
     setModalOpen(true);
   };
 
@@ -862,7 +906,10 @@ const Agenda = () => {
       value: Math.max(0, (appt.value || 0) - (appt.deposit || 0)),
       paymentMethod: 'Pix',
       driveLink: '',
-      barterDescription: matchedClient?.barter_description || ''
+      barterDescription: matchedClient?.barter_description || '',
+      cancelledBy: appt.cancelled_by || "",
+      cancellationReason: appt.cancellation_reason || "",
+      cancellationNotes: appt.cancellation_notes || "",
     });
     setCheckoutModalOpen(true);
   };
@@ -879,7 +926,36 @@ const Agenda = () => {
           : checkoutData.status === 'Para Remarcar'
           ? 'Para Remarcar'
           : 'Cancelado';
-      const { error: apptError } = await supabase.from('appointments').update({ status: apptStatus }).eq('id', selectedCheckout.id);
+
+      if (apptStatus === 'Cancelado') {
+        const cancellationError = validateCancellationInput({
+          cancelledBy: checkoutData.cancelledBy,
+          reason: checkoutData.cancellationReason,
+          notes: checkoutData.cancellationNotes,
+        });
+        if (cancellationError) {
+          toast.error(cancellationError);
+          return;
+        }
+      }
+
+      const cancellationFields = buildCancellationPayload(
+        apptStatus,
+        {
+          cancelledBy: checkoutData.cancelledBy,
+          reason: checkoutData.cancellationReason,
+          notes: checkoutData.cancellationNotes,
+        },
+        {
+          status: selectedCheckout.status,
+          cancelled_at: selectedCheckout.cancelled_at,
+        }
+      );
+
+      const { error: apptError } = await supabase
+        .from('appointments')
+        .update({ status: apptStatus, ...cancellationFields })
+        .eq('id', selectedCheckout.id);
       if (apptError) throw apptError;
 
       // 2. Se for "Recebido", lançar no financeiro
@@ -1006,20 +1082,22 @@ const Agenda = () => {
     setEditingAppointment(null);
     const normalizedType =
       appt.type === "Mentoria" || appt.type === "Mentoria 1 a 1" ? "Mentoria" : "Tatuagem";
-    setFormData({
-      client_id: appt.client_id || "",
-      journey_id: appt.journey_id || "",
-      type: normalizedType,
-      notes: appt.notes || "",
-      date: appt.date,
-      startTime: appt.startTime,
-      endTime: appt.endTime,
-      status: appt.status,
-      value: appt.value,
-      deposit: appt.deposit,
-      deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
-      deposit_link: appt.deposit_link || ""
-    });
+    setFormData(
+      createDefaultFormData({
+        client_id: appt.client_id || "",
+        journey_id: appt.journey_id || "",
+        type: normalizedType,
+        notes: appt.notes || "",
+        date: appt.date,
+        startTime: appt.startTime,
+        endTime: appt.endTime,
+        status: appt.status === "Cancelado" ? "Agendado" : appt.status,
+        value: appt.value,
+        deposit: appt.deposit,
+        deposit_date: appt.deposit_date || new Date().toISOString().split("T")[0],
+        deposit_link: appt.deposit_link || "",
+      })
+    );
     setModalOpen(true);
   };
 
@@ -1079,20 +1157,7 @@ const Agenda = () => {
         <div className="flex items-center gap-2">
           <Button className="hidden sm:flex h-10" onClick={() => {
             setEditingAppointment(null);
-            setFormData({
-              client_id: "",
-              journey_id: "",
-              type: "Tatuagem",
-              notes: "",
-              date: new Date().toISOString().split("T")[0],
-              startTime: "09:00",
-              endTime: "10:00",
-              status: "Agendado",
-              value: 0,
-              deposit: 0,
-              deposit_date: new Date().toISOString().split("T")[0],
-              deposit_link: ""
-            });
+            setFormData(createDefaultFormData());
             setModalOpen(true);
           }}>
             <Plus className="h-4 w-4 mr-2" />
@@ -1332,20 +1397,7 @@ const Agenda = () => {
             className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-xl shadow-primary/40 z-50 p-0 flex items-center justify-center"
             onClick={() => {
               setEditingAppointment(null);
-              setFormData({
-                client_id: "",
-                journey_id: "",
-                type: "Tatuagem",
-                notes: "",
-                date: new Date().toISOString().split("T")[0],
-                startTime: "09:00",
-                endTime: "10:00",
-                status: "Agendado",
-                value: 0,
-                deposit: 0,
-                deposit_date: new Date().toISOString().split("T")[0],
-                deposit_link: ""
-              });
+              setFormData(createDefaultFormData());
               setModalOpen(true);
             }}
           >
@@ -1721,6 +1773,22 @@ const Agenda = () => {
               </div>
             </div>
 
+            {formData.status === "Cancelado" && (
+              <CancellationReasonFields
+                cancelledBy={formData.cancelledBy}
+                reason={formData.cancellationReason}
+                notes={formData.cancellationNotes}
+                onChange={(next) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    cancelledBy: next.cancelledBy,
+                    cancellationReason: next.reason,
+                    cancellationNotes: next.notes,
+                  }))
+                }
+              />
+            )}
+
             {/* Horário de Início & Término */}
             <div className="space-y-1.5">
               {formData.client_id &&
@@ -1927,6 +1995,22 @@ const Agenda = () => {
               </Select>
             </div>
 
+            {checkoutData.status === 'Cancelado' && (
+              <CancellationReasonFields
+                cancelledBy={checkoutData.cancelledBy}
+                reason={checkoutData.cancellationReason}
+                notes={checkoutData.cancellationNotes}
+                onChange={(next) =>
+                  setCheckoutData((prev) => ({
+                    ...prev,
+                    cancelledBy: next.cancelledBy,
+                    cancellationReason: next.reason,
+                    cancellationNotes: next.notes,
+                  }))
+                }
+              />
+            )}
+
             {checkoutData.status === 'Permuta' && (() => {
               const checkoutClient = clients.find(c => c.id === selectedCheckout?.client_id);
               const currentBalance = Number(checkoutClient?.barter_balance || 0);
@@ -2040,6 +2124,7 @@ const Agenda = () => {
           <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={() => { handleEventClick({event: {id: contextMenuData.appt.id}}); setContextMenuData(null); }}>Editar</div>
           <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={() => { handleDuplicateContextMenu(contextMenuData.appt); setContextMenuData(null); }}>Duplicar</div>
           <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={(e) => { openCheckout(contextMenuData.appt, e as any); setContextMenuData(null); }}>Dar baixa</div>
+          <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm" onClick={() => { openEditWithAppointment(contextMenuData.appt, "Cancelado"); setContextMenuData(null); }}>Cancelar sessão</div>
           <div className="h-px bg-border my-1" />
           <div className="px-2 py-1.5 hover:bg-accent cursor-pointer text-sm text-red-500" onClick={() => { setEditingAppointment(contextMenuData.appt); setDeleteAlertOpen(true); setContextMenuData(null); }}>Excluir</div>
         </div>

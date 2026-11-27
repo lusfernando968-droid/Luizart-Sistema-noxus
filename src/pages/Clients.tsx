@@ -28,6 +28,7 @@ import { AgendaReschedule } from "@/components/agenda/AgendaReschedule";
 import { AgendaRegistry } from "@/components/agenda/AgendaRegistry";
 import { supabase } from "@/lib/supabase";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { formatCancellationSummary } from "@/lib/cancellations";
 import html2pdf from "html2pdf.js";
 
 interface Client {
@@ -1910,6 +1911,13 @@ const Clients = () => {
                                   </span>
                                 </div>
                               </div>
+
+                              {session.status === 'Cancelado' && (session.cancelled_by || session.cancellation_reason) && (
+                                <div className="px-2.5 py-1.5 rounded-lg bg-muted/40 border border-border/60 text-[11px] text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Motivo:</span>{" "}
+                                  {formatCancellationSummary(session).summary}
+                                </div>
+                              )}
 
                               {/* Detalhamento do Sinal e Saldo com Links do Drive (ou Pauta da Mentoria) */}
                               {isMentoria ? (
