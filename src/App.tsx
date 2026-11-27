@@ -17,7 +17,6 @@ import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import Mentorship from "./pages/Mentorship";
 import Strategy from "./pages/Strategy";
-import CareerTest from "./pages/CareerTest";
 import Settings from "./pages/Settings";
 import Inventory from "./pages/Inventory";
 import { Layout } from "@/components/Layout";
@@ -67,7 +66,6 @@ const App = () => (
               <Route path="/cursos" element={<Courses />} />
               <Route path="/mentorias" element={<Mentorship />} />
               <Route path="/estrategia" element={<Strategy />} />
-              <Route path="/jornada-teste" element={<CareerTest />} />
               <Route path="/configuracoes" element={<Settings />} />
             </Route>
 
